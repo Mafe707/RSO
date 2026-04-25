@@ -10,6 +10,12 @@ dependencies:
   flutter:
     sdk: flutter
   
+  # Universal IO (funciona en web y móvil)
+  universal_io: ^2.0.4
+
+  # Supabase
+  supabase_flutter: ^2.0.0
+
   # UI
   cupertino_icons: ^1.0.6
   

@@ -1,150 +1,163 @@
-import 'dart:io';
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+import '../config/supabase_config.dart';
 
 class DenunciaService extends ChangeNotifier {
-  List<Map<String, dynamic>> _denuncias = [];
-  
-  List<Map<String, dynamic>> get denuncias => _denuncias;
+  final SupabaseClient _supabase = SupabaseConfig.client;
 
-  // Generar código único para la denuncia
+  List<Map<String, dynamic>> _denuncias = [];
+  bool _isLoading = false;
+
+  List<Map<String, dynamic>> get denuncias => _denuncias;
+  bool get isLoading => _isLoading;
+
+  static const String _bucketEvidencias = 'evidencias';
+
+  // Generar código único
   String _generarCodigoUnico() {
     const prefix = 'PSJ';
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+
     String code = '';
     final now = DateTime.now().millisecondsSinceEpoch;
+
     for (int i = 0; i < 8; i++) {
       code += chars[(now + i) % chars.length];
     }
+
     return '$prefix-$code';
   }
 
-  // Crear nueva denuncia (Mock)
-  Future<Map<String, dynamic>> crearDenuncia({
+  // Crear denuncia con imagen
+  Future<Map<String, dynamic>?> crearDenuncia({
     required String ubicacion,
+    required double? latitud,
+    required double? longitud,
     required String categoria,
     required String descripcion,
-    required File imagen,
+    required Uint8List imagenBytes,
   }) async {
+    _setLoading(true);
+
     try {
-      // ========== VALIDACIONES FRONTEND ==========
+      // Validaciones
       if (ubicacion.trim().isEmpty) {
         throw Exception('La ubicación es requerida');
       }
-      if (categoria.isEmpty) {
+
+      if (categoria.trim().isEmpty) {
         throw Exception('La categoría es requerida');
       }
+
       if (descripcion.trim().isEmpty) {
         throw Exception('La descripción es requerida');
       }
-      if (imagen == null) {
-        throw Exception('La evidencia fotográfica es requerida');
+
+      if (imagenBytes.isEmpty) {
+        throw Exception('La imagen es requerida');
       }
-      
-      // Validar tamaño de imagen (máx 5MB)
-      final bytes = await imagen.readAsBytes();
-      if (bytes.lengthInBytes > 5 * 1024 * 1024) {
-        throw Exception('La imagen no debe superar los 5MB');
+
+      const maxSizeInBytes = 5 * 1024 * 1024;
+
+      if (imagenBytes.length > maxSizeInBytes) {
+        throw Exception('La imagen no puede superar los 5MB');
       }
-      
-      // Simular envío a Supabase
-      await Future.delayed(const Duration(seconds: 2));
-      
+
       final codigoUnico = _generarCodigoUnico();
-      final fechaActual = DateTime.now();
-      
-      final nuevaDenuncia = {
-        'id': fechaActual.millisecondsSinceEpoch.toString(),
+      final fechaActual = DateTime.now().toIso8601String();
+
+      // Ruta de la imagen dentro del bucket
+      final nombreArchivo = '$codigoUnico-${DateTime.now().millisecondsSinceEpoch}.jpg';
+      final rutaImagen = 'denuncias/$nombreArchivo';
+
+      // Subir imagen a Supabase Storage
+      await _supabase.storage.from(_bucketEvidencias).uploadBinary(
+            rutaImagen,
+            imagenBytes,
+            fileOptions: const FileOptions(
+              contentType: 'image/jpeg',
+              upsert: false,
+            ),
+          );
+
+      // Obtener URL pública de la imagen
+      final imagenUrl = _supabase.storage
+          .from(_bucketEvidencias)
+          .getPublicUrl(rutaImagen);
+
+      // Guardar denuncia en la tabla
+      final response = await _supabase.from('denuncias').insert({
         'codigo_unico': codigoUnico,
-        'ubicacion': ubicacion,
-        'categoria': categoria,
-        'descripcion': descripcion,
+        'ubicacion': ubicacion.trim(),
+        'latitud': latitud,
+        'longitud': longitud,
+        'categoria': categoria.trim(),
+        'descripcion': descripcion.trim(),
+        'imagen_url': imagenUrl,
         'estado': 'pendiente',
-        'creado_en': fechaActual.toIso8601String(),
-        'respuesta_oficial': null,
-      };
-      
+        'creado_en': fechaActual,
+        'actualizado_en': fechaActual,
+      }).select().single();
+
+      final nuevaDenuncia = Map<String, dynamic>.from(response);
+
       _denuncias.insert(0, nuevaDenuncia);
       notifyListeners();
-      
+
       return nuevaDenuncia;
     } catch (e) {
+      debugPrint('Error al crear denuncia: $e');
       rethrow;
+    } finally {
+      _setLoading(false);
     }
   }
 
-  // Obtener denuncia por código único (Mock)
+  // Obtener denuncia por código
   Future<Map<String, dynamic>?> obtenerDenunciaPorCodigo(String codigo) async {
-    await Future.delayed(const Duration(milliseconds: 500));
-    
-    // Mock de denuncias para consulta
-    final mockDenuncias = {
-      'PSJ-8A4B2C9D': {
-        'codigo_unico': 'PSJ-8A4B2C9D',
-        'ubicacion': 'Cra 25 #18-35, Centro, San Juan de Pasto',
-        'categoria': 'Venta informal',
-        'descripcion': 'Vendedores informales obstruyen el paso peatonal con puestos de comida.',
-        'estado': 'revision',
-        'creado_en': DateTime.now().subtract(const Duration(days: 2)).toIso8601String(),
-        'respuesta_oficial': 'El caso ha sido asignado a un inspector municipal para su verificación y gestión.',
-      },
-      'PSJ-123ABC': {
-        'codigo_unico': 'PSJ-123ABC',
-        'ubicacion': 'Calle 19 #24-50, Barrio La Enerría',
-        'categoria': 'Invasión vehicular',
-        'descripcion': 'Vehículo abandonado obstruyendo la acera.',
-        'estado': 'pendiente',
-        'creado_en': DateTime.now().subtract(const Duration(days: 5)).toIso8601String(),
-        'respuesta_oficial': null,
-      },
-      'PSJ-456DEF': {
-        'codigo_unico': 'PSJ-456DEF',
-        'ubicacion': 'Av. Los Estudiantes #12-08',
-        'categoria': 'Ocupación comercial',
-        'descripcion': 'Restaurante ocupa parte de la vía pública con mesas.',
-        'estado': 'resuelta',
-        'creado_en': DateTime.now().subtract(const Duration(days: 10)).toIso8601String(),
-        'respuesta_oficial': 'Se realizó visita de inspección y se notificó al propietario.',
-      },
-    };
-    
-    if (mockDenuncias.containsKey(codigo.toUpperCase())) {
-      return mockDenuncias[codigo.toUpperCase()];
+    try {
+      final response = await _supabase
+          .from('denuncias')
+          .select()
+          .eq('codigo_unico', codigo.toUpperCase().trim())
+          .maybeSingle();
+
+      if (response == null) return null;
+
+      return Map<String, dynamic>.from(response);
+    } catch (e) {
+      debugPrint('Error al obtener denuncia por código: $e');
+      return null;
     }
-    return null;
   }
 
-  // Obtener todas las denuncias (Mock)
+  // Obtener todas las denuncias
   Future<List<Map<String, dynamic>>> obtenerTodasDenuncias() async {
-    await Future.delayed(const Duration(milliseconds: 500));
-    
-    return [
-      {
-        'id': '1',
-        'codigo_unico': 'PSJ-8A4B2C9D',
-        'ubicacion': 'Cra 25 #18-35, Centro',
-        'categoria': 'Venta informal',
-        'estado': 'revision',
-        'latitud': 1.2136,
-        'longitud': -77.2811,
-      },
-      {
-        'id': '2',
-        'codigo_unico': 'PSJ-123ABC',
-        'ubicacion': 'Calle 19 #24-50',
-        'categoria': 'Invasión vehicular',
-        'estado': 'pendiente',
-        'latitud': 1.2180,
-        'longitud': -77.2780,
-      },
-      {
-        'id': '3',
-        'codigo_unico': 'PSJ-456DEF',
-        'ubicacion': 'Av. Los Estudiantes',
-        'categoria': 'Ocupación comercial',
-        'estado': 'resuelta',
-        'latitud': 1.2080,
-        'longitud': -77.2850,
-      },
-    ];
+    _setLoading(true);
+
+    try {
+      final response = await _supabase
+          .from('denuncias')
+          .select()
+          .order('creado_en', ascending: false);
+
+      _denuncias = List<Map<String, dynamic>>.from(response);
+      notifyListeners();
+
+      return _denuncias;
+    } catch (e) {
+      debugPrint('Error al obtener denuncias: $e');
+      return [];
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  void _setLoading(bool value) {
+    _isLoading = value;
+    notifyListeners();
   }
 }

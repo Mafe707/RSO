@@ -1,6 +1,9 @@
-import 'dart:io';
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:provider/provider.dart';
+
 import '../../config/app_config.dart';
 import '../../services/denuncia_service.dart';
 
@@ -15,14 +18,16 @@ class _ReportarScreenState extends State<ReportarScreen> {
   final _formKey = GlobalKey<FormState>();
   final _ubicacionController = TextEditingController();
   final _descripcionController = TextEditingController();
-  
+
   String? _categoriaSeleccionada;
-  File? _imagenSeleccionada;
+  Uint8List? _imagenBytes;
+
+  bool _cargandoUbicacion = false;
   bool _enviando = false;
   bool _reporteEnviado = false;
+
   String _codigoGenerado = '';
-  String? _errorMessage;
-  
+
   final List<String> _categorias = [
     'Ocupación comercial',
     'Invasión vehicular',
@@ -30,118 +35,152 @@ class _ReportarScreenState extends State<ReportarScreen> {
     'Publicidad no autorizada',
     'Otro',
   ];
-  
-  final DenunciaService _denunciaService = DenunciaService();
-  
+
+  @override
+  void initState() {
+    super.initState();
+    _obtenerUbicacion();
+  }
+
   @override
   void dispose() {
     _ubicacionController.dispose();
     _descripcionController.dispose();
     super.dispose();
   }
-  
+
+  Future<void> _obtenerUbicacion() async {
+    setState(() => _cargandoUbicacion = true);
+
+    await Future.delayed(const Duration(milliseconds: 500));
+
+    if (!mounted) return;
+
+    _ubicacionController.text = 'Cra 25 #18-35, Centro, San Juan de Pasto';
+
+    setState(() => _cargandoUbicacion = false);
+  }
+
   Future<void> _seleccionarImagen() async {
-    final picker = ImagePicker();
-    final pickedFile = await picker.pickImage(
-      source: ImageSource.gallery,
-      imageQuality: 70,
-    );
-    
-    if (pickedFile != null && mounted) {
+    try {
+      final picker = ImagePicker();
+
+      final pickedFile = await picker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 70,
+      );
+
+      if (pickedFile == null) return;
+
+      final bytes = await pickedFile.readAsBytes();
+
+      const maxSizeInBytes = 5 * 1024 * 1024;
+
+      if (bytes.length > maxSizeInBytes) {
+        _showError('La imagen no puede superar los 5MB');
+        return;
+      }
+
       setState(() {
-        _imagenSeleccionada = File(pickedFile.path);
-        _errorMessage = null;
+        _imagenBytes = bytes;
       });
+    } catch (e) {
+      _showError('Error al seleccionar imagen: ${e.toString()}');
     }
   }
-  
+
   void _mostrarOpcionesImagen() {
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (context) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(Icons.photo_library),
-              title: const Text('Galería'),
-              onTap: () {
-                Navigator.pop(context);
-                _seleccionarImagen();
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.camera_alt),
-              title: const Text('Cámara'),
-              onTap: () {
-                Navigator.pop(context);
-                // Por ahora solo galería
-                _seleccionarImagen();
-              },
-            ),
-          ],
-        ),
-      ),
+      builder: (context) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.photo_library),
+                title: const Text('Galería'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _seleccionarImagen();
+                },
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
-  
+
   Future<void> _enviarReporte() async {
-    // Validar formulario
     if (!_formKey.currentState!.validate()) return;
-    
+
     if (_categoriaSeleccionada == null) {
       _showError('Seleccione una categoría');
       return;
     }
-    
-    if (_imagenSeleccionada == null) {
+
+    if (_imagenBytes == null) {
       _showError('Seleccione una imagen de evidencia');
       return;
     }
-    
-    setState(() {
-      _enviando = true;
-      _errorMessage = null;
-    });
-    
+
+    setState(() => _enviando = true);
+
     try {
-      final resultado = await _denunciaService.crearDenuncia(
+      final denunciaService = Provider.of<DenunciaService>(
+        context,
+        listen: false,
+      );
+
+      final resultado = await denunciaService.crearDenuncia(
         ubicacion: _ubicacionController.text.trim(),
+        latitud: null,
+        longitud: null,
         categoria: _categoriaSeleccionada!,
         descripcion: _descripcionController.text.trim(),
-        imagen: _imagenSeleccionada!,
+        imagenBytes: _imagenBytes!,
       );
-      
-      if (mounted) {
+
+      if (!mounted) return;
+
+      if (resultado != null) {
         setState(() {
           _enviando = false;
           _reporteEnviado = true;
-          _codigoGenerado = resultado['codigo_unico'];
+          _codigoGenerado = resultado['codigo_unico']?.toString() ?? '';
         });
+
+        _showSuccess('¡Reporte enviado con éxito!');
+      } else {
+        setState(() => _enviando = false);
+        _showError('No se pudo enviar el reporte');
       }
     } catch (e) {
-      setState(() {
-        _enviando = false;
-        _errorMessage = e.toString();
-      });
-      _showError(e.toString());
+      if (!mounted) return;
+
+      setState(() => _enviando = false);
+      _showError('Error al enviar: ${e.toString()}');
     }
   }
-  
+
   void _showError(String message) {
+    if (!mounted) return;
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
         backgroundColor: AppConfig.rojo,
-        duration: const Duration(seconds: 3),
       ),
     );
   }
-  
+
   void _showSuccess(String message) {
+    if (!mounted) return;
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
@@ -149,20 +188,21 @@ class _ReportarScreenState extends State<ReportarScreen> {
       ),
     );
   }
-  
+
   void _resetForm() {
     setState(() {
       _formKey.currentState?.reset();
       _categoriaSeleccionada = null;
-      _imagenSeleccionada = null;
+      _imagenBytes = null;
       _descripcionController.clear();
       _ubicacionController.clear();
       _reporteEnviado = false;
       _codigoGenerado = '';
-      _errorMessage = null;
     });
+
+    _obtenerUbicacion();
   }
-  
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -173,7 +213,7 @@ class _ReportarScreenState extends State<ReportarScreen> {
       body: _reporteEnviado ? _buildSuccessScreen() : _buildFormScreen(),
     );
   }
-  
+
   Widget _buildFormScreen() {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
@@ -184,7 +224,10 @@ class _ReportarScreenState extends State<ReportarScreen> {
           children: [
             const Text(
               'Reportar Invasión al Espacio Público',
-              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+              ),
             ),
             const SizedBox(height: 8),
             const Text(
@@ -192,8 +235,8 @@ class _ReportarScreenState extends State<ReportarScreen> {
               style: TextStyle(color: AppConfig.grisOscuro),
             ),
             const SizedBox(height: 24),
-            
-            // ========== UBICACIÓN ==========
+
+            // Ubicación
             Card(
               child: Padding(
                 padding: const EdgeInsets.all(16),
@@ -206,17 +249,36 @@ class _ReportarScreenState extends State<ReportarScreen> {
                         SizedBox(width: 8),
                         Text(
                           'Ubicación',
-                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
                         ),
                       ],
                     ),
                     const SizedBox(height: 12),
                     TextFormField(
                       controller: _ubicacionController,
-                      decoration: const InputDecoration(
+                      decoration: InputDecoration(
                         hintText: 'Ej: Calle 17 #20-69, Barrio Centro',
-                        prefixIcon: Icon(Icons.location_searching),
-                        border: OutlineInputBorder(),
+                        prefixIcon: const Icon(Icons.location_searching),
+                        suffixIcon: _cargandoUbicacion
+                            ? const Padding(
+                                padding: EdgeInsets.all(12),
+                                child: SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
+                                ),
+                              )
+                            : IconButton(
+                                icon: const Icon(Icons.refresh),
+                                onPressed: _obtenerUbicacion,
+                                tooltip: 'Actualizar ubicación',
+                              ),
+                        border: const OutlineInputBorder(),
                       ),
                       validator: (value) {
                         if (value == null || value.trim().isEmpty) {
@@ -229,9 +291,10 @@ class _ReportarScreenState extends State<ReportarScreen> {
                 ),
               ),
             ),
+
             const SizedBox(height: 16),
-            
-            // ========== CATEGORÍA ==========
+
+            // Categoría
             Card(
               child: Padding(
                 padding: const EdgeInsets.all(16),
@@ -244,7 +307,10 @@ class _ReportarScreenState extends State<ReportarScreen> {
                         SizedBox(width: 8),
                         Text(
                           'Categoría',
-                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
                         ),
                       ],
                     ),
@@ -257,14 +323,18 @@ class _ReportarScreenState extends State<ReportarScreen> {
                         border: OutlineInputBorder(),
                       ),
                       items: _categorias.map((categoria) {
-                        return DropdownMenuItem(
+                        return DropdownMenuItem<String>(
                           value: categoria,
                           child: Text(categoria),
                         );
                       }).toList(),
-                      onChanged: (value) => setState(() => _categoriaSeleccionada = value),
+                      onChanged: (value) {
+                        setState(() => _categoriaSeleccionada = value);
+                      },
                       validator: (value) {
-                        if (value == null) return 'Seleccione una categoría';
+                        if (value == null) {
+                          return 'Seleccione una categoría';
+                        }
                         return null;
                       },
                     ),
@@ -272,9 +342,10 @@ class _ReportarScreenState extends State<ReportarScreen> {
                 ),
               ),
             ),
+
             const SizedBox(height: 16),
-            
-            // ========== DESCRIPCIÓN ==========
+
+            // Descripción
             Card(
               child: Padding(
                 padding: const EdgeInsets.all(16),
@@ -287,7 +358,10 @@ class _ReportarScreenState extends State<ReportarScreen> {
                         SizedBox(width: 8),
                         Text(
                           'Descripción',
-                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
                         ),
                       ],
                     ),
@@ -303,9 +377,6 @@ class _ReportarScreenState extends State<ReportarScreen> {
                         if (value == null || value.trim().isEmpty) {
                           return 'La descripción es requerida';
                         }
-                        if (value.length < 10) {
-                          return 'Describa con más detalle (mínimo 10 caracteres)';
-                        }
                         return null;
                       },
                     ),
@@ -313,9 +384,10 @@ class _ReportarScreenState extends State<ReportarScreen> {
                 ),
               ),
             ),
+
             const SizedBox(height: 16),
-            
-            // ========== EVIDENCIA (IMAGEN) ==========
+
+            // Evidencia fotográfica
             Card(
               child: Padding(
                 padding: const EdgeInsets.all(16),
@@ -328,7 +400,10 @@ class _ReportarScreenState extends State<ReportarScreen> {
                         SizedBox(width: 8),
                         Text(
                           'Evidencia fotográfica',
-                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
                         ),
                       ],
                     ),
@@ -344,18 +419,21 @@ class _ReportarScreenState extends State<ReportarScreen> {
                         height: 200,
                         width: double.infinity,
                         decoration: BoxDecoration(
-                          border: Border.all(color: AppConfig.grisMedio, width: 2),
+                          border: Border.all(
+                            color: AppConfig.grisMedio,
+                            width: 2,
+                          ),
                           borderRadius: BorderRadius.circular(12),
                           color: AppConfig.grisClaro,
                         ),
-                        child: _imagenSeleccionada != null
+                        child: _imagenBytes != null
                             ? Stack(
                                 fit: StackFit.expand,
                                 children: [
                                   ClipRRect(
                                     borderRadius: BorderRadius.circular(10),
-                                    child: Image.file(
-                                      _imagenSeleccionada!,
+                                    child: Image.memory(
+                                      _imagenBytes!,
                                       fit: BoxFit.cover,
                                     ),
                                   ),
@@ -365,9 +443,13 @@ class _ReportarScreenState extends State<ReportarScreen> {
                                     child: CircleAvatar(
                                       backgroundColor: Colors.black54,
                                       child: IconButton(
-                                        icon: const Icon(Icons.close, size: 20, color: Colors.white),
+                                        icon: const Icon(
+                                          Icons.close,
+                                          size: 20,
+                                          color: Colors.white,
+                                        ),
                                         onPressed: () {
-                                          setState(() => _imagenSeleccionada = null);
+                                          setState(() => _imagenBytes = null);
                                         },
                                       ),
                                     ),
@@ -390,7 +472,10 @@ class _ReportarScreenState extends State<ReportarScreen> {
                                   const SizedBox(height: 4),
                                   Text(
                                     'JPG, PNG (máx. 5MB)',
-                                    style: TextStyle(fontSize: 11, color: AppConfig.grisOscuro),
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: AppConfig.grisOscuro,
+                                    ),
                                   ),
                                 ],
                               ),
@@ -400,9 +485,10 @@ class _ReportarScreenState extends State<ReportarScreen> {
                 ),
               ),
             ),
+
             const SizedBox(height: 24),
-            
-            // ========== BOTÓN ENVIAR ==========
+
+            // Botón enviar
             SizedBox(
               width: double.infinity,
               height: 50,
@@ -410,31 +496,39 @@ class _ReportarScreenState extends State<ReportarScreen> {
                 onPressed: _enviando ? null : _enviarReporte,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppConfig.azulOscuro,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
                 ),
                 child: _enviando
                     ? const SizedBox(
                         width: 20,
                         height: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                        child: CircularProgressIndicator(strokeWidth: 2),
                       )
-                    : const Text('ENVIAR REPORTE', style: TextStyle(fontSize: 16)),
+                    : const Text(
+                        'ENVIAR REPORTE',
+                        style: TextStyle(fontSize: 16),
+                      ),
               ),
             ),
+
             const SizedBox(height: 20),
           ],
         ),
       ),
     );
   }
-  
+
   Widget _buildSuccessScreen() {
     return Center(
       child: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
         child: Card(
           elevation: 4,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
           child: Padding(
             padding: const EdgeInsets.all(24),
             child: Column(
@@ -446,15 +540,25 @@ class _ReportarScreenState extends State<ReportarScreen> {
                     color: AppConfig.verde.withOpacity(0.1),
                     shape: BoxShape.circle,
                   ),
-                  child: Icon(Icons.check_circle, size: 64, color: AppConfig.verde),
+                  child: Icon(
+                    Icons.check_circle,
+                    size: 64,
+                    color: AppConfig.verde,
+                  ),
                 ),
                 const SizedBox(height: 16),
                 const Text(
                   '¡Reporte enviado con éxito!',
-                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
                 const SizedBox(height: 8),
-                const Text('Su reporte ha sido registrado. Guarde el siguiente código:'),
+                const Text(
+                  'Su reporte ha sido registrado. Guarde el siguiente código:',
+                  textAlign: TextAlign.center,
+                ),
                 const SizedBox(height: 16),
                 Container(
                   width: double.infinity,
@@ -480,7 +584,9 @@ class _ReportarScreenState extends State<ReportarScreen> {
                     Expanded(
                       child: ElevatedButton(
                         onPressed: _resetForm,
-                        style: ElevatedButton.styleFrom(backgroundColor: AppConfig.azulOscuro),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppConfig.azulOscuro,
+                        ),
                         child: const Text('NUEVO REPORTE'),
                       ),
                     ),

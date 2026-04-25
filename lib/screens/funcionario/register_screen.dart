@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../config/app_config.dart';
 import '../../services/auth_service.dart';
 
@@ -12,6 +13,7 @@ class FuncionarioRegisterScreen extends StatefulWidget {
 class _FuncionarioRegisterScreenState extends State<FuncionarioRegisterScreen> {
   final _formKey = GlobalKey<FormState>();
   final _nombreController = TextEditingController();
+  final _apellidoController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
@@ -19,11 +21,8 @@ class _FuncionarioRegisterScreenState extends State<FuncionarioRegisterScreen> {
   
   String? _departamentoSeleccionado;
   bool _termsAccepted = false;
-  bool _isLoading = false;
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
-  
-  final AuthService _authService = AuthService();
   
   final List<String> _departamentos = [
     'Espacio Público',
@@ -49,6 +48,7 @@ class _FuncionarioRegisterScreenState extends State<FuncionarioRegisterScreen> {
   @override
   void dispose() {
     _nombreController.dispose();
+    _apellidoController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
@@ -95,24 +95,28 @@ class _FuncionarioRegisterScreenState extends State<FuncionarioRegisterScreen> {
       return;
     }
     
-    setState(() => _isLoading = true);
+    final email = _emailController.text.trim().toLowerCase();
     
-    try {
-      final success = await _authService.register(
-        nombre: _nombreController.text.trim(),
-        email: _emailController.text.trim().toLowerCase(),
-        password: _passwordController.text,
-        cargo: _cargoController.text.trim(),
-        departamento: _departamentoSeleccionado!,
-      );
-      
-      if (success && mounted) {
-        _showSuccessDialog();
-      }
-    } catch (e) {
-      _showError(e.toString());
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
+    // Validar correo institucional
+    if (!email.endsWith('@alcaldia.gov.co')) {
+      _showError('Debe usar su correo institucional (@alcaldia.gov.co)');
+      return;
+    }
+    
+    final authService = Provider.of<AuthService>(context, listen: false);
+    
+    final success = await authService.register(
+      nombre: '${_nombreController.text.trim()} ${_apellidoController.text.trim()}',
+      email: email,
+      password: _passwordController.text,
+      cargo: _cargoController.text.trim(),
+      departamento: _departamentoSeleccionado!,
+    );
+    
+    if (success && mounted) {
+      _showSuccessDialog();
+    } else if (mounted) {
+      _showError(authService.error ?? 'Error al registrar');
     }
   }
   
@@ -154,6 +158,8 @@ class _FuncionarioRegisterScreenState extends State<FuncionarioRegisterScreen> {
   
   @override
   Widget build(BuildContext context) {
+    final authService = Provider.of<AuthService>(context);
+    
     return Scaffold(
       appBar: AppBar(
         title: const Text('Registro de Funcionario'),
@@ -187,28 +193,33 @@ class _FuncionarioRegisterScreenState extends State<FuncionarioRegisterScreen> {
                   ),
                   const SizedBox(height: 24),
                   
-                  // ========== NOMBRE ==========
+                  // Nombre
                   TextFormField(
                     controller: _nombreController,
                     decoration: const InputDecoration(
-                      labelText: 'Nombre completo',
+                      labelText: 'Nombre',
                       prefixIcon: Icon(Icons.person),
                       border: OutlineInputBorder(),
-                      hintText: 'Ej: Carlos Rodríguez',
+                      hintText: 'Ingrese su nombre',
                     ),
-                    validator: (value) {
-                      if (value == null || value.trim().isEmpty) {
-                        return 'El nombre es requerido';
-                      }
-                      if (value.trim().length < 3) {
-                        return 'Ingrese el nombre completo';
-                      }
-                      return null;
-                    },
+                    validator: (value) => value?.isEmpty == true ? 'El nombre es requerido' : null,
                   ),
                   const SizedBox(height: 16),
                   
-                  // ========== CORREO (solo @alcaldia.gov.co) ==========
+                  // Apellido
+                  TextFormField(
+                    controller: _apellidoController,
+                    decoration: const InputDecoration(
+                      labelText: 'Apellido',
+                      prefixIcon: Icon(Icons.person_outline),
+                      border: OutlineInputBorder(),
+                      hintText: 'Ingrese su apellido',
+                    ),
+                    validator: (value) => value?.isEmpty == true ? 'El apellido es requerido' : null,
+                  ),
+                  const SizedBox(height: 16),
+                  
+                  // Correo
                   TextFormField(
                     controller: _emailController,
                     decoration: const InputDecoration(
@@ -221,13 +232,9 @@ class _FuncionarioRegisterScreenState extends State<FuncionarioRegisterScreen> {
                     ),
                     keyboardType: TextInputType.emailAddress,
                     validator: (value) {
-                      if (value == null || value.trim().isEmpty) {
-                        return 'El correo es requerido';
-                      }
+                      if (value?.isEmpty == true) return 'El correo es requerido';
                       final emailRegex = RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$');
-                      if (!emailRegex.hasMatch(value)) {
-                        return 'Ingrese un correo válido';
-                      }
+                      if (!emailRegex.hasMatch(value!)) return 'Ingrese un correo válido';
                       if (!value.toLowerCase().endsWith('@alcaldia.gov.co')) {
                         return 'Debe usar @alcaldia.gov.co';
                       }
@@ -236,7 +243,7 @@ class _FuncionarioRegisterScreenState extends State<FuncionarioRegisterScreen> {
                   ),
                   const SizedBox(height: 16),
                   
-                  // ========== CONTRASEÑA ==========
+                  // Contraseña
                   TextFormField(
                     controller: _passwordController,
                     decoration: InputDecoration(
@@ -251,18 +258,10 @@ class _FuncionarioRegisterScreenState extends State<FuncionarioRegisterScreen> {
                     ),
                     obscureText: _obscurePassword,
                     validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'La contraseña es requerida';
-                      }
-                      if (value.length < 8) {
-                        return 'Mínimo 8 caracteres';
-                      }
-                      if (!value.contains(RegExp(r'[A-Z]'))) {
-                        return 'Debe tener una letra mayúscula';
-                      }
-                      if (!value.contains(RegExp(r'[0-9]'))) {
-                        return 'Debe tener un número';
-                      }
+                      if (value?.isEmpty == true) return 'La contraseña es requerida';
+                      if (value!.length < 8) return 'Mínimo 8 caracteres';
+                      if (!value.contains(RegExp(r'[A-Z]'))) return 'Debe tener una letra mayúscula';
+                      if (!value.contains(RegExp(r'[0-9]'))) return 'Debe tener un número';
                       return null;
                     },
                   ),
@@ -302,7 +301,7 @@ class _FuncionarioRegisterScreenState extends State<FuncionarioRegisterScreen> {
                   ],
                   const SizedBox(height: 16),
                   
-                  // ========== CONFIRMAR CONTRASEÑA ==========
+                  // Confirmar contraseña
                   TextFormField(
                     controller: _confirmPasswordController,
                     decoration: InputDecoration(
@@ -316,15 +315,13 @@ class _FuncionarioRegisterScreenState extends State<FuncionarioRegisterScreen> {
                     ),
                     obscureText: _obscureConfirmPassword,
                     validator: (value) {
-                      if (value != _passwordController.text) {
-                        return 'Las contraseñas no coinciden';
-                      }
+                      if (value != _passwordController.text) return 'Las contraseñas no coinciden';
                       return null;
                     },
                   ),
                   const SizedBox(height: 16),
                   
-                  // ========== CARGO ==========
+                  // Cargo
                   TextFormField(
                     controller: _cargoController,
                     decoration: const InputDecoration(
@@ -333,16 +330,11 @@ class _FuncionarioRegisterScreenState extends State<FuncionarioRegisterScreen> {
                       border: OutlineInputBorder(),
                       hintText: 'Ej: Inspector de Espacio Público',
                     ),
-                    validator: (value) {
-                      if (value == null || value.trim().isEmpty) {
-                        return 'El cargo es requerido';
-                      }
-                      return null;
-                    },
+                    validator: (value) => value?.isEmpty == true ? 'El cargo es requerido' : null,
                   ),
                   const SizedBox(height: 16),
                   
-                  // ========== DEPARTAMENTO ==========
+                  // Departamento
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12),
                     decoration: BoxDecoration(
@@ -358,16 +350,13 @@ class _FuncionarioRegisterScreenState extends State<FuncionarioRegisterScreen> {
                           return DropdownMenuItem(value: depto, child: Text(depto));
                         }).toList(),
                         onChanged: (value) => setState(() => _departamentoSeleccionado = value),
-                        validator: (value) {
-                          if (value == null) return 'Seleccione un departamento';
-                          return null;
-                        },
+                        validator: (value) => value == null ? 'Seleccione un departamento' : null,
                       ),
                     ),
                   ),
                   const SizedBox(height: 24),
                   
-                  // ========== TÉRMINOS ==========
+                  // Términos
                   Row(
                     children: [
                       Checkbox(
@@ -402,24 +391,24 @@ class _FuncionarioRegisterScreenState extends State<FuncionarioRegisterScreen> {
                   ),
                   const SizedBox(height: 24),
                   
-                  // ========== BOTÓN REGISTRAR ==========
+                  // Botón registrar
                   SizedBox(
                     width: double.infinity,
                     height: 50,
                     child: ElevatedButton(
-                      onPressed: _isLoading ? null : _register,
+                      onPressed: authService.isLoading ? null : _register,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppConfig.verde,
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                       ),
-                      child: _isLoading
+                      child: authService.isLoading
                           ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
                           : const Text('REGISTRARSE', style: TextStyle(fontSize: 16)),
                     ),
                   ),
                   const SizedBox(height: 16),
                   
-                  // ========== LINK A LOGIN ==========
+                  // Link a login
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
@@ -437,7 +426,7 @@ class _FuncionarioRegisterScreenState extends State<FuncionarioRegisterScreen> {
           ),
           
           // Loading overlay
-          if (_isLoading)
+          if (authService.isLoading)
             Container(
               color: Colors.black54,
               child: const Center(

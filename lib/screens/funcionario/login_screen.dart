@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../config/app_config.dart';
 import '../../services/auth_service.dart';
 import 'funcionario_home_screen.dart';
@@ -14,9 +15,6 @@ class FuncionarioLoginScreen extends StatefulWidget {
 class _FuncionarioLoginScreenState extends State<FuncionarioLoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  final AuthService _authService = AuthService();
-  
-  bool _isLoading = false;
   bool _obscurePassword = true;
 
   @override
@@ -30,7 +28,6 @@ class _FuncionarioLoginScreenState extends State<FuncionarioLoginScreen> {
     final email = _emailController.text.trim().toLowerCase();
     final password = _passwordController.text;
 
-    // Validaciones visuales inmediatas
     if (email.isEmpty) {
       _showError('El correo electrónico es requerido');
       return;
@@ -40,22 +37,31 @@ class _FuncionarioLoginScreenState extends State<FuncionarioLoginScreen> {
       return;
     }
 
-    setState(() => _isLoading = true);
+    // Validar formato de email
+    final emailRegex = RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$');
+    if (!emailRegex.hasMatch(email)) {
+      _showError('Ingrese un correo electrónico válido');
+      return;
+    }
 
-    try {
-      final success = await _authService.login(email, password);
-      
-      if (success && mounted) {
-        _showSuccess('Login exitoso');
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => FuncionarioHomeScreen()),
-        );
-      }
-    } catch (e) {
-      _showError(e.toString());
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
+    // Validar que sea correo institucional
+    if (!email.endsWith('@alcaldia.gov.co')) {
+      _showError('Debe usar su correo institucional (@alcaldia.gov.co)');
+      return;
+    }
+
+    final authService = Provider.of<AuthService>(context, listen: false);
+    
+    final success = await authService.login(email, password);
+    
+    if (success && mounted) {
+      _showSuccess('Login exitoso');
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const FuncionarioHomeScreen()),
+      );
+    } else if (mounted) {
+      _showError(authService.error ?? 'Credenciales incorrectas');
     }
   }
 
@@ -73,6 +79,8 @@ class _FuncionarioLoginScreenState extends State<FuncionarioLoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final authService = Provider.of<AuthService>(context);
+    
     return Scaffold(
       body: Container(
         decoration: const BoxDecoration(
@@ -159,12 +167,12 @@ class _FuncionarioLoginScreenState extends State<FuncionarioLoginScreen> {
                         width: double.infinity,
                         height: 50,
                         child: ElevatedButton(
-                          onPressed: _isLoading ? null : _login,
+                          onPressed: authService.isLoading ? null : _login,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: AppConfig.azulClaro,
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                           ),
-                          child: _isLoading
+                          child: authService.isLoading
                               ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
                               : const Text('INICIAR SESIÓN', style: TextStyle(fontSize: 16)),
                         ),

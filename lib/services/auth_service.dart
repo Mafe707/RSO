@@ -1,15 +1,32 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import '../config/supabase_config.dart';
 
 class AuthService extends ChangeNotifier {
-  // Estado de autenticación
-  Map<String, dynamic>? _currentUser;
-  bool _isLoggedIn = false;
-
-  // Getters
-  bool get isLoggedIn => _isLoggedIn;
-  Map<String, dynamic>? get currentUser => _currentUser;
-
-  // Registrar funcionario (Mock)
+  final _supabase = SupabaseConfig.client;
+  
+  User? _currentUser;
+  bool _isLoading = false;
+  String? _error;
+  
+  bool get isLoggedIn => _currentUser != null;
+  User? get currentUser => _currentUser;
+  bool get isLoading => _isLoading;
+  String? get error => _error;
+  
+  AuthService() {
+    _checkSession();
+  }
+  
+  Future<void> _checkSession() async {
+    final session = _supabase.auth.currentSession;
+    if (session != null) {
+      _currentUser = session.user;
+      notifyListeners();
+    }
+  }
+  
+  // REGISTRO DE FUNCIONARIO
   Future<bool> register({
     required String nombre,
     required String email,
@@ -17,143 +34,93 @@ class AuthService extends ChangeNotifier {
     required String cargo,
     required String departamento,
   }) async {
+    _setLoading(true);
+    _clearError();
+    
     try {
-      // Validaciones de negocio
-      if (nombre.isEmpty) throw Exception('El nombre es requerido');
-      if (email.isEmpty) throw Exception('El correo es requerido');
-      if (password.isEmpty) throw Exception('La contraseña es requerida');
-      if (cargo.isEmpty) throw Exception('El cargo es requerido');
-      if (departamento.isEmpty) throw Exception('El departamento es requerido');
+      // 1. Registrar en Auth
+      final authResponse = await _supabase.auth.signUp(
+        email: email,
+        password: password,
+        data: {
+          'nombre': nombre,
+          'cargo': cargo,
+          'departamento': departamento,
+        },
+      );
       
-      // Validar formato de email
-      final emailRegex = RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$');
-      if (!emailRegex.hasMatch(email)) {
-        throw Exception('Ingrese un correo electrónico válido');
+      if (authResponse.user == null) {
+        throw Exception('Error al registrar');
       }
       
-      // Validar correo institucional @alcaldia.gov.co
-      if (!email.toLowerCase().endsWith('@alcaldia.gov.co')) {
-        throw Exception('Debe usar su correo institucional (@alcaldia.gov.co)');
-      }
-      
-      // Validar contraseña
-      if (password.length < 8) {
-        throw Exception('La contraseña debe tener al menos 8 caracteres');
-      }
-      if (!password.contains(RegExp(r'[A-Z]'))) {
-        throw Exception('La contraseña debe tener al menos una letra mayúscula');
-      }
-      if (!password.contains(RegExp(r'[0-9]'))) {
-        throw Exception('La contraseña debe tener al menos un número');
-      }
-      
-      // Simular registro exitoso
-      await Future.delayed(const Duration(seconds: 1));
-      
-      // Verificar si el email ya existe (mock)
-      if (email == 'funcionario@alcaldia.gov.co') {
-        throw Exception('Este correo ya está registrado');
-      }
-      
-      _currentUser = {
-        'id': 'user_${DateTime.now().millisecondsSinceEpoch}',
+      // 2. Guardar en tabla funcionarios
+      await _supabase.from('funcionarios').insert({
         'nombre': nombre,
-        'email': email,
+        'correo': email,
+        'contrasena': password,
         'cargo': cargo,
         'departamento': departamento,
-        'rol': 'funcionario',
-      };
-      _isLoggedIn = true;
+        'activo': true,
+      });
+      
+      _currentUser = authResponse.user;
       notifyListeners();
-      
       return true;
+      
     } catch (e) {
-      rethrow;
+      _setError(e.toString());
+      return false;
+    } finally {
+      _setLoading(false);
     }
   }
-
-  // Login de funcionario (Mock)
+  
+  // LOGIN
   Future<bool> login(String email, String password) async {
+    _setLoading(true);
+    _clearError();
+    
     try {
-      // Validaciones
-      if (email.isEmpty) throw Exception('El correo es requerido');
-      if (password.isEmpty) throw Exception('La contraseña es requerida');
+      final response = await _supabase.auth.signInWithPassword(
+        email: email,
+        password: password,
+      );
       
-      final emailRegex = RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$');
-      if (!emailRegex.hasMatch(email)) {
-        throw Exception('Ingrese un correo electrónico válido');
-      }
-      
-      if (!email.toLowerCase().endsWith('@alcaldia.gov.co')) {
-        throw Exception('Debe usar su correo institucional (@alcaldia.gov.co)');
-      }
-      
-      await Future.delayed(const Duration(seconds: 1));
-      
-      // Credenciales mock válidas
-      final credencialesValidas = {
-        'funcionario@alcaldia.gov.co': '123456',
-        'maria@alcaldia.gov.co': '123456',
-        'javier@alcaldia.gov.co': '123456',
-      };
-      
-      if (credencialesValidas.containsKey(email.toLowerCase()) && 
-          credencialesValidas[email.toLowerCase()] == password) {
-        
-        _currentUser = {
-          'id': '1',
-          'nombre': email.toLowerCase() == 'funcionario@alcaldia.gov.co' 
-              ? 'Carlos Rodríguez' 
-              : email.toLowerCase() == 'maria@alcaldia.gov.co'
-                  ? 'María González'
-                  : 'Javier López',
-          'email': email,
-          'cargo': 'Inspector de Espacio Público',
-          'departamento': 'Espacio Público',
-          'rol': 'funcionario',
-        };
-        _isLoggedIn = true;
-        notifyListeners();
-        return true;
-      } else {
+      if (response.user == null) {
         throw Exception('Credenciales incorrectas');
       }
+      
+      _currentUser = response.user;
+      notifyListeners();
+      return true;
+      
     } catch (e) {
-      rethrow;
+      _setError(e.toString());
+      return false;
+    } finally {
+      _setLoading(false);
     }
   }
-
-  // Login de administrador (Mock)
-  Future<bool> loginAdmin(String email, String password) async {
-    try {
-      if (email.isEmpty) throw Exception('El correo es requerido');
-      if (password.isEmpty) throw Exception('La contraseña es requerida');
-      
-      await Future.delayed(const Duration(seconds: 1));
-      
-      if (email == 'admin@alcaldia.gov.co' && password == 'admin123') {
-        _currentUser = {
-          'id': 'admin_1',
-          'nombre': 'Administrador',
-          'email': email,
-          'rol': 'administrador',
-        };
-        _isLoggedIn = true;
-        notifyListeners();
-        return true;
-      } else {
-        throw Exception('Credenciales incorrectas');
-      }
-    } catch (e) {
-      rethrow;
-    }
-  }
-
-  // Cerrar sesión
+  
+  // LOGOUT
   Future<void> logout() async {
-    await Future.delayed(const Duration(milliseconds: 500));
+    await _supabase.auth.signOut();
     _currentUser = null;
-    _isLoggedIn = false;
+    notifyListeners();
+  }
+  
+  void _setLoading(bool value) {
+    _isLoading = value;
+    notifyListeners();
+  }
+  
+  void _setError(String message) {
+    _error = message;
+    notifyListeners();
+  }
+  
+  void _clearError() {
+    _error = null;
     notifyListeners();
   }
 }
