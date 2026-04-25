@@ -1,0 +1,43 @@
+# Flutter
+.dart_tool/
+.build/
+.flutter-plugins
+.flutter-plugins-dependencies
+.pub-cache/
+.pub/
+build/
+*.lock
+*.iml
+*.iws
+.idea/
+*.class
+*.log
+*.pyc
+*.swp
+.DS_Store
+.dart_tool/
+.packages
+pubspec.lock
+
+# Android
+android/local.properties
+android/app/src/debug/
+android/app/src/profile/
+android/app/src/release/
+android/.gradle/
+android/.idea/
+
+# iOS
+ios/Flutter/Generated.xcconfig
+ios/Flutter/flutter_export_environment.sh
+ios/.symlinks/
+ios/Pods/
+Podfile.lock
+
+# Web
+build/web/
+
+# Windows
+windows/flutter/
+windows/runner/debug_assembly/
+*.user
