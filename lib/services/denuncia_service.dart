@@ -3,7 +3,8 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../config/supabase_config.dart';
+import '../core/supabase/supabase_config.dart';
+import '../core/utils/codigo_generator.dart';
 
 class DenunciaService extends ChangeNotifier {
   final SupabaseClient _supabase = SupabaseConfig.client;
@@ -15,80 +16,58 @@ class DenunciaService extends ChangeNotifier {
   bool get isLoading => _isLoading;
 
   static const String _bucketEvidencias = 'evidencias';
+  static const int _maxSizeBytes = 5 * 1024 * 1024;
 
-  // Generar código único
-  String _generarCodigoUnico() {
-    const prefix = 'PSJ';
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-
-    String code = '';
-    final now = DateTime.now().millisecondsSinceEpoch;
-
-    for (int i = 0; i < 8; i++) {
-      code += chars[(now + i) % chars.length];
-    }
-
-    return '$prefix-$code';
-  }
-
-  // Crear denuncia con imagen
   Future<Map<String, dynamic>?> crearDenuncia({
     required String ubicacion,
     required double? latitud,
     required double? longitud,
     required String categoria,
     required String descripcion,
-    required Uint8List imagenBytes,
+    List<Uint8List>? imagenesBytes,
   }) async {
     _setLoading(true);
 
     try {
-      // Validaciones
-      if (ubicacion.trim().isEmpty) {
-        throw Exception('La ubicación es requerida');
-      }
-
-      if (categoria.trim().isEmpty) {
-        throw Exception('La categoría es requerida');
-      }
-
+      if (ubicacion.trim().isEmpty) throw Exception('La ubicación es requerida');
+      if (categoria.trim().isEmpty) throw Exception('La categoría es requerida');
       if (descripcion.trim().isEmpty) {
         throw Exception('La descripción es requerida');
       }
 
-      if (imagenBytes.isEmpty) {
-        throw Exception('La imagen es requerida');
+      if (imagenesBytes != null) {
+        for (int i = 0; i < imagenesBytes.length; i++) {
+          if (imagenesBytes[i].length > _maxSizeBytes) {
+            throw Exception('La imagen ${i + 1} supera los 5MB');
+          }
+        }
       }
 
-      const maxSizeInBytes = 5 * 1024 * 1024;
-
-      if (imagenBytes.length > maxSizeInBytes) {
-        throw Exception('La imagen no puede superar los 5MB');
-      }
-
-      final codigoUnico = _generarCodigoUnico();
+      final codigoUnico = CodigoGenerator.generar();
       final fechaActual = DateTime.now().toIso8601String();
 
-      // Ruta de la imagen dentro del bucket
-      final nombreArchivo = '$codigoUnico-${DateTime.now().millisecondsSinceEpoch}.jpg';
-      final rutaImagen = 'denuncias/$nombreArchivo';
+      String? imagenUrl;
+      String? imagenPath;
 
-      // Subir imagen a Supabase Storage
-      await _supabase.storage.from(_bucketEvidencias).uploadBinary(
-            rutaImagen,
-            imagenBytes,
-            fileOptions: const FileOptions(
-              contentType: 'image/jpeg',
-              upsert: false,
-            ),
-          );
+      if (imagenesBytes != null && imagenesBytes.isNotEmpty) {
+        final nombreArchivo =
+            '$codigoUnico-${DateTime.now().millisecondsSinceEpoch}.jpg';
+        imagenPath = 'denuncias/$nombreArchivo';
 
-      // Obtener URL pública de la imagen
-      final imagenUrl = _supabase.storage
-          .from(_bucketEvidencias)
-          .getPublicUrl(rutaImagen);
+        await _supabase.storage.from(_bucketEvidencias).uploadBinary(
+              imagenPath,
+              imagenesBytes.first,
+              fileOptions: const FileOptions(
+                contentType: 'image/jpeg',
+                upsert: false,
+              ),
+            );
 
-      // Guardar denuncia en la tabla
+        imagenUrl = _supabase.storage
+            .from(_bucketEvidencias)
+            .getPublicUrl(imagenPath);
+      }
+
       final response = await _supabase.from('denuncias').insert({
         'codigo_unico': codigoUnico,
         'ubicacion': ubicacion.trim(),
@@ -97,12 +76,40 @@ class DenunciaService extends ChangeNotifier {
         'categoria': categoria.trim(),
         'descripcion': descripcion.trim(),
         'imagen_url': imagenUrl,
+        'imagen_path': imagenPath,
         'estado': 'pendiente',
         'creado_en': fechaActual,
         'actualizado_en': fechaActual,
       }).select().single();
 
       final nuevaDenuncia = Map<String, dynamic>.from(response);
+      final denunciaId = nuevaDenuncia['id'] as int;
+
+      if (imagenesBytes != null && imagenesBytes.length > 1) {
+        for (int i = 1; i < imagenesBytes.length; i++) {
+          final nombre =
+              '$codigoUnico-extra$i-${DateTime.now().millisecondsSinceEpoch}.jpg';
+          final ruta = 'denuncias/$nombre';
+
+          await _supabase.storage.from(_bucketEvidencias).uploadBinary(
+                ruta,
+                imagenesBytes[i],
+                fileOptions: const FileOptions(
+                  contentType: 'image/jpeg',
+                ),
+              );
+
+          final url = _supabase.storage
+              .from(_bucketEvidencias)
+              .getPublicUrl(ruta);
+
+          await _supabase.from('evidencias').insert({
+            'denuncia_id': denunciaId,
+            'archivo_url': url,
+            'tipo': 'imagen',
+          });
+        }
+      }
 
       _denuncias.insert(0, nuevaDenuncia);
       notifyListeners();
@@ -116,12 +123,18 @@ class DenunciaService extends ChangeNotifier {
     }
   }
 
-  // Obtener denuncia por código
   Future<Map<String, dynamic>?> obtenerDenunciaPorCodigo(String codigo) async {
     try {
       final response = await _supabase
           .from('denuncias')
-          .select()
+          .select('''
+            *,
+            evidencias (
+              id,
+              archivo_url,
+              tipo
+            )
+          ''')
           .eq('codigo_unico', codigo.toUpperCase().trim())
           .maybeSingle();
 
@@ -134,7 +147,6 @@ class DenunciaService extends ChangeNotifier {
     }
   }
 
-  // Obtener todas las denuncias
   Future<List<Map<String, dynamic>>> obtenerTodasDenuncias() async {
     _setLoading(true);
 
@@ -146,13 +158,56 @@ class DenunciaService extends ChangeNotifier {
 
       _denuncias = List<Map<String, dynamic>>.from(response);
       notifyListeners();
-
       return _denuncias;
     } catch (e) {
       debugPrint('Error al obtener denuncias: $e');
       return [];
     } finally {
       _setLoading(false);
+    }
+  }
+
+  Future<bool> actualizarEstado(int id, String nuevoEstado) async {
+    try {
+      await _supabase.from('denuncias').update({
+        'estado': nuevoEstado,
+        'actualizado_en': DateTime.now().toIso8601String(),
+      }).eq('id', id);
+      notifyListeners();
+      return true;
+    } catch (e) {
+      debugPrint('Error al actualizar estado: $e');
+      return false;
+    }
+  }
+
+  Future<bool> asignarFuncionario(int denunciaId, int funcionarioId) async {
+    try {
+      await _supabase.from('denuncias').update({
+        'funcionario_id': funcionarioId,
+        'estado': 'en_revision',
+        'actualizado_en': DateTime.now().toIso8601String(),
+      }).eq('id', denunciaId);
+      notifyListeners();
+      return true;
+    } catch (e) {
+      debugPrint('Error al asignar funcionario: $e');
+      return false;
+    }
+  }
+
+  Future<bool> agregarRespuestaOficial(int id, String respuesta) async {
+    try {
+      await _supabase.from('denuncias').update({
+        'respuesta_oficial': respuesta.trim(),
+        'estado': 'resuelta',
+        'actualizado_en': DateTime.now().toIso8601String(),
+      }).eq('id', id);
+      notifyListeners();
+      return true;
+    } catch (e) {
+      debugPrint('Error al agregar respuesta: $e');
+      return false;
     }
   }
 

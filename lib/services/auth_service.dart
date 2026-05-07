@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../config/supabase_config.dart';
+import '../core/supabase/supabase_config.dart';
 
 class AuthService extends ChangeNotifier {
   final SupabaseClient _supabase = SupabaseConfig.client;
@@ -44,6 +44,16 @@ class AuthService extends ChangeNotifier {
         return;
       }
 
+      // Bloquear si está pendiente o rechazado
+      final estado = funcionario['estado']?.toString() ?? 'pendiente';
+      if (estado != 'aprobado') {
+        await _supabase.auth.signOut();
+        _currentUser = null;
+        _funcionarioData = null;
+        notifyListeners();
+        return;
+      }
+
       _currentUser = user;
       _funcionarioData = funcionario;
       notifyListeners();
@@ -66,7 +76,6 @@ class AuthService extends ChangeNotifier {
           .maybeSingle();
 
       if (response == null) return null;
-
       return Map<String, dynamic>.from(response);
     } catch (e) {
       debugPrint('Error buscando funcionario: $e');
@@ -74,7 +83,7 @@ class AuthService extends ChangeNotifier {
     }
   }
 
-  // REGISTRO DE FUNCIONARIO
+  // ── REGISTRO ─────────────────────────────────────────────────────────────
   Future<bool> register({
     required String nombre,
     required String email,
@@ -88,39 +97,40 @@ class AuthService extends ChangeNotifier {
     try {
       final emailNormalizado = email.trim().toLowerCase();
 
-      // 1. Registrar usuario en Supabase Auth
+      // 1. Registrar en Supabase Auth con estado pendiente en metadata
       final authResponse = await _supabase.auth.signUp(
         email: emailNormalizado,
         password: password,
         data: {
-          'nombre': nombre.trim(),
-          'cargo': cargo.trim(),
+          'nombre':       nombre.trim(),
+          'cargo':        cargo.trim(),
           'departamento': departamento.trim(),
-          'rol': 'funcionario',
+          'rol':          'funcionario',
+          'estado':       'pendiente', // ← clave para bloqueo en login
         },
       );
 
       final user = authResponse.user;
+      if (user == null) throw Exception('Error al registrar usuario');
 
-      if (user == null) {
-        throw Exception('Error al registrar usuario');
-      }
-
-      // 2. Guardar perfil del funcionario vinculado al usuario Auth
+      // 2. Guardar en tabla funcionarios con estado pendiente
       await _supabase.from('funcionarios').insert({
-        'auth_user_id': user.id,
-        'nombre': nombre.trim(),
-        'correo': emailNormalizado,
-        'cargo': cargo.trim(),
-        'departamento': departamento.trim(),
-        'activo': true,
-        'rol': 'funcionario',
-        'creado_en': DateTime.now().toIso8601String(),
+        'auth_user_id':  user.id,
+        'nombre':        nombre.trim(),
+        'correo':        emailNormalizado,
+        'cargo':         cargo.trim(),
+        'departamento':  departamento.trim(),
+        'activo':        true,
+        'rol':           'funcionario',
+        'estado':        'pendiente', // ← admin debe cambiar a 'aprobado'
+        'creado_en':     DateTime.now().toIso8601String(),
         'actualizado_en': DateTime.now().toIso8601String(),
       });
 
-      _currentUser = user;
-      _funcionarioData = await _buscarFuncionarioPorUserId(user.id);
+      // NO asignar _currentUser — no debe quedar logueado hasta ser aprobado
+      await _supabase.auth.signOut();
+      _currentUser = null;
+      _funcionarioData = null;
 
       notifyListeners();
       return true;
@@ -135,7 +145,7 @@ class AuthService extends ChangeNotifier {
     }
   }
 
-  // LOGIN FUNCIONARIO
+  // ── LOGIN ─────────────────────────────────────────────────────────────────
   Future<bool> login(String email, String password) async {
     _setLoading(true);
     _clearError();
@@ -149,10 +159,7 @@ class AuthService extends ChangeNotifier {
       );
 
       final user = response.user;
-
-      if (user == null) {
-        throw Exception('Credenciales incorrectas');
-      }
+      if (user == null) throw Exception('Credenciales incorrectas');
 
       final funcionario = await _buscarFuncionarioPorUserId(user.id);
 
@@ -170,8 +177,24 @@ class AuthService extends ChangeNotifier {
         throw Exception('El funcionario está inactivo');
       }
 
-      final rol = funcionario['rol']?.toString().toLowerCase();
+      // ← NUEVO: verificar estado de aprobación
+      final estado = funcionario['estado']?.toString() ?? 'pendiente';
 
+      if (estado == 'pendiente') {
+        await _supabase.auth.signOut();
+        _currentUser = null;
+        _funcionarioData = null;
+        throw Exception('__pendiente__'); // código especial para el login screen
+      }
+
+      if (estado == 'rechazado') {
+        await _supabase.auth.signOut();
+        _currentUser = null;
+        _funcionarioData = null;
+        throw Exception('Tu solicitud fue rechazada. Contacta al administrador.');
+      }
+
+      final rol = funcionario['rol']?.toString().toLowerCase();
       if (rol != null && rol != 'funcionario') {
         await _supabase.auth.signOut();
         _currentUser = null;
@@ -195,41 +218,33 @@ class AuthService extends ChangeNotifier {
     }
   }
 
-  // LOGOUT
+  // ── LOGOUT ────────────────────────────────────────────────────────────────
   Future<void> logout() async {
     await _supabase.auth.signOut();
-
     _currentUser = null;
     _funcionarioData = null;
     _clearError();
-
     notifyListeners();
   }
 
   String _traducirErrorAuth(AuthException e) {
     final message = e.message.toLowerCase();
-
     if (message.contains('email not confirmed')) {
       return 'El correo electrónico no ha sido confirmado';
     }
-
     if (message.contains('invalid login credentials')) {
       return 'Correo o contraseña incorrectos';
     }
-
     if (message.contains('user already registered') ||
         message.contains('already registered')) {
       return 'Este correo ya está registrado';
     }
-
     if (message.contains('password')) {
       return 'La contraseña no cumple los requisitos';
     }
-
     if (message.contains('too many requests')) {
       return 'Demasiados intentos. Intente más tarde';
     }
-
     return e.message;
   }
 

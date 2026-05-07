@@ -2,20 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import 'config/app_config.dart';
-import 'config/supabase_config.dart';
+import 'core/supabase/supabase_config.dart';
 
 import 'services/auth_service.dart';
 import 'services/admin_auth_service.dart';
 import 'services/denuncia_service.dart';
 
-import 'screens/rol_selection_screen.dart';
+import 'presentation/screens/rol_selection_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
-  // Inicializar Supabase
   await SupabaseConfig.init();
-
   runApp(const RSOApp());
 }
 
@@ -41,7 +38,7 @@ class RSOApp extends StatelessWidget {
         theme: AppConfig.lightTheme,
         debugShowCheckedModeBanner: false,
         home: const RolSelectionScreen(),
-      ),
-    );
+      ), // ← cierre de MaterialApp
+    ); // ← cierre de MultiProvider
   }
 }

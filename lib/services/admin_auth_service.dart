@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../config/supabase_config.dart';
+import '../core/supabase/supabase_config.dart';
 
 class AdminAuthService extends ChangeNotifier {
   final SupabaseClient _supabase = SupabaseConfig.client;
