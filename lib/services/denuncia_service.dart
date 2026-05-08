@@ -29,8 +29,12 @@ class DenunciaService extends ChangeNotifier {
     _setLoading(true);
 
     try {
-      if (ubicacion.trim().isEmpty) throw Exception('La ubicación es requerida');
-      if (categoria.trim().isEmpty) throw Exception('La categoría es requerida');
+      if (ubicacion.trim().isEmpty) {
+        throw Exception('La ubicación es requerida');
+      }
+      if (categoria.trim().isEmpty) {
+        throw Exception('La categoría es requerida');
+      }
       if (descripcion.trim().isEmpty) {
         throw Exception('La descripción es requerida');
       }
@@ -99,9 +103,8 @@ class DenunciaService extends ChangeNotifier {
                 ),
               );
 
-          final url = _supabase.storage
-              .from(_bucketEvidencias)
-              .getPublicUrl(ruta);
+          final url =
+              _supabase.storage.from(_bucketEvidencias).getPublicUrl(ruta);
 
           await _supabase.from('evidencias').insert({
             'denuncia_id': denunciaId,
@@ -173,10 +176,36 @@ class DenunciaService extends ChangeNotifier {
         'estado': nuevoEstado,
         'actualizado_en': DateTime.now().toIso8601String(),
       }).eq('id', id);
+
       notifyListeners();
       return true;
     } catch (e) {
       debugPrint('Error al actualizar estado: $e');
+      return false;
+    }
+  }
+
+  Future<bool> actualizarEstadoConRespuesta(
+    int id,
+    String nuevoEstado,
+    String respuesta,
+  ) async {
+    try {
+      final Map<String, dynamic> data = {
+        'estado': nuevoEstado,
+        'actualizado_en': DateTime.now().toIso8601String(),
+      };
+
+      if (respuesta.isNotEmpty) {
+        data['respuesta_oficial'] = respuesta;
+      }
+
+      await _supabase.from('denuncias').update(data).eq('id', id);
+
+      notifyListeners();
+      return true;
+    } catch (e) {
+      debugPrint('Error al actualizar estado con respuesta: $e');
       return false;
     }
   }
@@ -188,6 +217,7 @@ class DenunciaService extends ChangeNotifier {
         'estado': 'en_revision',
         'actualizado_en': DateTime.now().toIso8601String(),
       }).eq('id', denunciaId);
+
       notifyListeners();
       return true;
     } catch (e) {
@@ -200,9 +230,10 @@ class DenunciaService extends ChangeNotifier {
     try {
       await _supabase.from('denuncias').update({
         'respuesta_oficial': respuesta.trim(),
-        'estado': 'resuelta',
+        'estado': 'resuelto_pendiente_validacion',
         'actualizado_en': DateTime.now().toIso8601String(),
       }).eq('id', id);
+
       notifyListeners();
       return true;
     } catch (e) {

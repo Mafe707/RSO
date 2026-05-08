@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-
 import '../../../config/app_config.dart';
 
 class AdminBottomNav extends StatelessWidget {
@@ -21,9 +20,7 @@ class AdminBottomNav extends StatelessWidget {
     required VoidCallback onLogout,
   }) {
     final isMobile = MediaQuery.of(context).size.width < 780;
-
     if (!isMobile) return null;
-
     return AdminBottomNav(
       currentIndex: currentIndex,
       onSelect: onSelect,
@@ -62,10 +59,7 @@ class AdminBottomNav extends StatelessWidget {
                 ),
                 const Row(
                   children: [
-                    Icon(
-                      Icons.admin_panel_settings_rounded,
-                      color: AppConfig.azulOscuro,
-                    ),
+                    Icon(Icons.admin_panel_settings_rounded, color: AppConfig.azulOscuro),
                     SizedBox(width: 10),
                     Text(
                       'Más opciones',
@@ -79,30 +73,21 @@ class AdminBottomNav extends StatelessWidget {
                 ),
                 const SizedBox(height: 14),
                 _MoreItem(
-                  icon: Icons.assignment_rounded,
-                  title: 'Asignaciones',
-                  selected: currentIndex == 4,
-                  onTap: () {
-                    Navigator.pop(context);
-                    onSelect(4);
-                  },
-                ),
-                _MoreItem(
                   icon: Icons.bar_chart_rounded,
                   title: 'Estadísticas',
-                  selected: currentIndex == 5,
+                  selected: currentIndex == 3,
                   onTap: () {
                     Navigator.pop(context);
-                    onSelect(5);
+                    onSelect(3);
                   },
                 ),
                 _MoreItem(
                   icon: Icons.settings_rounded,
                   title: 'Configuración',
-                  selected: currentIndex == 6,
+                  selected: currentIndex == 4,
                   onTap: () {
                     Navigator.pop(context);
-                    onSelect(6);
+                    onSelect(4);
                   },
                 ),
                 const Divider(height: 20),
@@ -124,11 +109,8 @@ class AdminBottomNav extends StatelessWidget {
   }
 
   int get _safeSelectedIndex {
-    if (currentIndex >= 0 && currentIndex <= 3) {
-      return currentIndex;
-    }
-
-    return 4;
+    if (currentIndex >= 0 && currentIndex <= 2) return currentIndex;
+    return 3;
   }
 
   @override
@@ -136,11 +118,10 @@ class AdminBottomNav extends StatelessWidget {
     return NavigationBar(
       selectedIndex: _safeSelectedIndex,
       onDestinationSelected: (index) {
-        if (index == 4) {
+        if (index == 3) {
           _openMoreMenu(context);
           return;
         }
-
         onSelect(index);
       },
       height: 74,
@@ -154,19 +135,14 @@ class AdminBottomNav extends StatelessWidget {
           label: 'Inicio',
         ),
         NavigationDestination(
-          icon: Icon(Icons.flag_outlined),
-          selectedIcon: Icon(Icons.flag_rounded),
-          label: 'Reportes',
+          icon: Icon(Icons.fact_check_outlined),
+          selectedIcon: Icon(Icons.fact_check_rounded),
+          label: 'Validación',
         ),
         NavigationDestination(
-          icon: Icon(Icons.people_outline_rounded),
-          selectedIcon: Icon(Icons.people_rounded),
-          label: 'Usuarios',
-        ),
-        NavigationDestination(
-          icon: Icon(Icons.map_outlined),
-          selectedIcon: Icon(Icons.map_rounded),
-          label: 'Zonas',
+          icon: Icon(Icons.how_to_reg_outlined),
+          selectedIcon: Icon(Icons.how_to_reg_rounded),
+          label: 'Aprobación',
         ),
         NavigationDestination(
           icon: Icon(Icons.more_horiz_rounded),
@@ -196,26 +172,17 @@ class _MoreItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final itemColor = color ?? AppConfig.azulOscuro;
-
     return ListTile(
       selected: selected,
       selectedTileColor: itemColor.withOpacity(0.08),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       leading: Icon(icon, color: itemColor),
       title: Text(
         title,
-        style: TextStyle(
-          color: itemColor,
-          fontWeight: FontWeight.w800,
-        ),
+        style: TextStyle(color: itemColor, fontWeight: FontWeight.w800),
       ),
       trailing: selected
-          ? Icon(
-              Icons.check_circle_rounded,
-              color: itemColor,
-            )
+          ? Icon(Icons.check_circle_rounded, color: itemColor)
           : const Icon(Icons.chevron_right_rounded),
       onTap: onTap,
     );

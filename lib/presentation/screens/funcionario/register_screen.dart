@@ -60,7 +60,6 @@ class _FuncionarioRegisterScreenState extends State<FuncionarioRegisterScreen> {
 
   void _checkPasswordStrength() {
     final password = _passwordController.text;
-
     setState(() {
       _hasMinLength = password.length >= 8;
       _hasUpperCase = password.contains(RegExp(r'[A-Z]'));
@@ -70,29 +69,23 @@ class _FuncionarioRegisterScreenState extends State<FuncionarioRegisterScreen> {
 
   int _getPasswordStrength() {
     int strength = 0;
-
     if (_hasMinLength) strength++;
     if (_hasUpperCase) strength++;
     if (_hasNumber) strength++;
-
     return strength;
   }
 
   Color _getPasswordStrengthColor() {
     final strength = _getPasswordStrength();
-
     if (strength <= 1) return AppConfig.rojo;
     if (strength <= 2) return AppConfig.naranja;
-
     return AppConfig.verde;
   }
 
   String _getPasswordStrengthText() {
     final strength = _getPasswordStrength();
-
     if (strength <= 1) return 'Débil';
     if (strength <= 2) return 'Media';
-
     return 'Fuerte';
   }
 
@@ -123,7 +116,7 @@ class _FuncionarioRegisterScreenState extends State<FuncionarioRegisterScreen> {
     );
 
     if (success && mounted) {
-      _showSuccessDialog();
+      _showPendingDialog();
     } else if (mounted) {
       _showError(authService.error ?? 'Error al registrar');
     }
@@ -131,16 +124,12 @@ class _FuncionarioRegisterScreenState extends State<FuncionarioRegisterScreen> {
 
   void _showError(String message) {
     if (!mounted) return;
-
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: AppConfig.rojo,
-      ),
+      SnackBar(content: Text(message), backgroundColor: AppConfig.rojo),
     );
   }
 
-  void _showSuccessDialog() {
+  void _showPendingDialog() {
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -151,18 +140,22 @@ class _FuncionarioRegisterScreenState extends State<FuncionarioRegisterScreen> {
           ),
           title: const Row(
             children: [
-              Icon(Icons.check_circle_rounded, color: AppConfig.verde),
+              Icon(Icons.hourglass_top_rounded, color: AppConfig.naranja),
               SizedBox(width: 10),
               Expanded(
                 child: Text(
-                  '¡Registro exitoso!',
+                  'Solicitud enviada',
                   style: TextStyle(fontWeight: FontWeight.w800),
                 ),
               ),
             ],
           ),
           content: const Text(
-            'Su cuenta ha sido creada exitosamente. Será redirigido al inicio de sesión.',
+            'Tu solicitud de registro ha sido enviada correctamente.\n\n'
+            'Un administrador revisará tu cuenta y recibirás una notificación '
+            'a tu correo institucional cuando sea aprobada.\n\n'
+            'Una vez aprobada, podrás iniciar sesión normalmente.',
+            style: TextStyle(height: 1.5),
           ),
           actions: [
             ElevatedButton(
@@ -176,7 +169,7 @@ class _FuncionarioRegisterScreenState extends State<FuncionarioRegisterScreen> {
                   borderRadius: BorderRadius.circular(14),
                 ),
               ),
-              child: const Text('Aceptar'),
+              child: const Text('Entendido'),
             ),
           ],
         );
@@ -214,9 +207,7 @@ class _FuncionarioRegisterScreenState extends State<FuncionarioRegisterScreen> {
           if (authService.isLoading)
             Container(
               color: Colors.black54,
-              child: const Center(
-                child: _LoadingCard(),
-              ),
+              child: const Center(child: _LoadingCard()),
             ),
         ],
       ),
@@ -248,10 +239,7 @@ class _FuncionarioRegisterScreenState extends State<FuncionarioRegisterScreen> {
           ),
         ),
         const SizedBox(width: 26),
-        Expanded(
-          flex: 6,
-          child: _buildRegisterCard(),
-        ),
+        Expanded(flex: 6, child: _buildRegisterCard()),
       ],
     );
   }
@@ -264,10 +252,7 @@ class _FuncionarioRegisterScreenState extends State<FuncionarioRegisterScreen> {
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [
-            AppConfig.azulOscuro,
-            AppConfig.azulClaro,
-          ],
+          colors: [AppConfig.azulOscuro, AppConfig.azulClaro],
         ),
         borderRadius: BorderRadius.circular(isMobile ? 24 : 30),
         boxShadow: [
@@ -303,11 +288,8 @@ class _FuncionarioRegisterScreenState extends State<FuncionarioRegisterScreen> {
                 child: const Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(
-                      Icons.verified_user_rounded,
-                      size: 16,
-                      color: Colors.white,
-                    ),
+                    Icon(Icons.verified_user_rounded,
+                        size: 16, color: Colors.white),
                     SizedBox(width: 7),
                     Text(
                       'Cuenta institucional',
@@ -341,22 +323,13 @@ class _FuncionarioRegisterScreenState extends State<FuncionarioRegisterScreen> {
                 ),
               ),
               const SizedBox(height: 18),
-              Wrap(
+              const Wrap(
                 spacing: 10,
                 runSpacing: 10,
-                children: const [
-                  _HeroChip(
-                    icon: Icons.email_rounded,
-                    text: '@alcaldia.gov.co',
-                  ),
-                  _HeroChip(
-                    icon: Icons.lock_rounded,
-                    text: 'Contraseña segura',
-                  ),
-                  _HeroChip(
-                    icon: Icons.badge_rounded,
-                    text: 'Datos laborales',
-                  ),
+                children: [
+                  _HeroChip(icon: Icons.email_rounded, text: '@alcaldia.gov.co'),
+                  _HeroChip(icon: Icons.lock_rounded, text: 'Contraseña segura'),
+                  _HeroChip(icon: Icons.badge_rounded, text: 'Datos laborales'),
                 ],
               ),
             ],
@@ -395,9 +368,7 @@ class _FuncionarioRegisterScreenState extends State<FuncionarioRegisterScreen> {
                 final twoColumns = constraints.maxWidth >= 680;
 
                 if (!twoColumns) {
-                  return Column(
-                    children: _buildMobileFields(),
-                  );
+                  return Column(children: _buildMobileFields());
                 }
 
                 return Column(
@@ -471,13 +442,12 @@ class _FuncionarioRegisterScreenState extends State<FuncionarioRegisterScreen> {
               alignment: WrapAlignment.center,
               crossAxisAlignment: WrapCrossAlignment.center,
               children: [
-                Text(
-                  '¿Ya tienes cuenta?',
-                  style: TextStyle(color: AppConfig.grisOscuro),
-                ),
+                Text('¿Ya tienes cuenta?',
+                    style: TextStyle(color: AppConfig.grisOscuro)),
                 TextButton(
-                  onPressed:
-                      authService.isLoading ? null : () => Navigator.pop(context),
+                  onPressed: authService.isLoading
+                      ? null
+                      : () => Navigator.pop(context),
                   child: const Text('Inicia sesión aquí'),
                 ),
               ],
@@ -511,14 +481,11 @@ class _FuncionarioRegisterScreenState extends State<FuncionarioRegisterScreen> {
     return TextFormField(
       controller: _nombreController,
       decoration: _inputDecoration(
-        label: 'Nombre',
-        hint: 'Ingrese su nombre',
-        icon: Icons.person_rounded,
-      ),
+          label: 'Nombre',
+          hint: 'Ingrese su nombre',
+          icon: Icons.person_rounded),
       validator: (value) {
-        if (value == null || value.trim().isEmpty) {
-          return 'El nombre es requerido';
-        }
+        if (value == null || value.trim().isEmpty) return 'El nombre es requerido';
         return null;
       },
     );
@@ -528,14 +495,12 @@ class _FuncionarioRegisterScreenState extends State<FuncionarioRegisterScreen> {
     return TextFormField(
       controller: _apellidoController,
       decoration: _inputDecoration(
-        label: 'Apellido',
-        hint: 'Ingrese su apellido',
-        icon: Icons.person_outline_rounded,
-      ),
+          label: 'Apellido',
+          hint: 'Ingrese su apellido',
+          icon: Icons.person_outline_rounded),
       validator: (value) {
-        if (value == null || value.trim().isEmpty) {
+        if (value == null || value.trim().isEmpty)
           return 'El apellido es requerido';
-        }
         return null;
       },
     );
@@ -552,20 +517,11 @@ class _FuncionarioRegisterScreenState extends State<FuncionarioRegisterScreen> {
       ),
       keyboardType: TextInputType.emailAddress,
       validator: (value) {
-        if (value == null || value.trim().isEmpty) {
-          return 'El correo es requerido';
-        }
-
+        if (value == null || value.trim().isEmpty) return 'El correo es requerido';
         final emailRegex = RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$');
-
-        if (!emailRegex.hasMatch(value)) {
-          return 'Ingrese un correo válido';
-        }
-
-        if (!value.toLowerCase().endsWith('@alcaldia.gov.co')) {
+        if (!emailRegex.hasMatch(value)) return 'Ingrese un correo válido';
+        if (!value.toLowerCase().endsWith('@alcaldia.gov.co'))
           return 'Debe usar @alcaldia.gov.co';
-        }
-
         return null;
       },
     );
@@ -579,30 +535,19 @@ class _FuncionarioRegisterScreenState extends State<FuncionarioRegisterScreen> {
         hint: 'Mínimo 8 caracteres',
         icon: Icons.lock_rounded,
         suffixIcon: IconButton(
-          icon: Icon(
-            _obscurePassword
-                ? Icons.visibility_off_rounded
-                : Icons.visibility_rounded,
-          ),
-          onPressed: () {
-            setState(() => _obscurePassword = !_obscurePassword);
-          },
+          icon: Icon(_obscurePassword
+              ? Icons.visibility_off_rounded
+              : Icons.visibility_rounded),
+          onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
         ),
       ),
       obscureText: _obscurePassword,
       validator: (value) {
-        if (value == null || value.isEmpty) {
-          return 'La contraseña es requerida';
-        }
-
+        if (value == null || value.isEmpty) return 'La contraseña es requerida';
         if (value.length < 8) return 'Mínimo 8 caracteres';
-        if (!value.contains(RegExp(r'[A-Z]'))) {
+        if (!value.contains(RegExp(r'[A-Z]')))
           return 'Debe tener una letra mayúscula';
-        }
-        if (!value.contains(RegExp(r'[0-9]'))) {
-          return 'Debe tener un número';
-        }
-
+        if (!value.contains(RegExp(r'[0-9]'))) return 'Debe tener un número';
         return null;
       },
     );
@@ -616,23 +561,17 @@ class _FuncionarioRegisterScreenState extends State<FuncionarioRegisterScreen> {
         hint: 'Repita su contraseña',
         icon: Icons.lock_outline_rounded,
         suffixIcon: IconButton(
-          icon: Icon(
-            _obscureConfirmPassword
-                ? Icons.visibility_off_rounded
-                : Icons.visibility_rounded,
-          ),
-          onPressed: () {
-            setState(() {
-              _obscureConfirmPassword = !_obscureConfirmPassword;
-            });
-          },
+          icon: Icon(_obscureConfirmPassword
+              ? Icons.visibility_off_rounded
+              : Icons.visibility_rounded),
+          onPressed: () =>
+              setState(() => _obscureConfirmPassword = !_obscureConfirmPassword),
         ),
       ),
       obscureText: _obscureConfirmPassword,
       validator: (value) {
-        if (value != _passwordController.text) {
+        if (value != _passwordController.text)
           return 'Las contraseñas no coinciden';
-        }
         return null;
       },
     );
@@ -647,9 +586,7 @@ class _FuncionarioRegisterScreenState extends State<FuncionarioRegisterScreen> {
         icon: Icons.business_center_rounded,
       ),
       validator: (value) {
-        if (value == null || value.trim().isEmpty) {
-          return 'El cargo es requerido';
-        }
+        if (value == null || value.trim().isEmpty) return 'El cargo es requerido';
         return null;
       },
     );
@@ -665,19 +602,13 @@ class _FuncionarioRegisterScreenState extends State<FuncionarioRegisterScreen> {
         hint: 'Seleccione un departamento',
         icon: Icons.apartment_rounded,
       ),
-      items: _departamentos.map((depto) {
-        return DropdownMenuItem<String>(
-          value: depto,
-          child: Text(depto),
-        );
-      }).toList(),
-      onChanged: (value) {
-        setState(() => _departamentoSeleccionado = value);
-      },
+      items: _departamentos
+          .map((depto) =>
+              DropdownMenuItem<String>(value: depto, child: Text(depto)))
+          .toList(),
+      onChanged: (value) => setState(() => _departamentoSeleccionado = value),
       validator: (value) {
-        if (value == null) {
-          return 'Seleccione un departamento';
-        }
+        if (value == null) return 'Seleccione un departamento';
         return null;
       },
     );
@@ -699,16 +630,12 @@ class _FuncionarioRegisterScreenState extends State<FuncionarioRegisterScreen> {
       suffixIcon: suffixIcon,
       filled: true,
       fillColor: const Color(0xFFF8FAFC),
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
     );
   }
 
   Widget _passwordStrength() {
-    if (_passwordController.text.isEmpty) {
-      return const SizedBox.shrink();
-    }
+    if (_passwordController.text.isEmpty) return const SizedBox.shrink();
 
     return Padding(
       padding: const EdgeInsets.only(top: 8),
@@ -763,23 +690,17 @@ class _FuncionarioRegisterScreenState extends State<FuncionarioRegisterScreen> {
         children: [
           Checkbox(
             value: _termsAccepted,
-            onChanged: (value) {
-              setState(() => _termsAccepted = value ?? false);
-            },
+            onChanged: (value) =>
+                setState(() => _termsAccepted = value ?? false),
             activeColor: AppConfig.verde,
           ),
           Expanded(
             child: GestureDetector(
-              onTap: () {
-                setState(() => _termsAccepted = !_termsAccepted);
-              },
+              onTap: () => setState(() => _termsAccepted = !_termsAccepted),
               child: const Text(
                 'Acepto los términos y condiciones y la política de privacidad del sistema',
                 style: TextStyle(
-                  color: AppConfig.grisOscuro,
-                  fontSize: 13,
-                  height: 1.35,
-                ),
+                    color: AppConfig.grisOscuro, fontSize: 13, height: 1.35),
               ),
             ),
           ),
@@ -807,17 +728,19 @@ class _FuncionarioRegisterScreenState extends State<FuncionarioRegisterScreen> {
           ),
           const SizedBox(height: 18),
           _TipItem(
+            icon: Icons.hourglass_top_rounded,
+            text:
+                'Tu cuenta quedará pendiente hasta que el administrador la apruebe.',
+          ),
+          _TipItem(
             icon: Icons.email_outlined,
-            text: 'Usa únicamente tu correo institucional @alcaldia.gov.co.',
+            text:
+                'Recibirás una notificación a tu correo cuando seas aprobado.',
           ),
           _TipItem(
             icon: Icons.lock_outline_rounded,
             text:
                 'La contraseña debe tener mínimo 8 caracteres, una mayúscula y un número.',
-          ),
-          _TipItem(
-            icon: Icons.badge_outlined,
-            text: 'Registra tu cargo y departamento de forma clara.',
             isLast: true,
           ),
         ],
@@ -862,10 +785,8 @@ class _FormHeader extends StatelessWidget {
             color: AppConfig.azulOscuro.withOpacity(0.08),
             borderRadius: BorderRadius.circular(18),
           ),
-          child: const Icon(
-            Icons.assignment_ind_rounded,
-            color: AppConfig.azulOscuro,
-          ),
+          child: const Icon(Icons.assignment_ind_rounded,
+              color: AppConfig.azulOscuro),
         ),
         const SizedBox(width: 14),
         Expanded(
@@ -883,10 +804,7 @@ class _FormHeader extends StatelessWidget {
               const SizedBox(height: 3),
               Text(
                 'Completa la información para crear tu cuenta.',
-                style: TextStyle(
-                  fontSize: 13,
-                  color: AppConfig.grisOscuro,
-                ),
+                style: TextStyle(fontSize: 13, color: AppConfig.grisOscuro),
               ),
             ],
           ),
@@ -901,11 +819,8 @@ class _PanelHeading extends StatelessWidget {
   final String title;
   final String subtitle;
 
-  const _PanelHeading({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-  });
+  const _PanelHeading(
+      {required this.icon, required this.title, required this.subtitle});
 
   @override
   Widget build(BuildContext context) {
@@ -925,22 +840,14 @@ class _PanelHeading extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 17,
-                  fontWeight: FontWeight.w900,
-                  color: AppConfig.azulOscuro,
-                ),
-              ),
+              Text(title,
+                  style: const TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w900,
+                      color: AppConfig.azulOscuro)),
               const SizedBox(height: 3),
-              Text(
-                subtitle,
-                style: TextStyle(
-                  fontSize: 12.5,
-                  color: AppConfig.grisOscuro,
-                ),
-              ),
+              Text(subtitle,
+                  style: TextStyle(fontSize: 12.5, color: AppConfig.grisOscuro)),
             ],
           ),
         ),
@@ -954,11 +861,7 @@ class _TipItem extends StatelessWidget {
   final String text;
   final bool isLast;
 
-  const _TipItem({
-    required this.icon,
-    required this.text,
-    this.isLast = false,
-  });
+  const _TipItem({required this.icon, required this.text, this.isLast = false});
 
   @override
   Widget build(BuildContext context) {
@@ -970,14 +873,11 @@ class _TipItem extends StatelessWidget {
             Icon(icon, color: AppConfig.azulClaro, size: 22),
             const SizedBox(width: 10),
             Expanded(
-              child: Text(
-                text,
-                style: TextStyle(
-                  fontSize: 13,
-                  height: 1.35,
-                  color: AppConfig.grisOscuro,
-                ),
-              ),
+              child: Text(text,
+                  style: TextStyle(
+                      fontSize: 13,
+                      height: 1.35,
+                      color: AppConfig.grisOscuro)),
             ),
           ],
         ),
@@ -991,18 +891,12 @@ class _HeroChip extends StatelessWidget {
   final IconData icon;
   final String text;
 
-  const _HeroChip({
-    required this.icon,
-    required this.text,
-  });
+  const _HeroChip({required this.icon, required this.text});
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 11,
-        vertical: 7,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.14),
         borderRadius: BorderRadius.circular(999),
@@ -1013,14 +907,11 @@ class _HeroChip extends StatelessWidget {
         children: [
           Icon(icon, size: 15, color: Colors.white),
           const SizedBox(width: 6),
-          Text(
-            text,
-            style: const TextStyle(
-              fontSize: 11.5,
-              color: Colors.white,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
+          Text(text,
+              style: const TextStyle(
+                  fontSize: 11.5,
+                  color: Colors.white,
+                  fontWeight: FontWeight.w700)),
         ],
       ),
     );
@@ -1033,9 +924,8 @@ class _LoadingCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(22),
-      ),
+      shape:
+          RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
       child: const Padding(
         padding: EdgeInsets.all(26),
         child: Column(
@@ -1043,10 +933,8 @@ class _LoadingCard extends StatelessWidget {
           children: [
             CircularProgressIndicator(),
             SizedBox(height: 16),
-            Text(
-              'Creando cuenta...',
-              style: TextStyle(fontWeight: FontWeight.w700),
-            ),
+            Text('Creando cuenta...',
+                style: TextStyle(fontWeight: FontWeight.w700)),
           ],
         ),
       ),

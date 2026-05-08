@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../config/app_config.dart';
 import '../../../services/auth_service.dart';
+import '../../../core/supabase/supabase_config.dart';
 
 import 'funcionario_bottom_nav.dart';
 import 'funcionario_drawer.dart';
@@ -10,94 +12,130 @@ import 'funcionario_drawer.dart';
 class NuevosReportesScreen extends StatefulWidget {
   final Map<String, dynamic> userData;
 
-  const NuevosReportesScreen({
-    super.key,
-    required this.userData,
-  });
+  const NuevosReportesScreen({super.key, required this.userData});
 
   @override
   State<NuevosReportesScreen> createState() => _NuevosReportesScreenState();
 }
 
 class _NuevosReportesScreenState extends State<NuevosReportesScreen> {
-  final List<Map<String, dynamic>> _nuevosReportes = [
-    {
-      'id': 'PSJ-ABC123',
-      'fecha': '15/09/2025',
-      'categoria': 'Venta informal',
-      'ubicacion': 'Parque Central',
-      'prioridad': 'alta',
-    },
-    {
-      'id': 'PSJ-DEF456',
-      'fecha': '14/09/2025',
-      'categoria': 'Invasión vehicular',
-      'ubicacion': 'Calle 15',
-      'prioridad': 'media',
-    },
-    {
-      'id': 'PSJ-GHI789',
-      'fecha': '14/09/2025',
-      'categoria': 'Ocupación comercial',
-      'ubicacion': 'Avenida Colombia',
-      'prioridad': 'alta',
-    },
-  ];
+  final SupabaseClient _supabase = SupabaseConfig.client;
 
-  bool _isMobile(BuildContext context) {
-    return MediaQuery.of(context).size.width < 780;
+  List<Map<String, dynamic>> _reportes = [];
+  bool _loading = true;
+  String? _errorMsg;
+
+  @override
+  void initState() {
+    super.initState();
+    _cargarReportes();
   }
 
-  Future<void> _cerrarSesion() async {
-    final authService = Provider.of<AuthService>(
-      context,
-      listen: false,
-    );
+  Future<void> _cargarReportes() async {
+    setState(() {
+      _loading = true;
+      _errorMsg = null;
+    });
 
-    await authService.logout();
+    try {
+      // Trae denuncias sin funcionario asignado (disponibles para asignarse)
+      final response = await _supabase
+          .from('denuncias')
+          .select()
+          .filter('funcionario_id', 'is', null)
+          .order('creado_en', ascending: false);
 
-    if (mounted) {
-      Navigator.popUntil(context, (route) => route.isFirst);
+      setState(() {
+        _reportes = List<Map<String, dynamic>>.from(response);
+        _loading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _errorMsg = 'Error al cargar reportes: $e';
+        _loading = false;
+      });
     }
   }
 
-  Color _getPrioridadColor(String prioridad) {
-    switch (prioridad) {
-      case 'alta':
-        return AppConfig.rojo;
-      case 'media':
+  Future<void> _asignarACaso(Map<String, dynamic> reporte) async {
+    final authService = Provider.of<AuthService>(context, listen: false);
+    final funcionarioData = authService.funcionarioData;
+
+    if (funcionarioData == null) {
+      _showError('No se pudo obtener tu información de funcionario');
+      return;
+    }
+
+    final funcionarioId = funcionarioData['id'];
+    final denunciaId = reporte['id'];
+
+    try {
+      await _supabase.from('denuncias').update({
+        'funcionario_id': funcionarioId,
+        'estado': 'revision',
+        'actualizado_en': DateTime.now().toIso8601String(),
+      }).eq('id', denunciaId);
+
+      setState(() {
+        _reportes.removeWhere((r) => r['id'] == denunciaId);
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content:
+                Text('Caso ${reporte['codigo_unico']} asignado correctamente'),
+            backgroundColor: AppConfig.verde,
+          ),
+        );
+      }
+    } catch (e) {
+      _showError('Error al asignar caso: $e');
+    }
+  }
+
+  void _showError(String msg) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(msg), backgroundColor: AppConfig.rojo),
+    );
+  }
+
+  Future<void> _cerrarSesion() async {
+    final authService = Provider.of<AuthService>(context, listen: false);
+    await authService.logout();
+    if (mounted) Navigator.popUntil(context, (route) => route.isFirst);
+  }
+
+  bool _isMobile(BuildContext context) =>
+      MediaQuery.of(context).size.width < 780;
+
+  Color _getPrioridadColor(String? estado) {
+    switch (estado) {
+      case 'pendiente':
         return AppConfig.naranja;
-      case 'baja':
+      case 'revision':
+        return AppConfig.azulClaro;
+      case 'resuelta':
         return AppConfig.verde;
       default:
         return AppConfig.grisOscuro;
     }
   }
 
-  String _getPrioridadText(String prioridad) {
-    switch (prioridad) {
-      case 'alta':
-        return 'Alta';
-      case 'media':
-        return 'Media';
-      case 'baja':
-        return 'Baja';
+  String _getCategoriaIcon(String? categoria) {
+    switch (categoria) {
+      case 'Venta informal':
+        return '🛒';
+      case 'Invasión vehicular':
+        return '🚗';
+      case 'Ocupación comercial':
+        return '🏪';
+      case 'Publicidad no autorizada':
+        return '📢';
       default:
-        return prioridad;
+        return '📋';
     }
-  }
-
-  void _asignarACaso(String id) {
-    setState(() {
-      _nuevosReportes.removeWhere((reporte) => reporte['id'] == id);
-    });
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Caso asignado correctamente'),
-        backgroundColor: AppConfig.verde,
-      ),
-    );
   }
 
   @override
@@ -107,33 +145,28 @@ class _NuevosReportesScreenState extends State<NuevosReportesScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FB),
       appBar: AppBar(
-        title: const Text(
-          'Nuevos Reportes',
-          style: TextStyle(fontWeight: FontWeight.w800),
-        ),
+        title: const Text('Nuevos Reportes',
+            style: TextStyle(fontWeight: FontWeight.w800)),
         backgroundColor: AppConfig.azulOscuro,
         elevation: 0,
         centerTitle: isMobile,
         actions: [
           IconButton(
+            tooltip: 'Actualizar',
+            icon: const Icon(Icons.refresh_rounded, color: Colors.white),
+            onPressed: _cargarReportes,
+          ),
+          IconButton(
             tooltip: 'Cerrar sesión',
-            icon: const Icon(
-              Icons.logout_rounded,
-              color: Colors.white,
-            ),
+            icon: const Icon(Icons.logout_rounded, color: Colors.white),
             onPressed: _cerrarSesion,
           ),
         ],
       ),
-      drawer: FuncionarioDrawer.maybe(
-        context,
-        currentIndex: 2,
-        userData: widget.userData,
-      ),
-      bottomNavigationBar: FuncionarioBottomNav.maybe(
-        context,
-        currentIndex: 2,
-      ),
+      drawer: FuncionarioDrawer.maybe(context,
+          currentIndex: 2, userData: widget.userData),
+      bottomNavigationBar:
+          FuncionarioBottomNav.maybe(context, currentIndex: 2),
       body: SafeArea(
         top: false,
         child: Center(
@@ -154,7 +187,7 @@ class _NuevosReportesScreenState extends State<NuevosReportesScreen> {
       children: [
         _buildHero(isMobile: true),
         const SizedBox(height: 16),
-        Expanded(child: _buildReportsList()),
+        Expanded(child: _buildBody()),
       ],
     );
   }
@@ -174,11 +207,46 @@ class _NuevosReportesScreenState extends State<NuevosReportesScreen> {
           ),
         ),
         const SizedBox(width: 24),
-        Expanded(
-          flex: 6,
-          child: _buildReportsList(),
-        ),
+        Expanded(flex: 6, child: _buildBody()),
       ],
+    );
+  }
+
+  Widget _buildBody() {
+    if (_loading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (_errorMsg != null) {
+      return _EmptyState(
+        icon: Icons.error_outline_rounded,
+        title: 'Error',
+        text: _errorMsg!,
+      );
+    }
+
+    if (_reportes.isEmpty) {
+      return const _EmptyState(
+        icon: Icons.check_circle_outline_rounded,
+        title: 'Sin reportes nuevos',
+        text: 'No hay reportes disponibles para asignación en este momento.',
+      );
+    }
+
+    return RefreshIndicator(
+      onRefresh: _cargarReportes,
+      child: ListView.builder(
+        itemCount: _reportes.length,
+        itemBuilder: (context, index) {
+          final reporte = _reportes[index];
+          return _ReportCard(
+            reporte: reporte,
+            categoriaIcon: _getCategoriaIcon(reporte['categoria']),
+            estadoColor: _getPrioridadColor(reporte['estado']),
+            onAssign: () => _asignarACaso(reporte),
+          );
+        },
+      ),
     );
   }
 
@@ -206,19 +274,16 @@ class _NuevosReportesScreenState extends State<NuevosReportesScreen> {
           Positioned(
             right: -14,
             bottom: -24,
-            child: Icon(
-              Icons.flag_rounded,
-              size: isMobile ? 90 : 130,
-              color: Colors.white.withOpacity(0.08),
-            ),
+            child: Icon(Icons.flag_rounded,
+                size: isMobile ? 90 : 130,
+                color: Colors.white.withOpacity(0.08)),
           ),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const _HeroBadge(
-                icon: Icons.new_releases_rounded,
-                text: 'Reportes pendientes',
-              ),
+              _HeroBadge(
+                  icon: Icons.new_releases_rounded,
+                  text: 'Reportes sin asignar'),
               const SizedBox(height: 18),
               Text(
                 'Nuevos reportes',
@@ -232,7 +297,7 @@ class _NuevosReportesScreenState extends State<NuevosReportesScreen> {
               ),
               const SizedBox(height: 10),
               Text(
-                'Revisa los reportes ciudadanos que todavía no han sido asignados.',
+                'Reportes ciudadanos disponibles para asignación.',
                 style: TextStyle(
                   fontSize: isMobile ? 13.5 : 15.5,
                   height: 1.4,
@@ -247,6 +312,8 @@ class _NuevosReportesScreenState extends State<NuevosReportesScreen> {
   }
 
   Widget _buildSummaryCard() {
+    final total = _reportes.length;
+
     return _SoftCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -258,80 +325,41 @@ class _NuevosReportesScreenState extends State<NuevosReportesScreen> {
           ),
           const SizedBox(height: 18),
           _SummaryRow(
-            label: 'Total disponibles',
-            value: '${_nuevosReportes.length}',
-            color: AppConfig.rojo,
-          ),
-          const SizedBox(height: 10),
-          _SummaryRow(
-            label: 'Prioridad alta',
-            value:
-                '${_nuevosReportes.where((r) => r['prioridad'] == 'alta').length}',
-            color: AppConfig.rojo,
-          ),
-          const SizedBox(height: 10),
-          _SummaryRow(
-            label: 'Prioridad media',
-            value:
-                '${_nuevosReportes.where((r) => r['prioridad'] == 'media').length}',
-            color: AppConfig.naranja,
-          ),
+              label: 'Total disponibles',
+              value: '$total',
+              color: AppConfig.rojo),
         ],
       ),
-    );
-  }
-
-  Widget _buildReportsList() {
-    if (_nuevosReportes.isEmpty) {
-      return const _EmptyState(
-        icon: Icons.check_circle_outline_rounded,
-        title: 'Sin reportes nuevos',
-        text: 'No hay nuevos reportes disponibles por el momento.',
-      );
-    }
-
-    return ListView.builder(
-      itemCount: _nuevosReportes.length,
-      itemBuilder: (context, index) {
-        final reporte = _nuevosReportes[index];
-        final prioridadColor = _getPrioridadColor(reporte['prioridad']);
-
-        return _ReportCard(
-          id: reporte['id'],
-          fecha: reporte['fecha'],
-          categoria: reporte['categoria'],
-          ubicacion: reporte['ubicacion'],
-          prioridad: _getPrioridadText(reporte['prioridad']),
-          prioridadColor: prioridadColor,
-          onAssign: () => _asignarACaso(reporte['id']),
-        );
-      },
     );
   }
 }
 
 class _ReportCard extends StatelessWidget {
-  final String id;
-  final String fecha;
-  final String categoria;
-  final String ubicacion;
-  final String prioridad;
-  final Color prioridadColor;
+  final Map<String, dynamic> reporte;
+  final String categoriaIcon;
+  final Color estadoColor;
   final VoidCallback onAssign;
 
   const _ReportCard({
-    required this.id,
-    required this.fecha,
-    required this.categoria,
-    required this.ubicacion,
-    required this.prioridad,
-    required this.prioridadColor,
+    required this.reporte,
+    required this.categoriaIcon,
+    required this.estadoColor,
     required this.onAssign,
   });
 
   @override
   Widget build(BuildContext context) {
     final isNarrow = MediaQuery.of(context).size.width < 520;
+    final codigo = reporte['codigo_unico'] ?? 'Sin código';
+    final ubicacion = reporte['ubicacion'] ?? 'Sin ubicación';
+    final categoria = reporte['categoria'] ?? 'Sin categoría';
+    final descripcion = reporte['descripcion'] ?? '';
+    final fecha = reporte['creado_en'] != null
+        ? DateTime.tryParse(reporte['creado_en'].toString())
+        : null;
+    final fechaStr = fecha != null
+        ? '${fecha.day.toString().padLeft(2, '0')}/${fecha.month.toString().padLeft(2, '0')}/${fecha.year}'
+        : '';
 
     return Card(
       elevation: 0,
@@ -346,14 +374,17 @@ class _ReportCard extends StatelessWidget {
             ? Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _content(),
+                  _content(codigo, ubicacion, categoria, descripcion, fechaStr),
                   const SizedBox(height: 14),
                   SizedBox(width: double.infinity, child: _assignButton()),
                 ],
               )
             : Row(
                 children: [
-                  Expanded(child: _content()),
+                  Expanded(
+                    child: _content(
+                        codigo, ubicacion, categoria, descripcion, fechaStr),
+                  ),
                   const SizedBox(width: 14),
                   _assignButton(),
                 ],
@@ -362,13 +393,14 @@ class _ReportCard extends StatelessWidget {
     );
   }
 
-  Widget _content() {
+  Widget _content(String codigo, String ubicacion, String categoria,
+      String descripcion, String fecha) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         CircleAvatar(
           backgroundColor: AppConfig.rojo.withOpacity(0.12),
-          child: const Icon(Icons.flag_rounded, color: AppConfig.rojo),
+          child: Text(categoriaIcon, style: const TextStyle(fontSize: 18)),
         ),
         const SizedBox(width: 13),
         Expanded(
@@ -376,29 +408,31 @@ class _ReportCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                id,
+                codigo,
                 style: const TextStyle(
-                  fontWeight: FontWeight.w900,
-                  color: AppConfig.azulOscuro,
-                ),
+                    fontWeight: FontWeight.w900, color: AppConfig.azulOscuro),
               ),
-              const SizedBox(height: 5),
-              Text(ubicacion),
               const SizedBox(height: 4),
-              Text(
-                categoria,
-                style: TextStyle(
-                  fontSize: 12.5,
-                  color: AppConfig.grisOscuro,
+              Text(ubicacion,
+                  style: const TextStyle(fontWeight: FontWeight.w600)),
+              if (descripcion.isNotEmpty) ...[
+                const SizedBox(height: 3),
+                Text(
+                  descripcion,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                      fontSize: 12.5, color: AppConfig.grisOscuro, height: 1.3),
                 ),
-              ),
+              ],
               const SizedBox(height: 8),
               Wrap(
                 spacing: 8,
                 runSpacing: 6,
                 children: [
-                  _StatusChip(label: prioridad, color: prioridadColor),
-                  _StatusChip(label: fecha, color: AppConfig.azulClaro),
+                  _StatusChip(label: categoria, color: AppConfig.azulOscuro),
+                  if (fecha.isNotEmpty)
+                    _StatusChip(label: fecha, color: AppConfig.azulClaro),
                 ],
               ),
             ],
@@ -416,9 +450,7 @@ class _ReportCard extends StatelessWidget {
       style: ElevatedButton.styleFrom(
         backgroundColor: AppConfig.verde,
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       ),
     );
   }
@@ -428,30 +460,19 @@ class _StatusChip extends StatelessWidget {
   final String label;
   final Color color;
 
-  const _StatusChip({
-    required this.label,
-    required this.color,
-  });
+  const _StatusChip({required this.label, required this.color});
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 9,
-        vertical: 4,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
       decoration: BoxDecoration(
         color: color.withOpacity(0.12),
         borderRadius: BorderRadius.circular(999),
       ),
-      child: Text(
-        label,
-        style: TextStyle(
-          fontSize: 10.5,
-          color: color,
-          fontWeight: FontWeight.w800,
-        ),
-      ),
+      child: Text(label,
+          style: TextStyle(
+              fontSize: 10.5, color: color, fontWeight: FontWeight.w800)),
     );
   }
 }
@@ -461,11 +482,8 @@ class _SummaryRow extends StatelessWidget {
   final String value;
   final Color color;
 
-  const _SummaryRow({
-    required this.label,
-    required this.value,
-    required this.color,
-  });
+  const _SummaryRow(
+      {required this.label, required this.value, required this.color});
 
   @override
   Widget build(BuildContext context) {
@@ -478,19 +496,11 @@ class _SummaryRow extends StatelessWidget {
       child: Row(
         children: [
           Expanded(
-            child: Text(
-              label,
-              style: const TextStyle(fontWeight: FontWeight.w800),
-            ),
-          ),
-          Text(
-            value,
-            style: TextStyle(
-              color: color,
-              fontSize: 18,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
+              child: Text(label,
+                  style: const TextStyle(fontWeight: FontWeight.w800))),
+          Text(value,
+              style: TextStyle(
+                  color: color, fontSize: 18, fontWeight: FontWeight.w900)),
         ],
       ),
     );
@@ -529,11 +539,8 @@ class _CardHeading extends StatelessWidget {
   final String title;
   final String subtitle;
 
-  const _CardHeading({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-  });
+  const _CardHeading(
+      {required this.icon, required this.title, required this.subtitle});
 
   @override
   Widget build(BuildContext context) {
@@ -553,22 +560,15 @@ class _CardHeading extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w900,
-                  color: AppConfig.azulOscuro,
-                ),
-              ),
+              Text(title,
+                  style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w900,
+                      color: AppConfig.azulOscuro)),
               const SizedBox(height: 3),
-              Text(
-                subtitle,
-                style: TextStyle(
-                  fontSize: 12.5,
-                  color: AppConfig.grisOscuro,
-                ),
-              ),
+              Text(subtitle,
+                  style: TextStyle(
+                      fontSize: 12.5, color: AppConfig.grisOscuro)),
             ],
           ),
         ),
@@ -581,18 +581,12 @@ class _HeroBadge extends StatelessWidget {
   final IconData icon;
   final String text;
 
-  const _HeroBadge({
-    required this.icon,
-    required this.text,
-  });
+  const _HeroBadge({required this.icon, required this.text});
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 12,
-        vertical: 7,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.16),
         borderRadius: BorderRadius.circular(999),
@@ -602,14 +596,11 @@ class _HeroBadge extends StatelessWidget {
         children: [
           Icon(icon, size: 16, color: Colors.white),
           const SizedBox(width: 7),
-          Text(
-            text,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 12,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
+          Text(text,
+              style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800)),
         ],
       ),
     );
@@ -621,11 +612,8 @@ class _EmptyState extends StatelessWidget {
   final String title;
   final String text;
 
-  const _EmptyState({
-    required this.icon,
-    required this.title,
-    required this.text,
-  });
+  const _EmptyState(
+      {required this.icon, required this.title, required this.text});
 
   @override
   Widget build(BuildContext context) {
@@ -638,20 +626,15 @@ class _EmptyState extends StatelessWidget {
             children: [
               Icon(icon, size: 54, color: AppConfig.azulClaro),
               const SizedBox(height: 12),
-              Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 19,
-                  fontWeight: FontWeight.w900,
-                  color: AppConfig.azulOscuro,
-                ),
-              ),
+              Text(title,
+                  style: const TextStyle(
+                      fontSize: 19,
+                      fontWeight: FontWeight.w900,
+                      color: AppConfig.azulOscuro)),
               const SizedBox(height: 6),
-              Text(
-                text,
-                textAlign: TextAlign.center,
-                style: TextStyle(color: AppConfig.grisOscuro),
-              ),
+              Text(text,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: AppConfig.grisOscuro)),
             ],
           ),
         ),

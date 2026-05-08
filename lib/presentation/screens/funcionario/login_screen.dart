@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../../../config/app_config.dart';
 import '../../../services/auth_service.dart';
+
 import 'funcionario_home_screen.dart';
 import 'register_screen.dart';
 
@@ -16,7 +17,6 @@ class FuncionarioLoginScreen extends StatefulWidget {
 class _FuncionarioLoginScreenState extends State<FuncionarioLoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-
   bool _obscurePassword = true;
 
   @override
@@ -34,61 +34,85 @@ class _FuncionarioLoginScreenState extends State<FuncionarioLoginScreen> {
       _showError('El correo electrónico es requerido');
       return;
     }
-
     if (password.isEmpty) {
       _showError('La contraseña es requerida');
       return;
     }
 
     final emailRegex = RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$');
-
     if (!emailRegex.hasMatch(email)) {
       _showError('Ingrese un correo electrónico válido');
       return;
     }
-
     if (!email.endsWith('@alcaldia.gov.co')) {
       _showError('Debe usar su correo institucional (@alcaldia.gov.co)');
       return;
     }
 
     final authService = Provider.of<AuthService>(context, listen: false);
-
     final success = await authService.login(email, password);
 
-    if (success && mounted) {
-      _showSuccess('Login exitoso');
+    if (!mounted) return;
 
+    if (success) {
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(
-          builder: (_) => const FuncionarioHomeScreen(),
-        ),
+        MaterialPageRoute(builder: (_) => const FuncionarioHomeScreen()),
       );
-    } else if (mounted) {
-      _showError(authService.error ?? 'Credenciales incorrectas');
+    } else {
+      final error = authService.error ?? '';
+      if (error == '__pendiente__') {
+        _showPendingDialog();
+      } else {
+        _showError(error.isNotEmpty ? error : 'Credenciales incorrectas');
+      }
     }
   }
 
   void _showError(String message) {
     if (!mounted) return;
-
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: AppConfig.rojo,
-      ),
+      SnackBar(content: Text(message), backgroundColor: AppConfig.rojo),
     );
   }
 
-  void _showSuccess(String message) {
-    if (!mounted) return;
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: AppConfig.verde,
-      ),
+  void _showPendingDialog() {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+          title: const Row(
+            children: [
+              Icon(Icons.hourglass_top_rounded, color: AppConfig.naranja),
+              SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Cuenta pendiente',
+                  style: TextStyle(fontWeight: FontWeight.w800),
+                ),
+              ),
+            ],
+          ),
+          content: const Text(
+            'Tu cuenta aún no ha sido aprobada por el administrador.\n\n'
+            'Recibirás una notificación a tu correo institucional cuando tu acceso sea habilitado.',
+            style: TextStyle(height: 1.5),
+          ),
+          actions: [
+            ElevatedButton(
+              onPressed: () => Navigator.pop(context),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppConfig.azulClaro,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14)),
+              ),
+              child: const Text('Entendido'),
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -110,10 +134,7 @@ class _FuncionarioLoginScreenState extends State<FuncionarioLoginScreen> {
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [
-              AppConfig.azulOscuro,
-              AppConfig.azulClaro,
-            ],
+            colors: [AppConfig.azulOscuro, AppConfig.azulClaro],
           ),
         ),
         child: SafeArea(
@@ -149,15 +170,9 @@ class _FuncionarioLoginScreenState extends State<FuncionarioLoginScreen> {
   Widget _buildWebLayout(AuthService authService) {
     return Row(
       children: [
-        Expanded(
-          flex: 5,
-          child: _buildHero(isMobile: false),
-        ),
+        Expanded(flex: 5, child: _buildHero(isMobile: false)),
         const SizedBox(width: 42),
-        Expanded(
-          flex: 5,
-          child: _buildLoginCard(authService),
-        ),
+        Expanded(flex: 5, child: _buildLoginCard(authService)),
       ],
     );
   }
@@ -173,15 +188,10 @@ class _FuncionarioLoginScreenState extends State<FuncionarioLoginScreen> {
           decoration: BoxDecoration(
             color: Colors.white.withOpacity(0.16),
             borderRadius: BorderRadius.circular(30),
-            border: Border.all(
-              color: Colors.white.withOpacity(0.22),
-            ),
+            border: Border.all(color: Colors.white.withOpacity(0.22)),
           ),
-          child: Icon(
-            Icons.badge_rounded,
-            size: isMobile ? 64 : 82,
-            color: Colors.white,
-          ),
+          child: Icon(Icons.badge_rounded,
+              size: isMobile ? 64 : 82, color: Colors.white),
         ),
         SizedBox(height: isMobile ? 20 : 30),
         Text(
@@ -215,17 +225,11 @@ class _FuncionarioLoginScreenState extends State<FuncionarioLoginScreen> {
           runSpacing: 10,
           children: const [
             _HeroChip(
-              icon: Icons.verified_user_rounded,
-              text: 'Acceso institucional',
-            ),
+                icon: Icons.verified_user_rounded,
+                text: 'Acceso institucional'),
             _HeroChip(
-              icon: Icons.assignment_rounded,
-              text: 'Gestión de casos',
-            ),
-            _HeroChip(
-              icon: Icons.security_rounded,
-              text: 'Sesión segura',
-            ),
+                icon: Icons.assignment_rounded, text: 'Gestión de casos'),
+            _HeroChip(icon: Icons.security_rounded, text: 'Sesión segura'),
           ],
         ),
       ],
@@ -257,11 +261,8 @@ class _FuncionarioLoginScreenState extends State<FuncionarioLoginScreen> {
               color: AppConfig.azulClaro.withOpacity(0.12),
               shape: BoxShape.circle,
             ),
-            child: const Icon(
-              Icons.person_rounded,
-              size: 42,
-              color: AppConfig.azulClaro,
-            ),
+            child: const Icon(Icons.person_rounded,
+                size: 42, color: AppConfig.azulClaro),
           ),
           const SizedBox(height: 18),
           const Text(
@@ -277,10 +278,7 @@ class _FuncionarioLoginScreenState extends State<FuncionarioLoginScreen> {
           Text(
             'Ingresa tus credenciales institucionales',
             textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 13.5,
-              color: AppConfig.grisOscuro,
-            ),
+            style: TextStyle(fontSize: 13.5, color: AppConfig.grisOscuro),
           ),
           const SizedBox(height: 28),
           TextField(
@@ -296,8 +294,7 @@ class _FuncionarioLoginScreenState extends State<FuncionarioLoginScreen> {
               filled: true,
               fillColor: const Color(0xFFF8FAFC),
               border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
+                  borderRadius: BorderRadius.circular(16)),
             ),
           ),
           const SizedBox(height: 16),
@@ -309,29 +306,21 @@ class _FuncionarioLoginScreenState extends State<FuncionarioLoginScreen> {
               labelText: 'Contraseña',
               prefixIcon: const Icon(Icons.lock_rounded),
               suffixIcon: IconButton(
-                icon: Icon(
-                  _obscurePassword
-                      ? Icons.visibility_off_rounded
-                      : Icons.visibility_rounded,
-                ),
+                icon: Icon(_obscurePassword
+                    ? Icons.visibility_off_rounded
+                    : Icons.visibility_rounded),
                 onPressed: authService.isLoading
                     ? null
-                    : () {
-                        setState(() {
-                          _obscurePassword = !_obscurePassword;
-                        });
-                      },
+                    : () =>
+                        setState(() => _obscurePassword = !_obscurePassword),
               ),
               filled: true,
               fillColor: const Color(0xFFF8FAFC),
               border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
+                  borderRadius: BorderRadius.circular(16)),
             ),
             onSubmitted: (_) {
-              if (!authService.isLoading) {
-                _login();
-              }
+              if (!authService.isLoading) _login();
             },
           ),
           const SizedBox(height: 8),
@@ -340,11 +329,8 @@ class _FuncionarioLoginScreenState extends State<FuncionarioLoginScreen> {
             child: TextButton(
               onPressed: authService.isLoading
                   ? null
-                  : () {
-                      _showError(
-                        'Contacte al administrador para recuperar su contraseña',
-                      );
-                    },
+                  : () => _showError(
+                      'Contacte al administrador para recuperar su contraseña'),
               child: const Text('¿Olvidaste tu contraseña?'),
             ),
           ),
@@ -359,25 +345,18 @@ class _FuncionarioLoginScreenState extends State<FuncionarioLoginScreen> {
                       width: 19,
                       height: 19,
                       child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.white,
-                      ),
+                          strokeWidth: 2, color: Colors.white),
                     )
                   : const Icon(Icons.login_rounded),
-              label: Text(
-                authService.isLoading
-                    ? 'Iniciando sesión...'
-                    : 'Iniciar sesión',
-              ),
+              label: Text(authService.isLoading
+                  ? 'Iniciando sesión...'
+                  : 'Iniciar sesión'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppConfig.azulClaro,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
+                    borderRadius: BorderRadius.circular(16)),
                 textStyle: const TextStyle(
-                  fontSize: 15.5,
-                  fontWeight: FontWeight.w800,
-                ),
+                    fontSize: 15.5, fontWeight: FontWeight.w800),
               ),
             ),
           ),
@@ -386,21 +365,17 @@ class _FuncionarioLoginScreenState extends State<FuncionarioLoginScreen> {
             alignment: WrapAlignment.center,
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
-              Text(
-                '¿No tienes cuenta?',
-                style: TextStyle(color: AppConfig.grisOscuro),
-              ),
+              Text('¿No tienes cuenta?',
+                  style: TextStyle(color: AppConfig.grisOscuro)),
               TextButton(
                 onPressed: authService.isLoading
                     ? null
-                    : () {
-                        Navigator.push(
+                    : () => Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (_) => const FuncionarioRegisterScreen(),
-                          ),
-                        );
-                      },
+                              builder: (_) =>
+                                  const FuncionarioRegisterScreen()),
+                        ),
                 child: const Text('Regístrate aquí'),
               ),
             ],
@@ -422,38 +397,27 @@ class _HeroChip extends StatelessWidget {
   final IconData icon;
   final String text;
 
-  const _HeroChip({
-    required this.icon,
-    required this.text,
-  });
+  const _HeroChip({required this.icon, required this.text});
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 13,
-        vertical: 9,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 9),
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.14),
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(
-          color: Colors.white.withOpacity(0.18),
-        ),
+        border: Border.all(color: Colors.white.withOpacity(0.18)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(icon, size: 16, color: Colors.white),
           const SizedBox(width: 7),
-          Text(
-            text,
-            style: TextStyle(
-              fontSize: 12,
-              color: Colors.white.withOpacity(0.92),
-              fontWeight: FontWeight.w700,
-            ),
-          ),
+          Text(text,
+              style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.white.withOpacity(0.92),
+                  fontWeight: FontWeight.w700)),
         ],
       ),
     );

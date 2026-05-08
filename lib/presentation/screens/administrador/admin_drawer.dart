@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-
 import '../../../config/app_config.dart';
 
 class AdminDrawer extends StatelessWidget {
@@ -24,9 +23,7 @@ class AdminDrawer extends StatelessWidget {
     required VoidCallback onLogout,
   }) {
     final isMobile = MediaQuery.of(context).size.width < 780;
-
     if (isMobile) return null;
-
     return AdminDrawer(
       currentIndex: currentIndex,
       adminData: adminData,
@@ -37,9 +34,9 @@ class AdminDrawer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final adminName = adminData['nombre']?.toString() ?? 'Administrador';
+    final adminName = adminData['nombre']?.toString() ?? 'Supervisor';
     final adminEmail = adminData['correo']?.toString() ?? '';
-    final adminRole = adminData['rol']?.toString() ?? 'admin';
+    final adminRole = adminData['rol']?.toString() ?? 'supervisor';
 
     return Drawer(
       child: Container(
@@ -52,84 +49,45 @@ class AdminDrawer extends StatelessWidget {
                 adminEmail: adminEmail,
                 adminRole: adminRole,
               ),
-              const Divider(
-                color: AppConfig.azulClaro,
-                height: 1,
-              ),
+              const Divider(color: AppConfig.azulClaro, height: 1),
               Expanded(
                 child: ListView(
                   padding: const EdgeInsets.symmetric(vertical: 10),
                   children: [
                     _DrawerItem(
                       icon: Icons.dashboard_rounded,
-                      title: 'Dashboard',
+                      title: 'Supervisión',
                       selected: currentIndex == 0,
-                      onTap: () {
-                        Navigator.pop(context);
-                        onSelect(0);
-                      },
+                      onTap: () { Navigator.pop(context); onSelect(0); },
                     ),
                     _DrawerItem(
-                      icon: Icons.flag_rounded,
-                      title: 'Gestión de Reportes',
+                      icon: Icons.fact_check_rounded,
+                      title: 'Validación de Reportes',
                       selected: currentIndex == 1,
-                      onTap: () {
-                        Navigator.pop(context);
-                        onSelect(1);
-                      },
+                      onTap: () { Navigator.pop(context); onSelect(1); },
                     ),
                     _DrawerItem(
-                      icon: Icons.people_rounded,
-                      title: 'Gestión de Usuarios',
+                      icon: Icons.how_to_reg_rounded,
+                      title: 'Aprobación de Funcionarios',
                       selected: currentIndex == 2,
-                      onTap: () {
-                        Navigator.pop(context);
-                        onSelect(2);
-                      },
-                    ),
-                    _DrawerItem(
-                      icon: Icons.map_rounded,
-                      title: 'Gestión de Zonas',
-                      selected: currentIndex == 3,
-                      onTap: () {
-                        Navigator.pop(context);
-                        onSelect(3);
-                      },
-                    ),
-                    _DrawerItem(
-                      icon: Icons.assignment_rounded,
-                      title: 'Asignaciones',
-                      selected: currentIndex == 4,
-                      onTap: () {
-                        Navigator.pop(context);
-                        onSelect(4);
-                      },
+                      onTap: () { Navigator.pop(context); onSelect(2); },
                     ),
                     _DrawerItem(
                       icon: Icons.bar_chart_rounded,
                       title: 'Estadísticas',
-                      selected: currentIndex == 5,
-                      onTap: () {
-                        Navigator.pop(context);
-                        onSelect(5);
-                      },
+                      selected: currentIndex == 3,
+                      onTap: () { Navigator.pop(context); onSelect(3); },
                     ),
                     _DrawerItem(
                       icon: Icons.settings_rounded,
                       title: 'Configuración',
-                      selected: currentIndex == 6,
-                      onTap: () {
-                        Navigator.pop(context);
-                        onSelect(6);
-                      },
+                      selected: currentIndex == 4,
+                      onTap: () { Navigator.pop(context); onSelect(4); },
                     ),
                   ],
                 ),
               ),
-              const Divider(
-                color: AppConfig.azulClaro,
-                height: 1,
-              ),
+              const Divider(color: AppConfig.azulClaro, height: 1),
               Padding(
                 padding: const EdgeInsets.fromLTRB(8, 8, 8, 12),
                 child: _DrawerItem(
@@ -137,10 +95,7 @@ class AdminDrawer extends StatelessWidget {
                   title: 'Cerrar sesión',
                   selected: false,
                   color: AppConfig.rojo,
-                  onTap: () {
-                    Navigator.pop(context);
-                    onLogout();
-                  },
+                  onTap: () { Navigator.pop(context); onLogout(); },
                 ),
               ),
             ],
@@ -166,14 +121,12 @@ class _AdminHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final initial = adminName.trim().isNotEmpty
         ? adminName.trim()[0].toUpperCase()
-        : 'A';
+        : 'S';
 
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
-      decoration: const BoxDecoration(
-        color: AppConfig.azulOscuro,
-      ),
+      decoration: const BoxDecoration(color: AppConfig.azulOscuro),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
@@ -216,16 +169,13 @@ class _AdminHeader extends StatelessWidget {
                 ),
                 const SizedBox(height: 8),
                 Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 5,
-                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                   decoration: BoxDecoration(
                     color: AppConfig.rojo.withOpacity(0.25),
                     borderRadius: BorderRadius.circular(999),
                   ),
                   child: Text(
-                    adminRole,
+                    'Supervisor',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
@@ -262,22 +212,16 @@ class _DrawerItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final itemColor = color ?? Colors.white;
-
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       child: ListTile(
         selected: selected,
         selectedTileColor: Colors.white.withOpacity(0.09),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         leading: Icon(icon, color: itemColor),
         title: Text(
           title,
-          style: TextStyle(
-            color: itemColor,
-            fontWeight: FontWeight.w700,
-          ),
+          style: TextStyle(color: itemColor, fontWeight: FontWeight.w700),
         ),
         onTap: onTap,
       ),

@@ -1,190 +1,119 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import '../../../config/app_config.dart';
+import '../../../services/denuncia_service.dart';
 
-class GestionReportesScreen extends StatefulWidget {
-  const GestionReportesScreen({super.key});
+class ValidacionReportesScreen extends StatefulWidget {
+  const ValidacionReportesScreen({super.key});
 
   @override
-  State<GestionReportesScreen> createState() => _GestionReportesScreenState();
+  State<ValidacionReportesScreen> createState() => _ValidacionReportesScreenState();
 }
 
-class _GestionReportesScreenState extends State<GestionReportesScreen> {
-  String _filtroEstado = '';
-  String _filtroCategoria = '';
+class _ValidacionReportesScreenState extends State<ValidacionReportesScreen> {
+  String _filtroEstado = 'resuelto_pendiente_validacion';
   String _buscarTexto = '';
+  bool _cargando = true;
+  List<Map<String, dynamic>> _reportes = [];
 
-  final List<Map<String, dynamic>> _reportes = [
-    {
-      'codigo': 'PSJ-8A4B2C9D',
-      'ubicacion': 'Cra 25 #18-35, Centro',
-      'categoria': 'Venta informal',
-      'descripcion': 'Puesto de venta informal bloqueando el paso peatonal.',
-      'estado': 'pendiente',
-      'fecha': '05/09/2025',
-      'prioridad': 'alta',
-      'funcionario': 'Sin asignar',
-    },
-    {
-      'codigo': 'PSJ-123ABC',
-      'ubicacion': 'Calle 19 #24-50',
-      'categoria': 'Invasión vehicular',
-      'descripcion': 'Vehículo estacionado sobre el andén.',
-      'estado': 'revision',
-      'fecha': '10/09/2025',
-      'prioridad': 'media',
-      'funcionario': 'Carlos Martínez',
-    },
-    {
-      'codigo': 'PSJ-456DEF',
-      'ubicacion': 'Av. Los Estudiantes',
-      'categoria': 'Ocupación comercial',
-      'descripcion': 'Mesas ocupando espacio público.',
-      'estado': 'resuelto',
-      'fecha': '01/09/2025',
-      'prioridad': 'baja',
-      'funcionario': 'Ana Gómez',
-    },
-    {
-      'codigo': 'PSJ-789GHI',
-      'ubicacion': 'Transversal 23',
-      'categoria': 'Publicidad no autorizada',
-      'descripcion': 'Aviso publicitario en zona no permitida.',
-      'estado': 'pendiente',
-      'fecha': '12/09/2025',
-      'prioridad': 'alta',
-      'funcionario': 'Sin asignar',
-    },
-  ];
-
-  final List<String> _funcionarios = [
-    'Carlos Martínez',
-    'Ana Gómez',
-    'Luis Herrera',
-    'María Rodríguez',
-  ];
-
-  bool _isMobile(BuildContext context) {
-    return MediaQuery.of(context).size.width < 780;
+  @override
+  void initState() {
+    super.initState();
+    _cargarReportes();
   }
 
+  Future<void> _cargarReportes() async {
+    setState(() => _cargando = true);
+    final service = Provider.of<DenunciaService>(context, listen: false);
+    final todos = await service.obtenerTodasDenuncias();
+    if (!mounted) return;
+    setState(() {
+      _reportes = todos;
+      _cargando = false;
+    });
+  }
+
+  bool _isMobile(BuildContext context) =>
+      MediaQuery.of(context).size.width < 780;
+
   List<Map<String, dynamic>> get _reportesFiltrados {
-    return _reportes.where((reporte) {
-      if (_filtroEstado.isNotEmpty && reporte['estado'] != _filtroEstado) {
-        return false;
-      }
-
-      if (_filtroCategoria.isNotEmpty &&
-          reporte['categoria'] != _filtroCategoria) {
-        return false;
-      }
-
+    return _reportes.where((r) {
+      if (_filtroEstado.isNotEmpty && r['estado'] != _filtroEstado) return false;
       if (_buscarTexto.isNotEmpty) {
-        final query = _buscarTexto.toLowerCase();
-
-        return reporte['codigo'].toString().toLowerCase().contains(query) ||
-            reporte['ubicacion'].toString().toLowerCase().contains(query) ||
-            reporte['categoria'].toString().toLowerCase().contains(query) ||
-            reporte['funcionario'].toString().toLowerCase().contains(query);
+        final q = _buscarTexto.toLowerCase();
+        return r['codigo_unico'].toString().toLowerCase().contains(q) ||
+            r['ubicacion'].toString().toLowerCase().contains(q) ||
+            r['categoria'].toString().toLowerCase().contains(q);
       }
-
       return true;
     }).toList();
   }
 
   Color _getEstadoColor(String estado) {
     switch (estado) {
-      case 'pendiente':
-        return AppConfig.naranja;
-      case 'revision':
-        return AppConfig.azulClaro;
-      case 'resuelto':
-        return AppConfig.verde;
-      default:
-        return AppConfig.grisOscuro;
+      case 'pendiente': return AppConfig.naranja;
+      case 'en_revision': return AppConfig.azulClaro;
+      case 'resuelto_pendiente_validacion': return AppConfig.rojo;
+      case 'devuelto': return const Color(0xFF9C27B0);
+      case 'resuelto_publicado': return AppConfig.verde;
+      default: return AppConfig.grisOscuro;
     }
   }
 
   String _getEstadoText(String estado) {
     switch (estado) {
-      case 'pendiente':
-        return 'Pendiente';
-      case 'revision':
-        return 'En revisión';
-      case 'resuelto':
-        return 'Resuelto';
-      default:
-        return estado;
+      case 'pendiente': return 'Pendiente';
+      case 'en_revision': return 'En revisión';
+      case 'resuelto_pendiente_validacion': return 'Pend. validación';
+      case 'devuelto': return 'Devuelto';
+      case 'resuelto_publicado': return 'Resuelto ✓';
+      default: return estado;
     }
   }
 
-  Color _getPrioridadColor(String prioridad) {
-    switch (prioridad) {
-      case 'alta':
-        return AppConfig.rojo;
-      case 'media':
-        return AppConfig.naranja;
-      case 'baja':
-        return AppConfig.verde;
-      default:
-        return AppConfig.grisOscuro;
+  Future<void> _aprobarReporte(Map<String, dynamic> reporte) async {
+    final service = Provider.of<DenunciaService>(context, listen: false);
+    final ok = await service.actualizarEstado(reporte['id'] as int, 'resuelto_publicado');
+    if (!mounted) return;
+    if (ok) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Reporte ${reporte['codigo_unico']} publicado correctamente'),
+          backgroundColor: AppConfig.verde,
+        ),
+      );
+      _cargarReportes();
     }
   }
 
-  String _getPrioridadText(String prioridad) {
-    switch (prioridad) {
-      case 'alta':
-        return 'Alta';
-      case 'media':
-        return 'Media';
-      case 'baja':
-        return 'Baja';
-      default:
-        return prioridad;
-    }
-  }
-
-  void _cambiarEstado(String codigo, String nuevoEstado) {
-    setState(() {
-      final index = _reportes.indexWhere((r) => r['codigo'] == codigo);
-
-      if (index != -1) {
-        _reportes[index]['estado'] = nuevoEstado;
-      }
-    });
-
+  Future<void> _devolverReporte(Map<String, dynamic> reporte, String motivo) async {
+    final service = Provider.of<DenunciaService>(context, listen: false);
+    await service.actualizarEstadoConRespuesta(
+      reporte['id'] as int,
+      'devuelto',
+      motivo,
+    );
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('Reporte $codigo actualizado correctamente'),
-        backgroundColor: AppConfig.verde,
+        content: Text('Reporte ${reporte['codigo_unico']} devuelto al funcionario'),
+        backgroundColor: const Color(0xFF9C27B0),
       ),
     );
-  }
-
-  void _asignarFuncionario(String codigo, String funcionario) {
-    setState(() {
-      final index = _reportes.indexWhere((r) => r['codigo'] == codigo);
-
-      if (index != -1) {
-        _reportes[index]['funcionario'] = funcionario;
-        _reportes[index]['estado'] = 'revision';
-      }
-    });
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Reporte $codigo asignado a $funcionario'),
-        backgroundColor: AppConfig.verde,
-      ),
-    );
+    _cargarReportes();
   }
 
   void _mostrarDetalle(Map<String, dynamic> reporte) {
+    final estado = reporte['estado']?.toString() ?? '';
+    final esPendienteValidacion = estado == 'resuelto_pendiente_validacion';
+    final motivoController = TextEditingController();
+
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
-      builder: (context) {
+      builder: (ctx) {
         return Container(
           margin: const EdgeInsets.all(12),
           padding: const EdgeInsets.all(22),
@@ -204,8 +133,7 @@ class _GestionReportesScreenState extends State<GestionReportesScreen> {
                 children: [
                   Center(
                     child: Container(
-                      width: 46,
-                      height: 5,
+                      width: 46, height: 5,
                       margin: const EdgeInsets.only(bottom: 18),
                       decoration: BoxDecoration(
                         color: AppConfig.grisMedio,
@@ -217,13 +145,8 @@ class _GestionReportesScreenState extends State<GestionReportesScreen> {
                     children: [
                       CircleAvatar(
                         radius: 28,
-                        backgroundColor: _getEstadoColor(
-                          reporte['estado'],
-                        ).withOpacity(0.12),
-                        child: Icon(
-                          Icons.flag_rounded,
-                          color: _getEstadoColor(reporte['estado']),
-                        ),
+                        backgroundColor: _getEstadoColor(estado).withOpacity(0.12),
+                        child: Icon(Icons.fact_check_rounded, color: _getEstadoColor(estado)),
                       ),
                       const SizedBox(width: 14),
                       Expanded(
@@ -231,20 +154,15 @@ class _GestionReportesScreenState extends State<GestionReportesScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              reporte['codigo'],
+                              reporte['codigo_unico'] ?? '—',
                               style: const TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.w900,
-                                color: AppConfig.azulOscuro,
+                                fontSize: 20, fontWeight: FontWeight.w900, color: AppConfig.azulOscuro,
                               ),
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              reporte['ubicacion'],
-                              style: TextStyle(
-                                color: AppConfig.grisOscuro,
-                                fontSize: 13,
-                              ),
+                              reporte['ubicacion'] ?? '—',
+                              style: TextStyle(color: AppConfig.grisOscuro, fontSize: 13),
                             ),
                           ],
                         ),
@@ -252,120 +170,77 @@ class _GestionReportesScreenState extends State<GestionReportesScreen> {
                     ],
                   ),
                   const Divider(height: 30),
-                  _buildInfoRow('Categoría', reporte['categoria']),
-                  _buildInfoRow('Descripción', reporte['descripcion']),
-                  _buildInfoRow('Fecha', reporte['fecha']),
-                  _buildInfoRow('Estado', _getEstadoText(reporte['estado'])),
-                  _buildInfoRow(
-                    'Prioridad',
-                    _getPrioridadText(reporte['prioridad']),
-                  ),
-                  _buildInfoRow('Funcionario', reporte['funcionario']),
-                  const SizedBox(height: 20),
-                  const Text(
-                    'Asignar funcionario',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w900,
-                      color: AppConfig.azulOscuro,
-                      fontSize: 16,
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  DropdownButtonFormField<String>(
-                    hint: const Text('Seleccione funcionario'),
-                    isExpanded: true,
-                    decoration: InputDecoration(
-                      filled: true,
-                      fillColor: const Color(0xFFF8FAFC),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(16),
+                  _buildInfoRow('Categoría', reporte['categoria'] ?? '—'),
+                  _buildInfoRow('Descripción', reporte['descripcion'] ?? '—'),
+                  _buildInfoRow('Estado', _getEstadoText(estado)),
+                  _buildInfoRow('Fecha', _formatFecha(reporte['creado_en'])),
+                  if (reporte['respuesta_oficial'] != null &&
+                      reporte['respuesta_oficial'].toString().isNotEmpty)
+                    _buildInfoRow('Respuesta funcionario', reporte['respuesta_oficial']),
+
+                  if (esPendienteValidacion) ...[
+                    const SizedBox(height: 20),
+                    const Text(
+                      'Motivo de devolución (opcional)',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w900, color: AppConfig.azulOscuro, fontSize: 15,
                       ),
                     ),
-                    items: _funcionarios.map((funcionario) {
-                      return DropdownMenuItem<String>(
-                        value: funcionario,
-                        child: Text(funcionario),
-                      );
-                    }).toList(),
-                    onChanged: (value) {
-                      if (value == null) return;
-
-                      Navigator.pop(context);
-                      _asignarFuncionario(reporte['codigo'], value);
-                    },
-                  ),
-                  const SizedBox(height: 18),
-                  LayoutBuilder(
-                    builder: (context, constraints) {
+                    const SizedBox(height: 10),
+                    TextField(
+                      controller: motivoController,
+                      maxLines: 3,
+                      decoration: InputDecoration(
+                        hintText: 'Explica por qué se devuelve al funcionario...',
+                        filled: true,
+                        fillColor: const Color(0xFFF8FAFC),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+                    LayoutBuilder(builder: (context, constraints) {
                       final isNarrow = constraints.maxWidth < 430;
+                      final aprobarBtn = ElevatedButton.icon(
+                        onPressed: () {
+                          Navigator.pop(ctx);
+                          _aprobarReporte(reporte);
+                        },
+                        icon: const Icon(Icons.check_circle_rounded),
+                        label: const Text('Aprobar y publicar'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppConfig.verde,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                        ),
+                      );
+                      final devolverBtn = ElevatedButton.icon(
+                        onPressed: () {
+                          Navigator.pop(ctx);
+                          _devolverReporte(reporte, motivoController.text.trim());
+                        },
+                        icon: const Icon(Icons.undo_rounded),
+                        label: const Text('Devolver'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF9C27B0),
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                        ),
+                      );
 
                       if (isNarrow) {
-                        return Column(
-                          children: [
-                            SizedBox(
-                              width: double.infinity,
-                              child: _stateButton(
-                                label: 'En revisión',
-                                icon: Icons.pending_actions_rounded,
-                                color: AppConfig.azulClaro,
-                                onPressed: () {
-                                  Navigator.pop(context);
-                                  _cambiarEstado(
-                                    reporte['codigo'],
-                                    'revision',
-                                  );
-                                },
-                              ),
-                            ),
-                            const SizedBox(height: 12),
-                            SizedBox(
-                              width: double.infinity,
-                              child: _stateButton(
-                                label: 'Resolver',
-                                icon: Icons.check_circle_rounded,
-                                color: AppConfig.verde,
-                                onPressed: () {
-                                  Navigator.pop(context);
-                                  _cambiarEstado(
-                                    reporte['codigo'],
-                                    'resuelto',
-                                  );
-                                },
-                              ),
-                            ),
-                          ],
-                        );
+                        return Column(children: [
+                          SizedBox(width: double.infinity, child: aprobarBtn),
+                          const SizedBox(height: 12),
+                          SizedBox(width: double.infinity, child: devolverBtn),
+                        ]);
                       }
-
-                      return Row(
-                        children: [
-                          Expanded(
-                            child: _stateButton(
-                              label: 'En revisión',
-                              icon: Icons.pending_actions_rounded,
-                              color: AppConfig.azulClaro,
-                              onPressed: () {
-                                Navigator.pop(context);
-                                _cambiarEstado(reporte['codigo'], 'revision');
-                              },
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: _stateButton(
-                              label: 'Resolver',
-                              icon: Icons.check_circle_rounded,
-                              color: AppConfig.verde,
-                              onPressed: () {
-                                Navigator.pop(context);
-                                _cambiarEstado(reporte['codigo'], 'resuelto');
-                              },
-                            ),
-                          ),
-                        ],
-                      );
-                    },
-                  ),
+                      return Row(children: [
+                        Expanded(child: aprobarBtn),
+                        const SizedBox(width: 12),
+                        Expanded(child: devolverBtn),
+                      ]);
+                    }),
+                  ],
                 ],
               ),
             ),
@@ -375,24 +250,14 @@ class _GestionReportesScreenState extends State<GestionReportesScreen> {
     );
   }
 
-  Widget _stateButton({
-    required String label,
-    required IconData icon,
-    required Color color,
-    required VoidCallback onPressed,
-  }) {
-    return ElevatedButton.icon(
-      onPressed: onPressed,
-      icon: Icon(icon),
-      label: Text(label),
-      style: ElevatedButton.styleFrom(
-        backgroundColor: color,
-        padding: const EdgeInsets.symmetric(vertical: 14),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
-      ),
-    );
+  String _formatFecha(dynamic valor) {
+    if (valor == null) return '—';
+    try {
+      final dt = DateTime.parse(valor.toString()).toLocal();
+      return '${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}/${dt.year}';
+    } catch (_) {
+      return valor.toString();
+    }
   }
 
   Widget _buildInfoRow(String label, String value) {
@@ -402,23 +267,13 @@ class _GestionReportesScreenState extends State<GestionReportesScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SizedBox(
-            width: 104,
-            child: Text(
-              '$label:',
-              style: const TextStyle(
-                fontWeight: FontWeight.w800,
-                color: Colors.black87,
-              ),
-            ),
+            width: 130,
+            child: Text('$label:', style: const TextStyle(
+              fontWeight: FontWeight.w800, color: Colors.black87,
+            )),
           ),
           Expanded(
-            child: Text(
-              value,
-              style: TextStyle(
-                color: AppConfig.grisOscuro,
-                height: 1.35,
-              ),
-            ),
+            child: Text(value, style: TextStyle(color: AppConfig.grisOscuro, height: 1.35)),
           ),
         ],
       ),
@@ -450,7 +305,7 @@ class _GestionReportesScreenState extends State<GestionReportesScreen> {
         const SizedBox(height: 16),
         _buildFilters(),
         const SizedBox(height: 12),
-        Expanded(child: _buildReportesList()),
+        Expanded(child: _buildLista()),
       ],
     );
   }
@@ -459,27 +314,17 @@ class _GestionReportesScreenState extends State<GestionReportesScreen> {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Expanded(
-          flex: 4,
-          child: Column(
-            children: [
-              _buildHero(isMobile: false),
-              const SizedBox(height: 20),
-              _buildSummaryCard(),
-            ],
-          ),
-        ),
+        Expanded(flex: 4, child: Column(children: [
+          _buildHero(isMobile: false),
+          const SizedBox(height: 20),
+          _buildResumenCard(),
+        ])),
         const SizedBox(width: 24),
-        Expanded(
-          flex: 6,
-          child: Column(
-            children: [
-              _buildFilters(),
-              const SizedBox(height: 14),
-              Expanded(child: _buildReportesList()),
-            ],
-          ),
-        ),
+        Expanded(flex: 6, child: Column(children: [
+          _buildFilters(),
+          const SizedBox(height: 14),
+          Expanded(child: _buildLista()),
+        ])),
       ],
     );
   }
@@ -496,48 +341,33 @@ class _GestionReportesScreenState extends State<GestionReportesScreen> {
         ),
         borderRadius: BorderRadius.circular(isMobile ? 24 : 30),
         boxShadow: [
-          BoxShadow(
-            color: AppConfig.rojo.withOpacity(0.18),
-            blurRadius: 22,
-            offset: const Offset(0, 12),
-          ),
+          BoxShadow(color: AppConfig.rojo.withOpacity(0.18), blurRadius: 22, offset: const Offset(0, 12)),
         ],
       ),
       child: Stack(
         children: [
           Positioned(
-            right: -14,
-            bottom: -24,
-            child: Icon(
-              Icons.flag_rounded,
-              size: isMobile ? 90 : 130,
-              color: Colors.white.withOpacity(0.08),
-            ),
+            right: -14, bottom: -24,
+            child: Icon(Icons.fact_check_rounded,
+              size: isMobile ? 90 : 130, color: Colors.white.withOpacity(0.08)),
           ),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const _HeroBadge(
-                icon: Icons.manage_search_rounded,
-                text: 'Administración de reportes',
-              ),
+              _HeroBadge(icon: Icons.manage_search_rounded, text: 'Validación de cierres'),
               const SizedBox(height: 18),
               Text(
-                'Reportes ciudadanos',
+                'Validar reportes resueltos',
                 style: TextStyle(
-                  fontSize: isMobile ? 26 : 36,
-                  height: 1.08,
-                  fontWeight: FontWeight.w900,
-                  color: Colors.white,
-                  letterSpacing: -0.6,
+                  fontSize: isMobile ? 26 : 36, height: 1.08,
+                  fontWeight: FontWeight.w900, color: Colors.white, letterSpacing: -0.6,
                 ),
               ),
               const SizedBox(height: 10),
               Text(
-                'Revisa, filtra, asigna y actualiza el estado de los reportes registrados.',
+                'Revisa los cierres enviados por funcionarios y decide si se publican o se devuelven.',
                 style: TextStyle(
-                  fontSize: isMobile ? 13.5 : 15.5,
-                  height: 1.4,
+                  fontSize: isMobile ? 13.5 : 15.5, height: 1.4,
                   color: Colors.white.withOpacity(0.84),
                 ),
               ),
@@ -548,264 +378,158 @@ class _GestionReportesScreenState extends State<GestionReportesScreen> {
     );
   }
 
-  Widget _buildSummaryCard() {
+  Widget _buildResumenCard() {
+    final pendientes = _reportes.where((r) => r['estado'] == 'resuelto_pendiente_validacion').length;
+    final devueltos = _reportes.where((r) => r['estado'] == 'devuelto').length;
+    final publicados = _reportes.where((r) => r['estado'] == 'resuelto_publicado').length;
+
     return _SoftCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const _CardHeading(
-            icon: Icons.insights_rounded,
-            title: 'Resumen',
-            subtitle: 'Estado actual de reportes.',
-          ),
+          const _CardHeading(icon: Icons.insights_rounded, title: 'Resumen', subtitle: 'Estado de validaciones.'),
           const SizedBox(height: 18),
-          _SummaryRow(
-            label: 'Total',
-            value: '${_reportes.length}',
-            color: AppConfig.azulOscuro,
-          ),
+          _SummaryRow(label: 'Pend. validación', value: '$pendientes', color: AppConfig.rojo),
           const SizedBox(height: 10),
-          _SummaryRow(
-            label: 'Pendientes',
-            value:
-                '${_reportes.where((r) => r['estado'] == 'pendiente').length}',
-            color: AppConfig.naranja,
-          ),
+          _SummaryRow(label: 'Devueltos', value: '$devueltos', color: const Color(0xFF9C27B0)),
           const SizedBox(height: 10),
-          _SummaryRow(
-            label: 'En revisión',
-            value:
-                '${_reportes.where((r) => r['estado'] == 'revision').length}',
-            color: AppConfig.azulClaro,
-          ),
-          const SizedBox(height: 10),
-          _SummaryRow(
-            label: 'Resueltos',
-            value:
-                '${_reportes.where((r) => r['estado'] == 'resuelto').length}',
-            color: AppConfig.verde,
-          ),
+          _SummaryRow(label: 'Publicados', value: '$publicados', color: AppConfig.verde),
         ],
       ),
     );
   }
 
   Widget _buildFilters() {
-    final categorias =
-        _reportes.map((r) => r['categoria'].toString()).toSet().toList();
-
     return _SoftCard(
       child: Column(
         children: [
-          Row(
-            children: const [
-              Icon(Icons.tune_rounded, color: AppConfig.azulOscuro),
-              SizedBox(width: 8),
-              Text(
-                'Filtros de búsqueda',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w900,
-                  color: AppConfig.azulOscuro,
-                ),
-              ),
-            ],
-          ),
+          Row(children: const [
+            Icon(Icons.tune_rounded, color: AppConfig.azulOscuro),
+            SizedBox(width: 8),
+            Text('Filtros', style: TextStyle(
+              fontSize: 16, fontWeight: FontWeight.w900, color: AppConfig.azulOscuro,
+            )),
+          ]),
           const SizedBox(height: 16),
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final stack = constraints.maxWidth < 540;
-
-              if (stack) {
-                return Column(
-                  children: [
-                    _estadoDropdown(),
-                    const SizedBox(height: 12),
-                    _categoriaDropdown(categorias),
-                  ],
-                );
-              }
-
-              return Row(
-                children: [
-                  Expanded(child: _estadoDropdown()),
-                  const SizedBox(width: 12),
-                  Expanded(child: _categoriaDropdown(categorias)),
-                ],
-              );
-            },
+          DropdownButtonFormField<String>(
+            value: _filtroEstado.isEmpty ? null : _filtroEstado,
+            hint: const Text('Estado'),
+            isExpanded: true,
+            items: const [
+              DropdownMenuItem(value: '', child: Text('Todos')),
+              DropdownMenuItem(value: 'resuelto_pendiente_validacion', child: Text('Pend. validación')),
+              DropdownMenuItem(value: 'devuelto', child: Text('Devueltos')),
+              DropdownMenuItem(value: 'resuelto_publicado', child: Text('Publicados')),
+              DropdownMenuItem(value: 'pendiente', child: Text('Pendiente')),
+              DropdownMenuItem(value: 'en_revision', child: Text('En revisión')),
+            ],
+            onChanged: (v) => setState(() => _filtroEstado = v ?? ''),
+            decoration: InputDecoration(
+              filled: true, fillColor: const Color(0xFFF8FAFC),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
+            ),
           ),
           const SizedBox(height: 12),
           TextField(
             decoration: InputDecoration(
-              hintText: 'Buscar por código, ubicación, categoría o funcionario...',
+              hintText: 'Buscar por código, ubicación o categoría...',
               prefixIcon: const Icon(Icons.search_rounded),
-              filled: true,
-              fillColor: const Color(0xFFF8FAFC),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
+              filled: true, fillColor: const Color(0xFFF8FAFC),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
             ),
-            onChanged: (value) {
-              setState(() => _buscarTexto = value);
-            },
+            onChanged: (v) => setState(() => _buscarTexto = v),
           ),
         ],
       ),
     );
   }
 
-  Widget _estadoDropdown() {
-    return DropdownButtonFormField<String>(
-      value: _filtroEstado.isEmpty ? null : _filtroEstado,
-      hint: const Text('Estado'),
-      isExpanded: true,
-      items: const [
-        DropdownMenuItem(value: '', child: Text('Todos')),
-        DropdownMenuItem(value: 'pendiente', child: Text('Pendiente')),
-        DropdownMenuItem(value: 'revision', child: Text('En revisión')),
-        DropdownMenuItem(value: 'resuelto', child: Text('Resuelto')),
-      ],
-      onChanged: (value) {
-        setState(() => _filtroEstado = value ?? '');
-      },
-      decoration: InputDecoration(
-        filled: true,
-        fillColor: const Color(0xFFF8FAFC),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
-      ),
-    );
-  }
+  Widget _buildLista() {
+    if (_cargando) {
+      return const Center(child: CircularProgressIndicator());
+    }
 
-  Widget _categoriaDropdown(List<String> categorias) {
-    return DropdownButtonFormField<String>(
-      value: _filtroCategoria.isEmpty ? null : _filtroCategoria,
-      hint: const Text('Categoría'),
-      isExpanded: true,
-      items: [
-        const DropdownMenuItem(value: '', child: Text('Todas')),
-        ...categorias.map(
-          (categoria) => DropdownMenuItem(
-            value: categoria,
-            child: Text(categoria),
+    if (_reportesFiltrados.isEmpty) {
+      return _SoftCard(
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(26),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.fact_check_rounded, size: 54, color: AppConfig.rojo),
+                const SizedBox(height: 12),
+                const Text('Sin resultados', style: TextStyle(
+                  fontSize: 19, fontWeight: FontWeight.w900, color: AppConfig.azulOscuro,
+                )),
+                const SizedBox(height: 6),
+                Text(
+                  'No hay reportes que coincidan con los filtros.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: AppConfig.grisOscuro),
+                ),
+              ],
+            ),
           ),
         ),
-      ],
-      onChanged: (value) {
-        setState(() => _filtroCategoria = value ?? '');
-      },
-      decoration: InputDecoration(
-        filled: true,
-        fillColor: const Color(0xFFF8FAFC),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildReportesList() {
-    if (_reportesFiltrados.isEmpty) {
-      return const _EmptyState(
-        icon: Icons.search_off_rounded,
-        title: 'Sin resultados',
-        text: 'No hay reportes que coincidan con los filtros seleccionados.',
       );
     }
 
     return ListView.builder(
       itemCount: _reportesFiltrados.length,
       itemBuilder: (context, index) {
-        final reporte = _reportesFiltrados[index];
+        final r = _reportesFiltrados[index];
+        final estado = r['estado']?.toString() ?? '';
+        final color = _getEstadoColor(estado);
 
-        return _ReporteCard(
-          reporte: reporte,
-          estadoText: _getEstadoText(reporte['estado']),
-          prioridadText: _getPrioridadText(reporte['prioridad']),
-          estadoColor: _getEstadoColor(reporte['estado']),
-          prioridadColor: _getPrioridadColor(reporte['prioridad']),
-          onTap: () => _mostrarDetalle(reporte),
-        );
-      },
-    );
-  }
-}
-
-class _ReporteCard extends StatelessWidget {
-  final Map<String, dynamic> reporte;
-  final String estadoText;
-  final String prioridadText;
-  final Color estadoColor;
-  final Color prioridadColor;
-  final VoidCallback onTap;
-
-  const _ReporteCard({
-    required this.reporte,
-    required this.estadoText,
-    required this.prioridadText,
-    required this.estadoColor,
-    required this.prioridadColor,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      elevation: 0,
-      margin: const EdgeInsets.only(bottom: 12),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20),
-        side: BorderSide(color: AppConfig.grisMedio),
-      ),
-      child: ListTile(
-        contentPadding: const EdgeInsets.all(14),
-        leading: CircleAvatar(
-          backgroundColor: estadoColor.withOpacity(0.12),
-          child: Icon(Icons.flag_rounded, color: estadoColor),
-        ),
-        title: Text(
-          reporte['codigo'],
-          style: const TextStyle(
-            fontWeight: FontWeight.w900,
-            color: AppConfig.azulOscuro,
+        return Card(
+          elevation: 0,
+          margin: const EdgeInsets.only(bottom: 12),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+            side: BorderSide(color: AppConfig.grisMedio),
           ),
-        ),
-        subtitle: Padding(
-          padding: const EdgeInsets.only(top: 6),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(reporte['ubicacion']),
-              const SizedBox(height: 5),
-              Text(
-                reporte['funcionario'],
-                style: TextStyle(
-                  fontSize: 12,
-                  color: AppConfig.grisOscuro,
-                ),
-              ),
-              const SizedBox(height: 7),
-              Wrap(
-                spacing: 8,
-                runSpacing: 6,
+          child: ListTile(
+            contentPadding: const EdgeInsets.all(14),
+            leading: CircleAvatar(
+              backgroundColor: color.withOpacity(0.12),
+              child: Icon(Icons.fact_check_rounded, color: color),
+            ),
+            title: Text(
+              r['codigo_unico'] ?? '—',
+              style: const TextStyle(fontWeight: FontWeight.w900, color: AppConfig.azulOscuro),
+            ),
+            subtitle: Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _StatusChip(label: estadoText, color: estadoColor),
-                  _StatusChip(label: prioridadText, color: prioridadColor),
-                  Text(
-                    reporte['categoria'],
-                    style: const TextStyle(fontSize: 11, color: Colors.grey),
-                  ),
+                  Text(r['ubicacion'] ?? '—'),
+                  const SizedBox(height: 4),
+                  Text(r['categoria'] ?? '—',
+                    style: TextStyle(fontSize: 12, color: AppConfig.grisOscuro)),
+                  const SizedBox(height: 7),
+                  _StatusChip(label: _getEstadoText(estado), color: color),
                 ],
               ),
-            ],
+            ),
+            isThreeLine: true,
+            trailing: estado == 'resuelto_pendiente_validacion'
+                ? Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: AppConfig.rojo.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Text('REVISAR', style: TextStyle(
+                      fontSize: 10, color: AppConfig.rojo, fontWeight: FontWeight.w900,
+                    )),
+                  )
+                : const Icon(Icons.chevron_right_rounded),
+            onTap: () => _mostrarDetalle(r),
           ),
-        ),
-        isThreeLine: true,
-        trailing: const Icon(Icons.chevron_right_rounded),
-        onTap: onTap,
-      ),
+        );
+      },
     );
   }
 }
@@ -813,31 +537,18 @@ class _ReporteCard extends StatelessWidget {
 class _StatusChip extends StatelessWidget {
   final String label;
   final Color color;
-
-  const _StatusChip({
-    required this.label,
-    required this.color,
-  });
+  const _StatusChip({required this.label, required this.color});
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 9,
-        vertical: 4,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.12),
-        borderRadius: BorderRadius.circular(999),
+        color: color.withOpacity(0.12), borderRadius: BorderRadius.circular(999),
       ),
-      child: Text(
-        label,
-        style: TextStyle(
-          fontSize: 10.5,
-          color: color,
-          fontWeight: FontWeight.w800,
-        ),
-      ),
+      child: Text(label, style: TextStyle(
+        fontSize: 10.5, color: color, fontWeight: FontWeight.w800,
+      )),
     );
   }
 }
@@ -846,37 +557,19 @@ class _SummaryRow extends StatelessWidget {
   final String label;
   final String value;
   final Color color;
-
-  const _SummaryRow({
-    required this.label,
-    required this.value,
-    required this.color,
-  });
+  const _SummaryRow({required this.label, required this.value, required this.color});
 
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.08),
-        borderRadius: BorderRadius.circular(16),
+        color: color.withOpacity(0.08), borderRadius: BorderRadius.circular(16),
       ),
       child: Row(
         children: [
-          Expanded(
-            child: Text(
-              label,
-              style: const TextStyle(fontWeight: FontWeight.w800),
-            ),
-          ),
-          Text(
-            value,
-            style: TextStyle(
-              color: color,
-              fontSize: 18,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
+          Expanded(child: Text(label, style: const TextStyle(fontWeight: FontWeight.w800))),
+          Text(value, style: TextStyle(color: color, fontSize: 18, fontWeight: FontWeight.w900)),
         ],
       ),
     );
@@ -885,7 +578,6 @@ class _SummaryRow extends StatelessWidget {
 
 class _SoftCard extends StatelessWidget {
   final Widget child;
-
   const _SoftCard({required this.child});
 
   @override
@@ -898,11 +590,7 @@ class _SoftCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(24),
         border: Border.all(color: AppConfig.grisMedio),
         boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.045),
-            blurRadius: 14,
-            offset: const Offset(0, 8),
-          ),
+          BoxShadow(color: Colors.black.withOpacity(0.045), blurRadius: 14, offset: const Offset(0, 8)),
         ],
       ),
       child: child,
@@ -914,23 +602,16 @@ class _CardHeading extends StatelessWidget {
   final IconData icon;
   final String title;
   final String subtitle;
-
-  const _CardHeading({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-  });
+  const _CardHeading({required this.icon, required this.title, required this.subtitle});
 
   @override
   Widget build(BuildContext context) {
     return Row(
       children: [
         Container(
-          height: 46,
-          width: 46,
+          height: 46, width: 46,
           decoration: BoxDecoration(
-            color: AppConfig.rojo.withOpacity(0.09),
-            borderRadius: BorderRadius.circular(15),
+            color: AppConfig.rojo.withOpacity(0.09), borderRadius: BorderRadius.circular(15),
           ),
           child: Icon(icon, color: AppConfig.rojo),
         ),
@@ -939,22 +620,11 @@ class _CardHeading extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w900,
-                  color: AppConfig.azulOscuro,
-                ),
-              ),
+              Text(title, style: const TextStyle(
+                fontSize: 18, fontWeight: FontWeight.w900, color: AppConfig.azulOscuro,
+              )),
               const SizedBox(height: 3),
-              Text(
-                subtitle,
-                style: TextStyle(
-                  fontSize: 12.5,
-                  color: AppConfig.grisOscuro,
-                ),
-              ),
+              Text(subtitle, style: TextStyle(fontSize: 12.5, color: AppConfig.grisOscuro)),
             ],
           ),
         ),
@@ -966,81 +636,24 @@ class _CardHeading extends StatelessWidget {
 class _HeroBadge extends StatelessWidget {
   final IconData icon;
   final String text;
-
-  const _HeroBadge({
-    required this.icon,
-    required this.text,
-  });
+  const _HeroBadge({required this.icon, required this.text});
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 12,
-        vertical: 7,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.16),
-        borderRadius: BorderRadius.circular(999),
+        color: Colors.white.withOpacity(0.16), borderRadius: BorderRadius.circular(999),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(icon, size: 16, color: Colors.white),
           const SizedBox(width: 7),
-          Text(
-            text,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 12,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
+          Text(text, style: const TextStyle(
+            color: Colors.white, fontSize: 12, fontWeight: FontWeight.w800,
+          )),
         ],
-      ),
-    );
-  }
-}
-
-class _EmptyState extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String text;
-
-  const _EmptyState({
-    required this.icon,
-    required this.title,
-    required this.text,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return _SoftCard(
-      child: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(26),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon, size: 54, color: AppConfig.rojo),
-              const SizedBox(height: 12),
-              Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 19,
-                  fontWeight: FontWeight.w900,
-                  color: AppConfig.azulOscuro,
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                text,
-                textAlign: TextAlign.center,
-                style: TextStyle(color: AppConfig.grisOscuro),
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }

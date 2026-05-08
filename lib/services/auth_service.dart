@@ -102,11 +102,11 @@ class AuthService extends ChangeNotifier {
         email: emailNormalizado,
         password: password,
         data: {
-          'nombre':       nombre.trim(),
-          'cargo':        cargo.trim(),
+          'nombre': nombre.trim(),
+          'cargo': cargo.trim(),
           'departamento': departamento.trim(),
-          'rol':          'funcionario',
-          'estado':       'pendiente', // ← clave para bloqueo en login
+          'rol': 'funcionario',
+          'estado': 'pendiente',
         },
       );
 
@@ -115,15 +115,15 @@ class AuthService extends ChangeNotifier {
 
       // 2. Guardar en tabla funcionarios con estado pendiente
       await _supabase.from('funcionarios').insert({
-        'auth_user_id':  user.id,
-        'nombre':        nombre.trim(),
-        'correo':        emailNormalizado,
-        'cargo':         cargo.trim(),
-        'departamento':  departamento.trim(),
-        'activo':        true,
-        'rol':           'funcionario',
-        'estado':        'pendiente', // ← admin debe cambiar a 'aprobado'
-        'creado_en':     DateTime.now().toIso8601String(),
+        'auth_user_id': user.id,
+        'nombre': nombre.trim(),
+        'correo': emailNormalizado,
+        'cargo': cargo.trim(),
+        'departamento': departamento.trim(),
+        'activo': true,
+        'rol': 'funcionario',
+        'estado': 'pendiente',
+        'creado_en': DateTime.now().toIso8601String(),
         'actualizado_en': DateTime.now().toIso8601String(),
       });
 
@@ -184,7 +184,7 @@ class AuthService extends ChangeNotifier {
         await _supabase.auth.signOut();
         _currentUser = null;
         _funcionarioData = null;
-        throw Exception('__pendiente__'); // código especial para el login screen
+        throw Exception('__pendiente__');
       }
 
       if (estado == 'rechazado') {
@@ -215,6 +215,18 @@ class AuthService extends ChangeNotifier {
       return false;
     } finally {
       _setLoading(false);
+    }
+  }
+
+  Future<int> obtenerFuncionariosPendientesCount() async {
+    try {
+      final response = await _supabase
+          .from('funcionarios')
+          .select('id')
+          .eq('estado', 'pendiente');
+      return (response as List).length;
+    } catch (_) {
+      return 0;
     }
   }
 

@@ -193,11 +193,11 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
             children: [
               const _HeroBadge(
                 icon: Icons.tune_rounded,
-                text: 'Configuración administrativa',
+                text: 'Parámetros del sistema',
               ),
               const SizedBox(height: 18),
               Text(
-                'Ajustes del sistema',
+                'Configuración',
                 style: TextStyle(
                   fontSize: isMobile ? 26 : 36,
                   height: 1.08,

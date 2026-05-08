@@ -172,7 +172,7 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
         ),
         SizedBox(height: isMobile ? 20 : 30),
         Text(
-          'Panel de Administración',
+          'Supervisor Administrativo',
           textAlign: isMobile ? TextAlign.center : TextAlign.left,
           style: TextStyle(
             fontSize: isMobile ? 30 : 46,
@@ -186,7 +186,7 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
         ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 520),
           child: Text(
-            'Acceso exclusivo para administrar reportes, usuarios, zonas, asignaciones, estadísticas y configuración del sistema.',
+            'Aprueba registros de funcionarios y valida el cierre de reportes institucionales.',
             textAlign: isMobile ? TextAlign.center : TextAlign.left,
             style: TextStyle(
               fontSize: isMobile ? 14 : 17,
@@ -262,7 +262,7 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
           ),
           const SizedBox(height: 6),
           Text(
-            'Ingresa tus credenciales administrativas',
+            'Ingresa tus credenciales de supervisor',
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 13.5,
@@ -270,7 +270,6 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
             ),
           ),
           const SizedBox(height: 28),
-
           TextField(
             controller: _emailController,
             enabled: !adminAuthService.isLoading,
@@ -286,9 +285,7 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
               ),
             ),
           ),
-
           const SizedBox(height: 16),
-
           TextField(
             controller: _passwordController,
             enabled: !adminAuthService.isLoading,
@@ -322,9 +319,7 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
               }
             },
           ),
-
           const SizedBox(height: 24),
-
           SizedBox(
             width: double.infinity,
             height: 52,
@@ -357,9 +352,7 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
               ),
             ),
           ),
-
           const SizedBox(height: 18),
-
           TextButton.icon(
             onPressed: adminAuthService.isLoading
                 ? null
