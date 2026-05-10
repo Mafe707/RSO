@@ -5,6 +5,7 @@ import '../../../config/app_config.dart';
 import '../../../services/ciudadano_auth_service.dart';
 import 'ciudadano_home_screen.dart';
 import 'ciudadano_register_screen.dart';
+import '../rol_selection_screen.dart';
 
 class CiudadanoLoginScreen extends StatefulWidget {
   const CiudadanoLoginScreen({super.key});
@@ -17,6 +18,42 @@ class _CiudadanoLoginScreenState extends State<CiudadanoLoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
+  bool _redirecting = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkActiveSession();
+    });
+  }
+
+  void _checkActiveSession() {
+    if (!mounted || _redirecting) return;
+
+    final svc = Provider.of<CiudadanoAuthService>(context, listen: false);
+
+    if (svc.isLoggedIn) {
+      _redirecting = true;
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const CiudadanoHomeScreen()),
+      );
+    }
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final svc = Provider.of<CiudadanoAuthService>(context, listen: false);
+      if (!svc.isLoading && svc.isLoggedIn) {
+        _checkActiveSession();
+      }
+    });
+  }
 
   @override
   void dispose() {
@@ -29,8 +66,14 @@ class _CiudadanoLoginScreenState extends State<CiudadanoLoginScreen> {
     final email = _emailController.text.trim();
     final password = _passwordController.text;
 
-    if (email.isEmpty) { _showError('El correo es requerido'); return; }
-    if (password.isEmpty) { _showError('La contraseña es requerida'); return; }
+    if (email.isEmpty) {
+      _showError('El correo es requerido');
+      return;
+    }
+    if (password.isEmpty) {
+      _showError('La contraseña es requerida');
+      return;
+    }
 
     final emailRegex = RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$');
     if (!emailRegex.hasMatch(email)) {
@@ -44,7 +87,9 @@ class _CiudadanoLoginScreenState extends State<CiudadanoLoginScreen> {
     if (!mounted) return;
     if (ok) {
       Navigator.pushReplacement(
-          context, MaterialPageRoute(builder: (_) => const CiudadanoHomeScreen()));
+        context,
+        MaterialPageRoute(builder: (_) => const CiudadanoHomeScreen()),
+      );
     } else {
       _showError(svc.error ?? 'Credenciales incorrectas');
     }
@@ -53,7 +98,8 @@ class _CiudadanoLoginScreenState extends State<CiudadanoLoginScreen> {
   void _showError(String msg) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(msg), backgroundColor: AppConfig.rojo));
+      SnackBar(content: Text(msg), backgroundColor: AppConfig.rojo),
+    );
   }
 
   bool _isMobile(BuildContext context) =>
@@ -63,6 +109,28 @@ class _CiudadanoLoginScreenState extends State<CiudadanoLoginScreen> {
   Widget build(BuildContext context) {
     final svc = Provider.of<CiudadanoAuthService>(context);
     final isMobile = _isMobile(context);
+
+    if ((svc.isLoading && !svc.isLoggedIn) || _redirecting) {
+      return const Scaffold(
+        backgroundColor: Color(0xFFF5F7FB),
+        body: Center(
+          child: CircularProgressIndicator(
+            color: AppConfig.azulClaro,
+          ),
+        ),
+      );
+    }
+
+    if (svc.isLoggedIn) {
+      return const Scaffold(
+        backgroundColor: Color(0xFFF5F7FB),
+        body: Center(
+          child: CircularProgressIndicator(
+            color: AppConfig.azulClaro,
+          ),
+        ),
+      );
+    }
 
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FB),
@@ -85,9 +153,7 @@ class _CiudadanoLoginScreenState extends State<CiudadanoLoginScreen> {
               ),
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 1120),
-                child: isMobile
-                    ? _buildMobileLayout(svc)
-                    : _buildWebLayout(svc),
+                child: isMobile ? _buildMobileLayout(svc) : _buildWebLayout(svc),
               ),
             ),
           ),
@@ -129,8 +195,11 @@ class _CiudadanoLoginScreenState extends State<CiudadanoLoginScreen> {
             borderRadius: BorderRadius.circular(30),
             border: Border.all(color: Colors.white.withOpacity(0.22)),
           ),
-          child: Icon(Icons.person_pin_rounded,
-              size: isMobile ? 64 : 82, color: Colors.white),
+          child: Icon(
+            Icons.person_pin_rounded,
+            size: isMobile ? 64 : 82,
+            color: Colors.white,
+          ),
         ),
         SizedBox(height: isMobile ? 20 : 30),
         Text(
@@ -164,8 +233,14 @@ class _CiudadanoLoginScreenState extends State<CiudadanoLoginScreen> {
           runSpacing: 10,
           children: const [
             _HeroChip(icon: Icons.shield_rounded, text: 'Reporte seguro'),
-            _HeroChip(icon: Icons.confirmation_number_rounded, text: 'Código de seguimiento'),
-            _HeroChip(icon: Icons.access_time_rounded, text: 'Disponible 24/7'),
+            _HeroChip(
+              icon: Icons.confirmation_number_rounded,
+              text: 'Código de seguimiento',
+            ),
+            _HeroChip(
+              icon: Icons.access_time_rounded,
+              text: 'Disponible 24/7',
+            ),
           ],
         ),
       ],
@@ -197,8 +272,11 @@ class _CiudadanoLoginScreenState extends State<CiudadanoLoginScreen> {
               color: AppConfig.azulClaro.withOpacity(0.12),
               shape: BoxShape.circle,
             ),
-            child: const Icon(Icons.person_rounded,
-                size: 42, color: AppConfig.azulClaro),
+            child: const Icon(
+              Icons.person_rounded,
+              size: 42,
+              color: AppConfig.azulClaro,
+            ),
           ),
           const SizedBox(height: 18),
           const Text(
@@ -227,7 +305,9 @@ class _CiudadanoLoginScreenState extends State<CiudadanoLoginScreen> {
               prefixIcon: const Icon(Icons.email_rounded),
               filled: true,
               fillColor: const Color(0xFFF8FAFC),
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
             ),
           ),
           const SizedBox(height: 16),
@@ -239,18 +319,24 @@ class _CiudadanoLoginScreenState extends State<CiudadanoLoginScreen> {
               labelText: 'Contraseña',
               prefixIcon: const Icon(Icons.lock_rounded),
               suffixIcon: IconButton(
-                icon: Icon(_obscurePassword
-                    ? Icons.visibility_off_rounded
-                    : Icons.visibility_rounded),
+                icon: Icon(
+                  _obscurePassword
+                      ? Icons.visibility_off_rounded
+                      : Icons.visibility_rounded,
+                ),
                 onPressed: svc.isLoading
                     ? null
                     : () => setState(() => _obscurePassword = !_obscurePassword),
               ),
               filled: true,
               fillColor: const Color(0xFFF8FAFC),
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
             ),
-            onSubmitted: (_) { if (!svc.isLoading) _login(); },
+            onSubmitted: (_) {
+              if (!svc.isLoading) _login();
+            },
           ),
           const SizedBox(height: 24),
           SizedBox(
@@ -263,16 +349,21 @@ class _CiudadanoLoginScreenState extends State<CiudadanoLoginScreen> {
                       width: 19,
                       height: 19,
                       child: CircularProgressIndicator(
-                          strokeWidth: 2, color: Colors.white),
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
                     )
                   : const Icon(Icons.login_rounded),
               label: Text(svc.isLoading ? 'Iniciando sesión...' : 'Ingresar'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppConfig.azulClaro,
                 shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16)),
-                textStyle:
-                    const TextStyle(fontSize: 15.5, fontWeight: FontWeight.w800),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                textStyle: const TextStyle(
+                  fontSize: 15.5,
+                  fontWeight: FontWeight.w800,
+                ),
               ),
             ),
           ),
@@ -281,15 +372,18 @@ class _CiudadanoLoginScreenState extends State<CiudadanoLoginScreen> {
             alignment: WrapAlignment.center,
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
-              Text('¿No tienes cuenta?',
-                  style: TextStyle(color: AppConfig.grisOscuro)),
+              Text(
+                '¿No tienes cuenta?',
+                style: TextStyle(color: AppConfig.grisOscuro),
+              ),
               TextButton(
                 onPressed: svc.isLoading
                     ? null
                     : () => Navigator.push(
                           context,
                           MaterialPageRoute(
-                              builder: (_) => const CiudadanoRegisterScreen()),
+                            builder: (_) => const CiudadanoRegisterScreen(),
+                          ),
                         ),
                 child: const Text('Regístrate aquí'),
               ),
@@ -297,7 +391,16 @@ class _CiudadanoLoginScreenState extends State<CiudadanoLoginScreen> {
           ),
           const Divider(height: 28),
           TextButton.icon(
-            onPressed: svc.isLoading ? null : () => Navigator.pop(context),
+            onPressed: svc.isLoading
+                ? null
+                : () {
+                    Navigator.of(context).pushAndRemoveUntil(
+                      MaterialPageRoute(
+                        builder: (_) => const RolSelectionScreen(),
+                      ),
+                      (route) => false,
+                    );
+                  },
             icon: const Icon(Icons.arrow_back_rounded),
             label: const Text('Volver a selección de roles'),
           ),
@@ -310,6 +413,7 @@ class _CiudadanoLoginScreenState extends State<CiudadanoLoginScreen> {
 class _HeroChip extends StatelessWidget {
   final IconData icon;
   final String text;
+
   const _HeroChip({required this.icon, required this.text});
 
   @override
@@ -326,11 +430,14 @@ class _HeroChip extends StatelessWidget {
         children: [
           Icon(icon, size: 16, color: Colors.white),
           const SizedBox(width: 7),
-          Text(text,
-              style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.white.withOpacity(0.92),
-                  fontWeight: FontWeight.w700)),
+          Text(
+            text,
+            style: TextStyle(
+              fontSize: 12,
+              color: Colors.white.withOpacity(0.92),
+              fontWeight: FontWeight.w700,
+            ),
+          ),
         ],
       ),
     );

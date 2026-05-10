@@ -1,9 +1,11 @@
+import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_map/flutter_map.dart';
+import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
@@ -37,11 +39,9 @@ class _ReportarScreenState extends State<ReportarScreen> {
   bool _reporteEnviado = false;
   String _codigoGenerado = '';
 
-  // Ubicación por mapa
   LatLng? _ubicacionMapa;
-
-  // Anonimato
   bool _esAnonima = true;
+  bool _consultandoDireccion = false;
 
   final List<String> _categorias = [
     'Ocupación comercial',
@@ -58,7 +58,114 @@ class _ReportarScreenState extends State<ReportarScreen> {
     super.dispose();
   }
 
-  // ── Imagen ────────────────────────────────────────────────────────────────
+  Future<String> _obtenerDireccionDesdeNominatim(LatLng latlng) async {
+    try {
+      final uri = Uri.parse(
+        'https://nominatim.openstreetmap.org/reverse'
+        '?format=jsonv2'
+        '&lat=${latlng.latitude}'
+        '&lon=${latlng.longitude}'
+        '&zoom=18'
+        '&addressdetails=1'
+        '&accept-language=es',
+      );
+
+      final response = await http.get(
+        uri,
+        headers: {
+          'User-Agent': 'com.rso.app/1.0 (ciudadano-reportes)',
+          'Accept': 'application/json',
+        },
+      );
+
+      if (response.statusCode != 200) {
+        return _fallbackDireccion(latlng);
+      }
+
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      final address = (data['address'] as Map<String, dynamic>?) ?? {};
+
+      final barrio = _firstNotEmpty([
+        address['neighbourhood'],
+        address['suburb'],
+        address['quarter'],
+        address['city_district'],
+        address['residential'],
+      ]);
+
+      final via = _firstNotEmpty([
+        address['road'],
+        address['pedestrian'],
+        address['footway'],
+        address['path'],
+        address['cycleway'],
+      ]);
+
+      final numero = _firstNotEmpty([
+        address['house_number'],
+      ]);
+
+      final ciudad = _firstNotEmpty([
+        address['city'],
+        address['town'],
+        address['municipality'],
+        address['county'],
+      ]);
+
+      final estado = _firstNotEmpty([
+        address['state'],
+        address['region'],
+      ]);
+
+      final partes = <String>[];
+
+      if (via != null && numero != null) {
+        partes.add('$via $numero');
+      } else if (via != null) {
+        partes.add(via);
+      }
+
+      if (barrio != null) {
+        partes.add(barrio);
+      }
+
+      if (ciudad != null) {
+        partes.add(ciudad);
+      }
+
+      if (estado != null) {
+        partes.add(estado);
+      }
+
+      if (partes.isNotEmpty) {
+        return partes.join(', ');
+      }
+
+      final displayName = data['display_name']?.toString().trim();
+      if (displayName != null && displayName.isNotEmpty) {
+        return displayName;
+      }
+
+      return _fallbackDireccion(latlng);
+    } catch (_) {
+      return _fallbackDireccion(latlng);
+    }
+  }
+
+  String? _firstNotEmpty(List<dynamic> values) {
+    for (final value in values) {
+      final text = value?.toString().trim();
+      if (text != null && text.isNotEmpty) {
+        return text;
+      }
+    }
+    return null;
+  }
+
+  String _fallbackDireccion(LatLng latlng) {
+    return 'Ubicación marcada en mapa (${latlng.latitude.toStringAsFixed(6)}, '
+        '${latlng.longitude.toStringAsFixed(6)})';
+  }
 
   Future<void> _tomarFoto() async {
     if (_imagenesBytes.length >= _maxImagenes) {
@@ -150,18 +257,19 @@ class _ReportarScreenState extends State<ReportarScreen> {
                   Text(
                     'Agregar evidencia (${_imagenesBytes.length}/$_maxImagenes)',
                     style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w800,
-                        color: AppConfig.azulOscuro),
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                      color: AppConfig.azulOscuro,
+                    ),
                   ),
                 ],
               ),
               const SizedBox(height: 14),
-              // Cámara solo en móvil
               if (!kIsWeb)
                 ListTile(
                   shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16)),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
                   tileColor: const Color(0xFFF8FAFC),
                   leading: Container(
                     padding: const EdgeInsets.all(10),
@@ -172,8 +280,10 @@ class _ReportarScreenState extends State<ReportarScreen> {
                     child: const Icon(Icons.camera_alt_rounded,
                         color: AppConfig.azulOscuro),
                   ),
-                  title: const Text('Tomar foto ahora',
-                      style: TextStyle(fontWeight: FontWeight.w700)),
+                  title: const Text(
+                    'Tomar foto ahora',
+                    style: TextStyle(fontWeight: FontWeight.w700),
+                  ),
                   subtitle: const Text('Captura inmediata con la cámara'),
                   onTap: () {
                     Navigator.pop(ctx);
@@ -183,7 +293,8 @@ class _ReportarScreenState extends State<ReportarScreen> {
               if (!kIsWeb) const SizedBox(height: 10),
               ListTile(
                 shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16)),
+                  borderRadius: BorderRadius.circular(16),
+                ),
                 tileColor: const Color(0xFFF8FAFC),
                 leading: Container(
                   padding: const EdgeInsets.all(10),
@@ -194,8 +305,10 @@ class _ReportarScreenState extends State<ReportarScreen> {
                   child: const Icon(Icons.photo_library_rounded,
                       color: AppConfig.azulClaro),
                 ),
-                title: const Text('Seleccionar desde galería',
-                    style: TextStyle(fontWeight: FontWeight.w700)),
+                title: const Text(
+                  'Seleccionar desde galería',
+                  style: TextStyle(fontWeight: FontWeight.w700),
+                ),
                 subtitle: const Text('JPG o PNG, máximo 5MB por imagen'),
                 onTap: () {
                   Navigator.pop(ctx);
@@ -209,26 +322,31 @@ class _ReportarScreenState extends State<ReportarScreen> {
     );
   }
 
-  // ── Mapa ──────────────────────────────────────────────────────────────────
-
   void _abrirSelectorMapa() {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) => _MapPickerSheet(
-        initialLocation:
-            _ubicacionMapa ?? const LatLng(1.2136, -77.2811), // Pasto
-        onLocationSelected: (latlng) {
+        initialLocation: _ubicacionMapa ?? const LatLng(1.2136, -77.2811),
+        onLocationSelected: (latlng) async {
           setState(() {
             _ubicacionMapa = latlng;
+            _consultandoDireccion = true;
+          });
+
+          final direccion = await _obtenerDireccionDesdeNominatim(latlng);
+
+          if (!mounted) return;
+
+          setState(() {
+            _ubicacionController.text = direccion;
+            _consultandoDireccion = false;
           });
         },
       ),
     );
   }
-
-  // ── Validación y envío ────────────────────────────────────────────────────
 
   bool _validarUbicacion() {
     final textoVacio = _ubicacionController.text.trim().isEmpty;
@@ -310,7 +428,8 @@ class _ReportarScreenState extends State<ReportarScreen> {
   void _showError(String message) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(message), backgroundColor: AppConfig.rojo));
+      SnackBar(content: Text(message), backgroundColor: AppConfig.rojo),
+    );
   }
 
   void _resetForm() {
@@ -324,6 +443,7 @@ class _ReportarScreenState extends State<ReportarScreen> {
       _codigoGenerado = '';
       _ubicacionMapa = null;
       _esAnonima = true;
+      _consultandoDireccion = false;
     });
   }
 
@@ -339,8 +459,6 @@ class _ReportarScreenState extends State<ReportarScreen> {
 
   bool _isMobile(BuildContext context) =>
       MediaQuery.of(context).size.width < 780;
-
-  // ── Build ─────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
@@ -409,12 +527,17 @@ class _ReportarScreenState extends State<ReportarScreen> {
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [AppConfig.azulOscuro, AppConfig.azulClaro],
+          colors: [
+            AppConfig.azulOscuro,
+            Color.fromARGB(255, 12, 47, 82),
+            Color.fromARGB(255, 13, 70, 98),
+          ],
+          stops: [0.0, 0.68, 1.0],
         ),
         borderRadius: BorderRadius.circular(isMobile ? 22 : 28),
         boxShadow: [
           BoxShadow(
-            color: AppConfig.azulOscuro.withOpacity(0.18),
+            color: AppConfig.azulOscuro.withOpacity(0.22),
             blurRadius: 20,
             offset: const Offset(0, 10),
           ),
@@ -423,11 +546,13 @@ class _ReportarScreenState extends State<ReportarScreen> {
       child: Stack(
         children: [
           Positioned(
-            right: -12,
-            bottom: -18,
-            child: Icon(Icons.add_location_alt_rounded,
-                size: isMobile ? 90 : 120,
-                color: Colors.white.withOpacity(0.07)),
+            right: -6,
+            bottom: 6,
+            child: Icon(
+              Icons.add_location_alt_rounded,
+              size: isMobile ? 86 : 112,
+              color: Colors.white.withOpacity(0.07),
+            ),
           ),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -444,11 +569,14 @@ class _ReportarScreenState extends State<ReportarScreen> {
                   children: [
                     Icon(Icons.report_rounded, size: 15, color: Colors.white),
                     SizedBox(width: 7),
-                    Text('Nueva denuncia',
-                        style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700)),
+                    Text(
+                      'Nueva denuncia',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -478,13 +606,17 @@ class _ReportarScreenState extends State<ReportarScreen> {
                 runSpacing: 8,
                 children: const [
                   _HeroChip(
-                      icon: Icons.location_on_rounded,
-                      text: 'Ubicación obligatoria'),
+                    icon: Icons.location_on_rounded,
+                    text: 'Ubicación obligatoria',
+                  ),
                   _HeroChip(
-                      icon: Icons.photo_camera_rounded, text: 'Foto opcional'),
+                    icon: Icons.photo_camera_rounded,
+                    text: 'Foto opcional',
+                  ),
                   _HeroChip(
-                      icon: Icons.visibility_off_rounded,
-                      text: 'Puede ser anónima'),
+                    icon: Icons.visibility_off_rounded,
+                    text: 'Puede ser anónima',
+                  ),
                 ],
               ),
             ],
@@ -506,16 +638,18 @@ class _ReportarScreenState extends State<ReportarScreen> {
           ),
           SizedBox(height: 16),
           _TipItem(
-              icon: Icons.location_on_rounded,
-              text: 'Indica la dirección exacta o márcala en el mapa.'),
+            icon: Icons.location_on_rounded,
+            text: 'Indica la dirección exacta o márcala en el mapa.',
+          ),
           _TipItem(
-              icon: Icons.photo_rounded,
-              text: 'Las fotos ayudan a verificar la invasión más rápido.'),
+            icon: Icons.photo_rounded,
+            text: 'Las fotos ayudan a verificar la invasión más rápido.',
+          ),
           _TipItem(
-              icon: Icons.description_rounded,
-              text:
-                  'Describe claramente el tipo de invasión observada.',
-              isLast: true),
+            icon: Icons.description_rounded,
+            text: 'Describe claramente el tipo de invasión observada.',
+            isLast: true,
+          ),
         ],
       ),
     );
@@ -530,8 +664,6 @@ class _ReportarScreenState extends State<ReportarScreen> {
           children: [
             const _FormHeader(),
             const SizedBox(height: 24),
-
-            // ── Categoría ──────────────────────────────────────────────────
             const _PanelHeading(
               icon: Icons.category_rounded,
               title: 'Tipo de invasión',
@@ -546,7 +678,8 @@ class _ReportarScreenState extends State<ReportarScreen> {
                 filled: true,
                 fillColor: const Color(0xFFF8FAFC),
                 border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16)),
+                  borderRadius: BorderRadius.circular(16),
+                ),
               ),
               items: _categorias
                   .map((c) => DropdownMenuItem(value: c, child: Text(c)))
@@ -556,16 +689,12 @@ class _ReportarScreenState extends State<ReportarScreen> {
                   v == null ? 'Seleccione una categoría' : null,
             ),
             const SizedBox(height: 22),
-
-            // ── Ubicación ──────────────────────────────────────────────────
             const _PanelHeading(
               icon: Icons.location_on_rounded,
               title: 'Ubicación *',
               subtitle: 'Escribe la dirección o márcala en el mapa interactivo.',
             ),
             const SizedBox(height: 14),
-
-            // Badge de ubicación en mapa
             if (_ubicacionMapa != null)
               Container(
                 margin: const EdgeInsets.only(bottom: 12),
@@ -574,7 +703,8 @@ class _ReportarScreenState extends State<ReportarScreen> {
                   color: AppConfig.azulClaro.withOpacity(0.08),
                   borderRadius: BorderRadius.circular(14),
                   border: Border.all(
-                      color: AppConfig.azulClaro.withOpacity(0.3)),
+                    color: AppConfig.azulClaro.withOpacity(0.3),
+                  ),
                 ),
                 child: Row(
                   children: [
@@ -583,32 +713,51 @@ class _ReportarScreenState extends State<ReportarScreen> {
                     const SizedBox(width: 10),
                     Expanded(
                       child: Text(
-                        'Marcado en mapa:\n${_ubicacionMapa!.latitude.toStringAsFixed(5)}, ${_ubicacionMapa!.longitude.toStringAsFixed(5)}',
+                        _consultandoDireccion
+                            ? 'Consultando dirección del punto marcado...'
+                            : 'Marcado en mapa:\n${_ubicacionMapa!.latitude.toStringAsFixed(5)}, ${_ubicacionMapa!.longitude.toStringAsFixed(5)}',
                         style: TextStyle(
-                            fontSize: 13,
-                            color: AppConfig.azulClaro,
-                            height: 1.3),
+                          fontSize: 13,
+                          color: AppConfig.azulClaro,
+                          height: 1.3,
+                        ),
                       ),
                     ),
                     TextButton(
-                      onPressed: () => setState(() => _ubicacionMapa = null),
-                      child: const Text('Quitar',
-                          style: TextStyle(color: AppConfig.rojo)),
+                      onPressed: () => setState(() {
+                        _ubicacionMapa = null;
+                        _ubicacionController.clear();
+                        _consultandoDireccion = false;
+                      }),
+                      child: const Text(
+                        'Quitar',
+                        style: TextStyle(color: AppConfig.rojo),
+                      ),
                     ),
                   ],
                 ),
               ),
-
             TextFormField(
               controller: _ubicacionController,
               decoration: InputDecoration(
                 labelText: 'Dirección en texto',
-                hintText: 'Ej: Cra 25 #18-35, Centro, Pasto',
+                hintText: 'Ej: Cra 25 #18-35, Barrio X, Pasto',
                 prefixIcon: const Icon(Icons.edit_location_alt_rounded),
+                suffixIcon: _consultandoDireccion
+                    ? const Padding(
+                        padding: EdgeInsets.all(12),
+                        child: SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                      )
+                    : null,
                 filled: true,
                 fillColor: const Color(0xFFF8FAFC),
                 border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16)),
+                  borderRadius: BorderRadius.circular(16),
+                ),
               ),
             ),
             const SizedBox(height: 10),
@@ -617,21 +766,22 @@ class _ReportarScreenState extends State<ReportarScreen> {
               child: OutlinedButton.icon(
                 onPressed: _abrirSelectorMapa,
                 icon: const Icon(Icons.map_rounded),
-                label: Text(_ubicacionMapa == null
-                    ? 'Marcar en el mapa'
-                    : 'Cambiar ubicación en mapa'),
+                label: Text(
+                  _ubicacionMapa == null
+                      ? 'Marcar en el mapa'
+                      : 'Cambiar ubicación en mapa',
+                ),
                 style: OutlinedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16)),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
                   side: const BorderSide(color: AppConfig.azulClaro),
                   foregroundColor: AppConfig.azulClaro,
                 ),
               ),
             ),
             const SizedBox(height: 22),
-
-            // ── Descripción ────────────────────────────────────────────────
             const _PanelHeading(
               icon: Icons.description_rounded,
               title: 'Descripción *',
@@ -647,16 +797,14 @@ class _ReportarScreenState extends State<ReportarScreen> {
                 filled: true,
                 fillColor: const Color(0xFFF8FAFC),
                 border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16)),
+                  borderRadius: BorderRadius.circular(16),
+                ),
               ),
-              validator: (v) =>
-                  (v == null || v.trim().length < 10)
-                      ? 'Mínimo 10 caracteres'
-                      : null,
+              validator: (v) => (v == null || v.trim().length < 10)
+                  ? 'Mínimo 10 caracteres'
+                  : null,
             ),
             const SizedBox(height: 22),
-
-            // ── Imágenes ───────────────────────────────────────────────────
             const _PanelHeading(
               icon: Icons.photo_library_rounded,
               title: 'Evidencia fotográfica',
@@ -692,8 +840,11 @@ class _ReportarScreenState extends State<ReportarScreen> {
                               color: Colors.black54,
                               shape: BoxShape.circle,
                             ),
-                            child: const Icon(Icons.close_rounded,
-                                size: 16, color: Colors.white),
+                            child: const Icon(
+                              Icons.close_rounded,
+                              size: 16,
+                              color: Colors.white,
+                            ),
                           ),
                         ),
                       ),
@@ -708,17 +859,17 @@ class _ReportarScreenState extends State<ReportarScreen> {
                 onPressed: _mostrarOpcionesImagen,
                 icon: const Icon(Icons.add_photo_alternate_rounded),
                 label: Text(
-                    '${_imagenesBytes.isEmpty ? 'Agregar' : 'Agregar más'} fotos (${_imagenesBytes.length}/$_maxImagenes)'),
+                  '${_imagenesBytes.isEmpty ? 'Agregar' : 'Agregar más'} fotos (${_imagenesBytes.length}/$_maxImagenes)',
+                ),
                 style: OutlinedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16)),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
                 ),
               ),
             ),
             const SizedBox(height: 22),
-
-            // ── Anonimato ──────────────────────────────────────────────────
             const _PanelHeading(
               icon: Icons.privacy_tip_rounded,
               title: 'Privacidad del reporte',
@@ -737,51 +888,63 @@ class _ReportarScreenState extends State<ReportarScreen> {
                     value: true,
                     groupValue: _esAnonima,
                     onChanged: (v) => setState(() => _esAnonima = v!),
-                    title: const Text('Reporte anónimo',
-                        style: TextStyle(fontWeight: FontWeight.w700)),
+                    title: const Text(
+                      'Reporte anónimo',
+                      style: TextStyle(fontWeight: FontWeight.w700),
+                    ),
                     subtitle: const Text(
-                        'No se guardarán tus datos en la denuncia'),
+                      'No se guardarán tus datos en la denuncia',
+                    ),
                     secondary: Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
                         color: AppConfig.azulOscuro.withOpacity(0.1),
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(Icons.visibility_off_rounded,
-                          color: AppConfig.azulOscuro, size: 22),
+                      child: const Icon(
+                        Icons.visibility_off_rounded,
+                        color: AppConfig.azulOscuro,
+                        size: 22,
+                      ),
                     ),
                     activeColor: AppConfig.azulOscuro,
                     shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(18)),
+                      borderRadius: BorderRadius.circular(18),
+                    ),
                   ),
                   const Divider(height: 1, indent: 16, endIndent: 16),
                   RadioListTile<bool>(
                     value: false,
                     groupValue: _esAnonima,
                     onChanged: (v) => setState(() => _esAnonima = v!),
-                    title: const Text('Compartir mis datos',
-                        style: TextStyle(fontWeight: FontWeight.w700)),
+                    title: const Text(
+                      'Compartir mis datos',
+                      style: TextStyle(fontWeight: FontWeight.w700),
+                    ),
                     subtitle: const Text(
-                        'Tu nombre y contacto se adjuntarán a la denuncia'),
+                      'Tu nombre y contacto se adjuntarán a la denuncia',
+                    ),
                     secondary: Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
                         color: AppConfig.azulClaro.withOpacity(0.1),
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(Icons.person_rounded,
-                          color: AppConfig.azulClaro, size: 22),
+                      child: const Icon(
+                        Icons.person_rounded,
+                        color: AppConfig.azulClaro,
+                        size: 22,
+                      ),
                     ),
                     activeColor: AppConfig.azulClaro,
                     shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(18)),
+                      borderRadius: BorderRadius.circular(18),
+                    ),
                   ),
                 ],
               ),
             ),
             const SizedBox(height: 28),
-
-            // ── Botón enviar ───────────────────────────────────────────────
             SizedBox(
               width: double.infinity,
               height: 52,
@@ -792,16 +955,21 @@ class _ReportarScreenState extends State<ReportarScreen> {
                         width: 19,
                         height: 19,
                         child: CircularProgressIndicator(
-                            strokeWidth: 2, color: Colors.white),
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
                       )
                     : const Icon(Icons.send_rounded),
                 label: Text(_enviando ? 'Enviando...' : 'Enviar reporte'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppConfig.azulOscuro,
                   shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16)),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
                   textStyle: const TextStyle(
-                      fontSize: 15.5, fontWeight: FontWeight.w800),
+                    fontSize: 15.5,
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
               ),
             ),
@@ -810,8 +978,6 @@ class _ReportarScreenState extends State<ReportarScreen> {
       ),
     );
   }
-
-  // ── Vista de éxito ────────────────────────────────────────────────────────
 
   Widget _buildSuccessView(bool isMobile) {
     return Center(
@@ -827,25 +993,30 @@ class _ReportarScreenState extends State<ReportarScreen> {
                   color: AppConfig.verde.withOpacity(0.1),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.check_circle_rounded,
-                    size: 72, color: AppConfig.verde),
+                child: const Icon(
+                  Icons.check_circle_rounded,
+                  size: 72,
+                  color: AppConfig.verde,
+                ),
               ),
               const SizedBox(height: 24),
               const Text(
                 '¡Reporte enviado!',
                 style: TextStyle(
-                    fontSize: 30,
-                    fontWeight: FontWeight.w900,
-                    color: AppConfig.azulOscuro),
+                  fontSize: 30,
+                  fontWeight: FontWeight.w900,
+                  color: AppConfig.azulOscuro,
+                ),
               ),
               const SizedBox(height: 12),
               Text(
                 'Tu denuncia fue registrada exitosamente. Guarda el código de seguimiento — es la única forma de consultar el estado de tu reporte.',
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                    fontSize: 15,
-                    height: 1.5,
-                    color: AppConfig.grisOscuro),
+                  fontSize: 15,
+                  height: 1.5,
+                  color: AppConfig.grisOscuro,
+                ),
               ),
               const SizedBox(height: 28),
               Container(
@@ -861,15 +1032,19 @@ class _ReportarScreenState extends State<ReportarScreen> {
                 ),
                 child: Column(
                   children: [
-                    const Icon(Icons.confirmation_number_rounded,
-                        color: Colors.white, size: 32),
+                    const Icon(
+                      Icons.confirmation_number_rounded,
+                      color: Colors.white,
+                      size: 32,
+                    ),
                     const SizedBox(height: 10),
                     const Text(
                       'Código de seguimiento',
                       style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600),
+                        color: Colors.white,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                     const SizedBox(height: 10),
                     Text(
@@ -890,7 +1065,8 @@ class _ReportarScreenState extends State<ReportarScreen> {
                         backgroundColor: Colors.white,
                         foregroundColor: AppConfig.azulOscuro,
                         shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12)),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                         textStyle:
                             const TextStyle(fontWeight: FontWeight.w800),
                       ),
@@ -910,17 +1086,21 @@ class _ReportarScreenState extends State<ReportarScreen> {
                 child: const Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(Icons.warning_amber_rounded,
-                        color: AppConfig.naranja, size: 22),
+                    Icon(
+                      Icons.warning_amber_rounded,
+                      color: AppConfig.naranja,
+                      size: 22,
+                    ),
                     SizedBox(width: 10),
                     Expanded(
                       child: Text(
                         '⚠️ Guarda este código OBLIGATORIAMENTE. Sin él no podrás consultar ni hacer seguimiento a tu denuncia. No se puede recuperar.',
                         style: TextStyle(
-                            fontSize: 13,
-                            height: 1.4,
-                            color: AppConfig.naranja,
-                            fontWeight: FontWeight.w600),
+                          fontSize: 13,
+                          height: 1.4,
+                          color: AppConfig.naranja,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ),
                   ],
@@ -940,7 +1120,8 @@ class _ReportarScreenState extends State<ReportarScreen> {
                             style: ElevatedButton.styleFrom(
                               backgroundColor: AppConfig.azulOscuro,
                               shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(16)),
+                                borderRadius: BorderRadius.circular(16),
+                              ),
                             ),
                           ),
                         ),
@@ -954,7 +1135,8 @@ class _ReportarScreenState extends State<ReportarScreen> {
                             label: const Text('Ir al inicio'),
                             style: OutlinedButton.styleFrom(
                               shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(16)),
+                                borderRadius: BorderRadius.circular(16),
+                              ),
                             ),
                           ),
                         ),
@@ -972,7 +1154,8 @@ class _ReportarScreenState extends State<ReportarScreen> {
                               padding:
                                   const EdgeInsets.symmetric(vertical: 15),
                               shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(16)),
+                                borderRadius: BorderRadius.circular(16),
+                              ),
                             ),
                           ),
                         ),
@@ -986,7 +1169,8 @@ class _ReportarScreenState extends State<ReportarScreen> {
                               padding:
                                   const EdgeInsets.symmetric(vertical: 15),
                               shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(16)),
+                                borderRadius: BorderRadius.circular(16),
+                              ),
                             ),
                           ),
                         ),
@@ -999,8 +1183,6 @@ class _ReportarScreenState extends State<ReportarScreen> {
     );
   }
 }
-
-// ── Selector de mapa con flutter_map (funciona en web y móvil) ────────────────
 
 class _MapPickerSheet extends StatefulWidget {
   final LatLng initialLocation;
@@ -1044,7 +1226,6 @@ class _MapPickerSheetState extends State<_MapPickerSheet> {
       ),
       child: Column(
         children: [
-          // Handle
           Container(
             width: 46,
             height: 5,
@@ -1067,9 +1248,10 @@ class _MapPickerSheetState extends State<_MapPickerSheet> {
                       Text(
                         'Marca el punto exacto',
                         style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w800,
-                            color: AppConfig.azulOscuro),
+                          fontSize: 18,
+                          fontWeight: FontWeight.w800,
+                          color: AppConfig.azulOscuro,
+                        ),
                       ),
                       Text(
                         'Toca el mapa para fijar la ubicación',
@@ -1098,8 +1280,7 @@ class _MapPickerSheetState extends State<_MapPickerSheet> {
               ),
               children: [
                 TileLayer(
-                  urlTemplate:
-                      'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                  urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                   userAgentPackageName: 'com.rso.app',
                 ),
                 if (_selected != null)
@@ -1133,13 +1314,16 @@ class _MapPickerSheetState extends State<_MapPickerSheet> {
                         Navigator.pop(context);
                       },
                 icon: const Icon(Icons.check_rounded),
-                label: Text(_selected == null
-                    ? 'Toca el mapa para seleccionar'
-                    : 'Confirmar ubicación'),
+                label: Text(
+                  _selected == null
+                      ? 'Toca el mapa para seleccionar'
+                      : 'Confirmar ubicación',
+                ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppConfig.azulOscuro,
                   shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14)),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
                   textStyle: const TextStyle(fontWeight: FontWeight.w800),
                 ),
               ),
@@ -1150,8 +1334,6 @@ class _MapPickerSheetState extends State<_MapPickerSheet> {
     );
   }
 }
-
-// ── Widgets auxiliares ────────────────────────────────────────────────────────
 
 class _FormHeader extends StatelessWidget {
   const _FormHeader();
@@ -1178,9 +1360,10 @@ class _FormHeader extends StatelessWidget {
               const Text(
                 'Datos del reporte',
                 style: TextStyle(
-                    fontSize: 21,
-                    fontWeight: FontWeight.w900,
-                    color: AppConfig.azulOscuro),
+                  fontSize: 21,
+                  fontWeight: FontWeight.w900,
+                  color: AppConfig.azulOscuro,
+                ),
               ),
               const SizedBox(height: 3),
               Text(
@@ -1225,8 +1408,12 @@ class _PanelHeading extends StatelessWidget {
   final IconData icon;
   final String title;
   final String subtitle;
-  const _PanelHeading(
-      {required this.icon, required this.title, required this.subtitle});
+
+  const _PanelHeading({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -1246,15 +1433,22 @@ class _PanelHeading extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(title,
-                  style: const TextStyle(
-                      fontSize: 17,
-                      fontWeight: FontWeight.w900,
-                      color: AppConfig.azulOscuro)),
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w900,
+                  color: AppConfig.azulOscuro,
+                ),
+              ),
               const SizedBox(height: 3),
-              Text(subtitle,
-                  style: TextStyle(
-                      fontSize: 12.5, color: AppConfig.grisOscuro)),
+              Text(
+                subtitle,
+                style: TextStyle(
+                  fontSize: 12.5,
+                  color: AppConfig.grisOscuro,
+                ),
+              ),
             ],
           ),
         ),
@@ -1267,8 +1461,12 @@ class _TipItem extends StatelessWidget {
   final IconData icon;
   final String text;
   final bool isLast;
-  const _TipItem(
-      {required this.icon, required this.text, this.isLast = false});
+
+  const _TipItem({
+    required this.icon,
+    required this.text,
+    this.isLast = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -1280,11 +1478,14 @@ class _TipItem extends StatelessWidget {
             Icon(icon, color: AppConfig.azulClaro, size: 22),
             const SizedBox(width: 10),
             Expanded(
-              child: Text(text,
-                  style: TextStyle(
-                      fontSize: 13,
-                      height: 1.35,
-                      color: AppConfig.grisOscuro)),
+              child: Text(
+                text,
+                style: TextStyle(
+                  fontSize: 13,
+                  height: 1.35,
+                  color: AppConfig.grisOscuro,
+                ),
+              ),
             ),
           ],
         ),
@@ -1297,7 +1498,11 @@ class _TipItem extends StatelessWidget {
 class _HeroChip extends StatelessWidget {
   final IconData icon;
   final String text;
-  const _HeroChip({required this.icon, required this.text});
+
+  const _HeroChip({
+    required this.icon,
+    required this.text,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -1313,11 +1518,14 @@ class _HeroChip extends StatelessWidget {
         children: [
           Icon(icon, size: 15, color: Colors.white),
           const SizedBox(width: 6),
-          Text(text,
-              style: const TextStyle(
-                  fontSize: 11.5,
-                  color: Colors.white,
-                  fontWeight: FontWeight.w700)),
+          Text(
+            text,
+            style: const TextStyle(
+              fontSize: 11.5,
+              color: Colors.white,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
         ],
       ),
     );

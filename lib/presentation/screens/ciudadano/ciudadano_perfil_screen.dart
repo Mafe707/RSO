@@ -253,83 +253,112 @@ class _CiudadanoPerfilScreenState extends State<CiudadanoPerfilScreen> {
           ),
         ],
       ),
-      child: Column(
-        crossAxisAlignment:
-            isMobile ? CrossAxisAlignment.center : CrossAxisAlignment.start,
+      child: Stack(
         children: [
-          Container(
-            width: 80,
-            height: 80,
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
-              shape: BoxShape.circle,
-              border: Border.all(color: Colors.white.withOpacity(0.4), width: 2),
+          Positioned(
+            right: -12,
+            bottom: 8,
+            child: Icon(
+              Icons.account_circle_rounded,
+              size: isMobile ? 100 : 132,
+              color: Colors.white.withOpacity(0.07),
             ),
-            child: Center(
-              child: Text(
-                nombre.isNotEmpty ? nombre[0].toUpperCase() : '?',
-                style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 36,
-                    fontWeight: FontWeight.w900),
+          ),
+          Column(
+            crossAxisAlignment:
+                isMobile ? CrossAxisAlignment.center : CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 80,
+                height: 80,
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.2),
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: Colors.white.withOpacity(0.4),
+                    width: 2,
+                  ),
+                ),
+                child: Center(
+                  child: Text(
+                    nombre.isNotEmpty ? nombre[0].toUpperCase() : '?',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 36,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
               ),
-            ),
-          ),
-          const SizedBox(height: 16),
-          Text(
-            '$nombre $apellido',
-            textAlign: isMobile ? TextAlign.center : TextAlign.left,
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: isMobile ? 22 : 26,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            correo,
-            textAlign: isMobile ? TextAlign.center : TextAlign.left,
-            style: TextStyle(
-              color: Colors.white.withOpacity(0.82),
-              fontSize: 13.5,
-            ),
-          ),
-          if (barrio.isNotEmpty) ...[
-            const SizedBox(height: 8),
-            Row(
-              mainAxisAlignment:
-                  isMobile ? MainAxisAlignment.center : MainAxisAlignment.start,
-              children: [
-                Icon(Icons.location_city_rounded,
-                    color: Colors.white.withOpacity(0.7), size: 15),
-                const SizedBox(width: 5),
-                Text(
-                  barrio,
-                  style: TextStyle(
-                      color: Colors.white.withOpacity(0.8), fontSize: 13),
+              const SizedBox(height: 16),
+              Text(
+                '$nombre $apellido',
+                textAlign: isMobile ? TextAlign.center : TextAlign.left,
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: isMobile ? 22 : 26,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                correo,
+                textAlign: isMobile ? TextAlign.center : TextAlign.left,
+                style: TextStyle(
+                  color: Colors.white.withOpacity(0.82),
+                  fontSize: 13.5,
+                ),
+              ),
+              if (barrio.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisAlignment:
+                      isMobile ? MainAxisAlignment.center : MainAxisAlignment.start,
+                  children: [
+                    Icon(
+                      Icons.location_city_rounded,
+                      color: Colors.white.withOpacity(0.7),
+                      size: 15,
+                    ),
+                    const SizedBox(width: 5),
+                    Text(
+                      barrio,
+                      style: TextStyle(
+                        color: Colors.white.withOpacity(0.8),
+                        fontSize: 13,
+                      ),
+                    ),
+                  ],
                 ),
               ],
-            ),
-          ],
-          const SizedBox(height: 16),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.16),
-              borderRadius: BorderRadius.circular(999),
-            ),
-            child: const Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.verified_user_rounded, size: 14, color: Colors.white),
-                SizedBox(width: 6),
-                Text('Ciudadano registrado',
-                    style: TextStyle(
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.16),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.verified_user_rounded,
+                      size: 14,
+                      color: Colors.white,
+                    ),
+                    SizedBox(width: 6),
+                    Text(
+                      'Ciudadano registrado',
+                      style: TextStyle(
                         color: Colors.white,
                         fontSize: 12,
-                        fontWeight: FontWeight.w700)),
-              ],
-            ),
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -366,25 +395,32 @@ class _CiudadanoPerfilScreenState extends State<CiudadanoPerfilScreen> {
                     color: AppConfig.azulOscuro.withOpacity(0.08),
                     borderRadius: BorderRadius.circular(16),
                   ),
-                  child: const Icon(Icons.manage_accounts_rounded,
-                      color: AppConfig.azulOscuro),
+                  child: const Icon(
+                    Icons.manage_accounts_rounded,
+                    color: AppConfig.azulOscuro,
+                  ),
                 ),
                 const SizedBox(width: 14),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text('Información personal',
-                          style: TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.w900,
-                              color: AppConfig.azulOscuro)),
+                      const Text(
+                        'Información personal',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w900,
+                          color: AppConfig.azulOscuro,
+                        ),
+                      ),
                       Text(
                         _editando
                             ? 'Modifica tus datos y guarda los cambios.'
                             : 'Toca "Editar" para modificar tu información.',
                         style: TextStyle(
-                            fontSize: 12.5, color: AppConfig.grisOscuro),
+                          fontSize: 12.5,
+                          color: AppConfig.grisOscuro,
+                        ),
                       ),
                     ],
                   ),
@@ -483,8 +519,9 @@ class _CiudadanoPerfilScreenState extends State<CiudadanoPerfilScreen> {
                               ? 'Cambiar contraseña (activo)'
                               : 'Cambiar contraseña',
                           style: const TextStyle(
-                              fontWeight: FontWeight.w700,
-                              color: AppConfig.azulOscuro),
+                            fontWeight: FontWeight.w700,
+                            color: AppConfig.azulOscuro,
+                          ),
                         ),
                       ),
                       Icon(
@@ -506,16 +543,19 @@ class _CiudadanoPerfilScreenState extends State<CiudadanoPerfilScreen> {
                     labelText: 'Nueva contraseña',
                     prefixIcon: const Icon(Icons.lock_rounded),
                     suffixIcon: IconButton(
-                      icon: Icon(_obscurePass
-                          ? Icons.visibility_off_rounded
-                          : Icons.visibility_rounded),
+                      icon: Icon(
+                        _obscurePass
+                            ? Icons.visibility_off_rounded
+                            : Icons.visibility_rounded,
+                      ),
                       onPressed: () =>
                           setState(() => _obscurePass = !_obscurePass),
                     ),
                     filled: true,
                     fillColor: const Color(0xFFF8FAFC),
                     border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(16)),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -526,16 +566,19 @@ class _CiudadanoPerfilScreenState extends State<CiudadanoPerfilScreen> {
                     labelText: 'Confirmar nueva contraseña',
                     prefixIcon: const Icon(Icons.lock_outline_rounded),
                     suffixIcon: IconButton(
-                      icon: Icon(_obscureConfirm
-                          ? Icons.visibility_off_rounded
-                          : Icons.visibility_rounded),
+                      icon: Icon(
+                        _obscureConfirm
+                            ? Icons.visibility_off_rounded
+                            : Icons.visibility_rounded,
+                      ),
                       onPressed: () =>
                           setState(() => _obscureConfirm = !_obscureConfirm),
                     ),
                     filled: true,
                     fillColor: const Color(0xFFF8FAFC),
                     border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(16)),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
                   ),
                 ),
               ],
@@ -550,17 +593,21 @@ class _CiudadanoPerfilScreenState extends State<CiudadanoPerfilScreen> {
                           width: 18,
                           height: 18,
                           child: CircularProgressIndicator(
-                              strokeWidth: 2, color: Colors.white),
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
                         )
                       : const Icon(Icons.save_rounded),
-                  label:
-                      Text(_guardando ? 'Guardando...' : 'Guardar cambios'),
+                  label: Text(_guardando ? 'Guardando...' : 'Guardar cambios'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppConfig.azulClaro,
                     shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16)),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
                     textStyle: const TextStyle(
-                        fontSize: 15.5, fontWeight: FontWeight.w800),
+                      fontSize: 15.5,
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
                 ),
               ),
@@ -589,7 +636,9 @@ class _CiudadanoPerfilScreenState extends State<CiudadanoPerfilScreen> {
         prefixIcon: Icon(icon),
         filled: true,
         fillColor: enabled ? const Color(0xFFF8FAFC) : const Color(0xFFEEF2F6),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
         disabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
           borderSide: BorderSide(color: AppConfig.grisMedio),

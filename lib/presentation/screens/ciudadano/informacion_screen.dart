@@ -102,12 +102,12 @@ class InformacionScreen extends StatelessWidget {
       child: Stack(
         children: [
           Positioned(
-            right: -12,
-            bottom: -22,
+            right: -4,
+            bottom: -6,
             child: Icon(
-              Icons.info_outline_rounded,
-              size: isMobile ? 98 : 140,
-              color: Colors.white.withOpacity(0.08),
+              Icons.info_rounded,
+              size: isMobile ? 118 : 160,
+              color: Colors.white.withOpacity(0.10),
             ),
           ),
           Column(

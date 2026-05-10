@@ -35,6 +35,9 @@ class _ConsultarScreenState extends State<ConsultarScreen>
       if (_tabController.index == 1 && !_cargadoMios) {
         _cargarMisReportes();
       }
+      if (mounted) {
+        setState(() {});
+      }
     });
   }
 
@@ -212,45 +215,91 @@ class _ConsultarScreenState extends State<ConsultarScreen>
         title: const Text('Consultar Estado'),
         backgroundColor: AppConfig.azulOscuro,
         elevation: 0,
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(52),
-          child: Container(
-            color: Colors.white.withOpacity(0.08),
-            child: TabBar(
-              controller: _tabController,
-              indicatorColor: Colors.white,
-              indicatorWeight: 3,
-              labelColor: Colors.white,
-              unselectedLabelColor: Colors.white70,
-              labelStyle: const TextStyle(
-                fontWeight: FontWeight.w700,
-                fontSize: 13,
-              ),
-              tabs: const [
-                Tab(icon: Icon(Icons.search_rounded), text: 'Por código'),
-                Tab(icon: Icon(Icons.list_alt_rounded), text: 'Mis reportes'),
-              ],
-            ),
-          ),
-        ),
+        toolbarHeight: 64,
+        centerTitle: true,
+        titleSpacing: 0,
       ),
       drawer: CiudadanoDrawer.maybe(context, currentIndex: 2),
       bottomNavigationBar: CiudadanoBottomNav.maybe(context, currentIndex: 2),
-      body: TabBarView(
-        controller: _tabController,
+      body: Column(
         children: [
-          Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 1100),
-              child: SingleChildScrollView(
-                padding: EdgeInsets.all(isMobile ? 16 : 32),
-                child: isMobile
-                    ? _buildMobileLayout()
-                    : _buildWebLayout(),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            decoration: BoxDecoration(
+              color: const Color(0xFF24476B),
+              border: Border(
+                bottom: BorderSide(color: Colors.grey.shade300),
               ),
             ),
+            child: TabBar(
+              controller: _tabController,
+              indicator: BoxDecoration(
+                color: const Color(0xFF3B628D),
+                borderRadius: BorderRadius.circular(22),
+                border: Border.all(
+                  color: Colors.white.withOpacity(0.20),
+                ),
+              ),
+              indicatorSize: TabBarIndicatorSize.tab,
+              dividerColor: Colors.transparent,
+              labelColor: Colors.white,
+              unselectedLabelColor: Colors.white70,
+              splashBorderRadius: BorderRadius.circular(22),
+              labelStyle: const TextStyle(
+                fontWeight: FontWeight.w700,
+                fontSize: 14,
+              ),
+              unselectedLabelStyle: const TextStyle(
+                fontWeight: FontWeight.w700,
+                fontSize: 14,
+              ),
+              padding: EdgeInsets.zero,
+              labelPadding: const EdgeInsets.symmetric(horizontal: 6),
+              tabs: const [
+                Tab(
+                  height: 48,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.search_rounded, size: 20),
+                      SizedBox(width: 8),
+                      Text('Por código'),
+                    ],
+                  ),
+                ),
+                Tab(
+                  height: 48,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.assignment_turned_in_rounded, size: 20),
+                      SizedBox(width: 8),
+                      Text('Mis reportes'),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
-          _buildMisReportesTab(isMobile),
+          Expanded(
+            child: TabBarView(
+              controller: _tabController,
+              children: [
+                Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 1100),
+                    child: SingleChildScrollView(
+                      padding: EdgeInsets.all(isMobile ? 16 : 32),
+                      child:
+                          isMobile ? _buildMobileLayout() : _buildWebLayout(),
+                    ),
+                  ),
+                ),
+                _buildMisReportesTab(isMobile),
+              ],
+            ),
+          ),
         ],
       ),
     );
@@ -339,8 +388,11 @@ class _ConsultarScreenState extends State<ConsultarScreen>
                 child: const Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.track_changes_rounded,
-                        size: 15, color: Colors.white),
+                    Icon(
+                      Icons.track_changes_rounded,
+                      size: 15,
+                      color: Colors.white,
+                    ),
                     SizedBox(width: 7),
                     Text(
                       'Seguimiento',
@@ -353,7 +405,7 @@ class _ConsultarScreenState extends State<ConsultarScreen>
                   ],
                 ),
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: 18),
               const Text(
                 'Consultar denuncia',
                 style: TextStyle(
@@ -415,16 +467,21 @@ class _ConsultarScreenState extends State<ConsultarScreen>
                       width: 18,
                       height: 18,
                       child: CircularProgressIndicator(
-                          strokeWidth: 2, color: Colors.white),
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
                     )
                   : const Icon(Icons.search_rounded),
               label: Text(_consultando ? 'Buscando...' : 'Consultar estado'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppConfig.azulOscuro,
                 shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14)),
-                textStyle:
-                    const TextStyle(fontWeight: FontWeight.w800, fontSize: 14),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                textStyle: const TextStyle(
+                  fontWeight: FontWeight.w800,
+                  fontSize: 14,
+                ),
               ),
             ),
           ),
@@ -447,8 +504,11 @@ class _ConsultarScreenState extends State<ConsultarScreen>
         child: _SoftCard(
           child: Column(
             children: [
-              Icon(Icons.search_off_rounded,
-                  size: 52, color: AppConfig.grisOscuro.withOpacity(0.4)),
+              Icon(
+                Icons.search_off_rounded,
+                size: 52,
+                color: AppConfig.grisOscuro.withOpacity(0.4),
+              ),
               const SizedBox(height: 14),
               const Text(
                 'No se encontró ninguna denuncia con ese código',
@@ -517,8 +577,11 @@ class _ConsultarScreenState extends State<ConsultarScreen>
                       width: 110,
                       height: 110,
                       color: AppConfig.grisClaro,
-                      child: const Icon(Icons.broken_image_rounded,
-                          size: 42, color: Colors.grey),
+                      child: const Icon(
+                        Icons.broken_image_rounded,
+                        size: 42,
+                        color: Colors.grey,
+                      ),
                     ),
                   ),
                 ),
@@ -545,8 +608,11 @@ class _ConsultarScreenState extends State<ConsultarScreen>
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Icon(Icons.chat_bubble_outline_rounded,
-                    size: 19, color: AppConfig.azulClaro),
+                const Icon(
+                  Icons.chat_bubble_outline_rounded,
+                  size: 19,
+                  color: AppConfig.azulClaro,
+                ),
                 const SizedBox(width: 9),
                 Expanded(
                   child: Column(
@@ -570,7 +636,9 @@ class _ConsultarScreenState extends State<ConsultarScreen>
                       Text(
                         'Última actualización: ${_formatFecha(d['actualizado_en'])}',
                         style: TextStyle(
-                            fontSize: 11, color: AppConfig.grisOscuro),
+                          fontSize: 11,
+                          color: AppConfig.grisOscuro,
+                        ),
                       ),
                     ],
                   ),
@@ -595,54 +663,107 @@ class _ConsultarScreenState extends State<ConsultarScreen>
             children: [
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.all(22),
+                padding: const EdgeInsets.all(26),
                 decoration: BoxDecoration(
                   gradient: const LinearGradient(
-                    colors: [AppConfig.azulOscuro, AppConfig.azulClaro],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
+                    colors: [AppConfig.azulOscuro, AppConfig.azulClaro],
                   ),
-                  borderRadius: BorderRadius.circular(24),
+                  borderRadius: BorderRadius.circular(28),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppConfig.azulOscuro.withOpacity(0.18),
+                      blurRadius: 22,
+                      offset: const Offset(0, 12),
+                    ),
+                  ],
                 ),
-                child: Row(
+                child: Stack(
                   children: [
-                    const Icon(Icons.list_alt_rounded,
-                        color: Colors.white, size: 36),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Mis reportes',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 20,
-                              fontWeight: FontWeight.w900,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'Reportes donde compartiste tus datos.',
-                            style: TextStyle(
-                              color: Colors.white.withOpacity(0.8),
-                              fontSize: 13,
-                            ),
-                          ),
-                        ],
+                    Positioned(
+                      right: 52,
+                      bottom: -10,
+                      child: Icon(
+                        Icons.assignment_turned_in_rounded,
+                        size: 110,
+                        color: Colors.white.withOpacity(0.08),
                       ),
                     ),
-                    IconButton(
-                      onPressed: () {
-                        setState(() {
-                          _cargadoMios = false;
-                          _misReportes = [];
-                        });
-                        _cargarMisReportes();
-                      },
-                      icon: const Icon(Icons.refresh_rounded,
-                          color: Colors.white),
-                      tooltip: 'Actualizar',
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 7,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withOpacity(0.16),
+                                  borderRadius: BorderRadius.circular(999),
+                                ),
+                                child: const Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      Icons.assignment_turned_in_rounded,
+                                      size: 15,
+                                      color: Colors.white,
+                                    ),
+                                    SizedBox(width: 7),
+                                    Text(
+                                      'Seguimiento',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(height: 14),
+                              const Text(
+                                'Mis reportes',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 26,
+                                  fontWeight: FontWeight.w900,
+                                  letterSpacing: -0.5,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'Reportes donde compartiste tus datos.',
+                                style: TextStyle(
+                                  color: Colors.white.withOpacity(0.84),
+                                  fontSize: 14,
+                                  height: 1.4,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        IconButton(
+                          onPressed: () {
+                            setState(() {
+                              _cargadoMios = false;
+                              _misReportes = [];
+                            });
+                            _cargarMisReportes();
+                          },
+                          icon: const Icon(
+                            Icons.refresh_rounded,
+                            color: Colors.white,
+                          ),
+                          tooltip: 'Actualizar',
+                        ),
+                      ],
                     ),
                   ],
                 ),
@@ -659,21 +780,28 @@ class _ConsultarScreenState extends State<ConsultarScreen>
                 _SoftCard(
                   child: Column(
                     children: [
-                      const Icon(Icons.info_outline_rounded,
-                          size: 48, color: AppConfig.azulClaro),
+                      const Icon(
+                        Icons.info_outline_rounded,
+                        size: 48,
+                        color: AppConfig.azulClaro,
+                      ),
                       const SizedBox(height: 12),
                       const Text(
                         'Solo aparecen aquí los reportes donde elegiste compartir tus datos.',
                         textAlign: TextAlign.center,
                         style: TextStyle(
-                            fontSize: 14, fontWeight: FontWeight.w600),
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                       const SizedBox(height: 6),
                       Text(
                         'Los reportes anónimos solo se pueden consultar con el código.',
                         textAlign: TextAlign.center,
                         style: TextStyle(
-                            fontSize: 13, color: AppConfig.grisOscuro),
+                          fontSize: 13,
+                          color: AppConfig.grisOscuro,
+                        ),
                       ),
                       const SizedBox(height: 16),
                       ElevatedButton.icon(
@@ -683,7 +811,8 @@ class _ConsultarScreenState extends State<ConsultarScreen>
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppConfig.azulOscuro,
                           shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(14)),
+                            borderRadius: BorderRadius.circular(14),
+                          ),
                         ),
                       ),
                     ],
@@ -693,22 +822,28 @@ class _ConsultarScreenState extends State<ConsultarScreen>
                 _SoftCard(
                   child: Column(
                     children: [
-                      Icon(Icons.assignment_late_outlined,
-                          size: 52,
-                          color: AppConfig.grisOscuro.withOpacity(0.4)),
+                      Icon(
+                        Icons.assignment_late_outlined,
+                        size: 52,
+                        color: AppConfig.grisOscuro.withOpacity(0.4),
+                      ),
                       const SizedBox(height: 14),
                       const Text(
                         'No tienes reportes registrados con tus datos',
                         textAlign: TextAlign.center,
                         style: TextStyle(
-                            fontSize: 15, fontWeight: FontWeight.w700),
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                       const SizedBox(height: 6),
                       Text(
                         'Al hacer un reporte, elige "Compartir mis datos" para que aparezca aquí.',
                         textAlign: TextAlign.center,
                         style: TextStyle(
-                            fontSize: 13, color: AppConfig.grisOscuro),
+                          fontSize: 13,
+                          color: AppConfig.grisOscuro,
+                        ),
                       ),
                     ],
                   ),
@@ -719,8 +854,7 @@ class _ConsultarScreenState extends State<ConsultarScreen>
                   physics: const NeverScrollableScrollPhysics(),
                   itemCount: _misReportes.length,
                   separatorBuilder: (_, __) => const SizedBox(height: 12),
-                  itemBuilder: (_, i) =>
-                      _buildMiniReporteCard(_misReportes[i]),
+                  itemBuilder: (_, i) => _buildMiniReporteCard(_misReportes[i]),
                 ),
             ],
           ),
@@ -754,7 +888,9 @@ class _ConsultarScreenState extends State<ConsultarScreen>
                     Text(
                       d['categoria']?.toString() ?? '—',
                       style: TextStyle(
-                          fontSize: 13, color: AppConfig.grisOscuro),
+                        fontSize: 13,
+                        color: AppConfig.grisOscuro,
+                      ),
                     ),
                   ],
                 ),
@@ -780,14 +916,19 @@ class _ConsultarScreenState extends State<ConsultarScreen>
           const SizedBox(height: 10),
           Row(
             children: [
-              const Icon(Icons.location_on_rounded,
-                  size: 14, color: AppConfig.azulClaro),
+              const Icon(
+                Icons.location_on_rounded,
+                size: 14,
+                color: AppConfig.azulClaro,
+              ),
               const SizedBox(width: 5),
               Expanded(
                 child: Text(
                   d['ubicacion']?.toString() ?? '—',
                   style: TextStyle(
-                      fontSize: 12.5, color: AppConfig.grisOscuro),
+                    fontSize: 12.5,
+                    color: AppConfig.grisOscuro,
+                  ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -797,12 +938,18 @@ class _ConsultarScreenState extends State<ConsultarScreen>
           const SizedBox(height: 4),
           Row(
             children: [
-              const Icon(Icons.access_time_rounded,
-                  size: 14, color: AppConfig.azulClaro),
+              const Icon(
+                Icons.access_time_rounded,
+                size: 14,
+                color: AppConfig.azulClaro,
+              ),
               const SizedBox(width: 5),
               Text(
                 _formatFecha(d['creado_en']),
-                style: TextStyle(fontSize: 12, color: AppConfig.grisOscuro),
+                style: TextStyle(
+                  fontSize: 12,
+                  color: AppConfig.grisOscuro,
+                ),
               ),
             ],
           ),
@@ -814,19 +961,26 @@ class _ConsultarScreenState extends State<ConsultarScreen>
               decoration: BoxDecoration(
                 color: AppConfig.verde.withOpacity(0.07),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: AppConfig.verde.withOpacity(0.25)),
+                border: Border.all(
+                  color: AppConfig.verde.withOpacity(0.25),
+                ),
               ),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Icon(Icons.chat_bubble_outline_rounded,
-                      size: 15, color: AppConfig.verde),
+                  const Icon(
+                    Icons.chat_bubble_outline_rounded,
+                    size: 15,
+                    color: AppConfig.verde,
+                  ),
                   const SizedBox(width: 7),
                   Expanded(
                     child: Text(
                       d['respuesta_oficial'].toString(),
                       style: const TextStyle(
-                          fontSize: 12.5, fontStyle: FontStyle.italic),
+                        fontSize: 12.5,
+                        fontStyle: FontStyle.italic,
+                      ),
                     ),
                   ),
                 ],
@@ -849,16 +1003,20 @@ class _ConsultarScreenState extends State<ConsultarScreen>
             child: Text(
               '$label:',
               style: const TextStyle(
-                  fontWeight: FontWeight.w700,
-                  fontSize: 13.5,
-                  color: Colors.black87),
+                fontWeight: FontWeight.w700,
+                fontSize: 13.5,
+                color: Colors.black87,
+              ),
             ),
           ),
           Expanded(
             child: Text(
               value,
               style: TextStyle(
-                  fontSize: 13.5, height: 1.35, color: AppConfig.grisOscuro),
+                fontSize: 13.5,
+                height: 1.35,
+                color: AppConfig.grisOscuro,
+              ),
             ),
           ),
         ],
@@ -876,7 +1034,10 @@ class _ConsultarScreenState extends State<ConsultarScreen>
             width: 112,
             child: Text(
               'Estado:',
-              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13.5),
+              style: TextStyle(
+                fontWeight: FontWeight.w700,
+                fontSize: 13.5,
+              ),
             ),
           ),
           Expanded(
@@ -925,7 +1086,7 @@ class _ConsultarScreenState extends State<ConsultarScreen>
             text: 'La actualización del estado puede tomar un tiempo.',
           ),
           const _TipItem(
-            icon: Icons.list_alt_rounded,
+            icon: Icons.assignment_turned_in_rounded,
             text: 'Si compartiste tus datos, revisa la pestaña "Mis reportes".',
           ),
         ],
@@ -1031,7 +1192,10 @@ class _TipItem extends StatelessWidget {
             child: Text(
               text,
               style: TextStyle(
-                  fontSize: 13, height: 1.3, color: AppConfig.grisOscuro),
+                fontSize: 13,
+                height: 1.3,
+                color: AppConfig.grisOscuro,
+              ),
             ),
           ),
         ],
