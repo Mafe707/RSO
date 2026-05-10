@@ -279,9 +279,8 @@ class InformacionScreen extends StatelessWidget {
 
   Widget _buildFaqSection() {
     return _SoftCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: const [
+      child: const Column(
+        children: [
           _CardHeading(
             icon: Icons.quiz_rounded,
             title: 'Preguntas frecuentes',
@@ -289,19 +288,29 @@ class InformacionScreen extends StatelessWidget {
           ),
           SizedBox(height: 18),
           _FaqCard(
-            question: '¿Mi reporte es anónimo?',
+            question: '¿Por qué necesito registrarme?',
             answer:
-                'Sí, todos los reportes son completamente anónimos. El sistema no solicita ni almacena información personal.',
+                'El registro permite hacer seguimiento de tus denuncias y proteger el sistema contra reportes fraudulentos. Tus datos están seguros y protegidos.',
+          ),
+          _FaqCard(
+            question: '¿Mi reporte puede ser anónimo?',
+            answer:
+                'Sí. Al crear un reporte puedes elegir si deseas compartir tus datos personales con las autoridades o mantener tu identidad en anonimato. Solo el código de seguimiento identifica tu denuncia.',
           ),
           _FaqCard(
             question: '¿Qué pasa después de hacer un reporte?',
             answer:
-                'Tu reporte es enviado a las autoridades competentes para su verificación y gestión. Puedes seguir su estado con tu código de seguimiento.',
+                'Tu reporte es enviado a las autoridades competentes para su verificación y gestión. Puedes seguir su estado con el código de seguimiento único que recibes.',
           ),
           _FaqCard(
             question: '¿En qué plazo se gestiona un reporte?',
             answer:
                 'El tiempo de gestión depende de la complejidad del caso, pero generalmente se inicia el proceso en un plazo máximo de 72 horas.',
+          ),
+          _FaqCard(
+            question: '¿Qué pasa si pierdo mi código de seguimiento?',
+            answer:
+                'El código es la única forma de consultar tu denuncia. No es posible recuperarlo, por lo que es muy importante guardarlo en el momento de hacer el reporte.',
             isLast: true,
           ),
         ],

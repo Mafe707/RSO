@@ -20,9 +20,7 @@ class CiudadanoBottomNav extends StatelessWidget {
     required int currentIndex,
   }) {
     final isMobile = MediaQuery.of(context).size.width < 700;
-
     if (!isMobile) return null;
-
     return CiudadanoBottomNav(currentIndex: currentIndex);
   }
 
@@ -30,7 +28,6 @@ class CiudadanoBottomNav extends StatelessWidget {
     if (index == currentIndex) return;
 
     Widget screen;
-
     switch (index) {
       case 0:
         screen = const CiudadanoHomeScreen();
@@ -59,8 +56,12 @@ class CiudadanoBottomNav extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Solo mostramos 5 ítems en el bottom nav.
+    // El perfil va en el AppBar (actions) en todas las pantallas.
+    final displayIndex = currentIndex > 4 ? 0 : currentIndex;
+
     return NavigationBar(
-      selectedIndex: currentIndex,
+      selectedIndex: displayIndex,
       onDestinationSelected: (index) => _navigate(context, index),
       height: 72,
       backgroundColor: Colors.white,

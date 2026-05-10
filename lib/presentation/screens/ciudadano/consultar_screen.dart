@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../config/app_config.dart';
+import '../../../services/ciudadano_auth_service.dart';
 import '../../../services/denuncia_service.dart';
 import 'ciudadano_bottom_nav.dart';
 import 'ciudadano_drawer.dart';
@@ -13,22 +14,39 @@ class ConsultarScreen extends StatefulWidget {
   State<ConsultarScreen> createState() => _ConsultarScreenState();
 }
 
-class _ConsultarScreenState extends State<ConsultarScreen> {
+class _ConsultarScreenState extends State<ConsultarScreen>
+    with SingleTickerProviderStateMixin {
   final _codigoController = TextEditingController();
+  late TabController _tabController;
 
   bool _consultando = false;
   bool _buscado = false;
   Map<String, dynamic>? _denunciaEncontrada;
 
+  bool _cargandoMios = false;
+  List<Map<String, dynamic>> _misReportes = [];
+  bool _cargadoMios = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 2, vsync: this);
+    _tabController.addListener(() {
+      if (_tabController.index == 1 && !_cargadoMios) {
+        _cargarMisReportes();
+      }
+    });
+  }
+
   @override
   void dispose() {
     _codigoController.dispose();
+    _tabController.dispose();
     super.dispose();
   }
 
   Future<void> _consultar() async {
     final codigo = _codigoController.text.trim();
-
     if (codigo.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -46,15 +64,9 @@ class _ConsultarScreenState extends State<ConsultarScreen> {
     });
 
     try {
-      final denunciaService = Provider.of<DenunciaService>(
-        context,
-        listen: false,
-      );
-
-      final resultado = await denunciaService.obtenerDenunciaPorCodigo(codigo);
-
+      final svc = Provider.of<DenunciaService>(context, listen: false);
+      final resultado = await svc.obtenerDenunciaPorCodigo(codigo);
       if (!mounted) return;
-
       setState(() {
         _denunciaEncontrada = resultado;
         _consultando = false;
@@ -71,16 +83,47 @@ class _ConsultarScreenState extends State<ConsultarScreen> {
     }
   }
 
+  Future<void> _cargarMisReportes() async {
+    final ciudadanoSvc =
+        Provider.of<CiudadanoAuthService>(context, listen: false);
+    final correo = ciudadanoSvc.ciudadanoData?['correo'];
+    if (correo == null) return;
+
+    setState(() => _cargandoMios = true);
+
+    try {
+      final svc = Provider.of<DenunciaService>(context, listen: false);
+      final todos = await svc.obtenerTodasDenuncias();
+      if (!mounted) return;
+      setState(() {
+        _misReportes = todos
+            .where((d) =>
+                d['ciudadano_correo'] != null &&
+                d['ciudadano_correo'].toString().toLowerCase() ==
+                    correo.toString().toLowerCase())
+            .toList();
+        _cargandoMios = false;
+        _cargadoMios = true;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _cargandoMios = false);
+    }
+  }
+
   String _getEstadoText(String estado) {
     switch (estado) {
       case 'pendiente':
         return 'Pendiente';
       case 'en_revision':
+      case 'revision':
         return 'En revisión';
       case 'resuelta':
         return 'Resuelta';
       case 'rechazada':
         return 'Rechazada';
+      case 'resuelto_pendiente_validacion':
+        return 'Pendiente validación';
       default:
         return estado;
     }
@@ -89,13 +132,16 @@ class _ConsultarScreenState extends State<ConsultarScreen> {
   Color _getEstadoColor(String estado) {
     switch (estado) {
       case 'pendiente':
-        return const Color(0xFFFFF3CD);
+        return const Color(0xFFF8D7DA);
       case 'en_revision':
+      case 'revision':
         return const Color(0xFFCCE5FF);
       case 'resuelta':
         return const Color(0xFFD4EDDA);
       case 'rechazada':
         return const Color(0xFFF8D7DA);
+      case 'resuelto_pendiente_validacion':
+        return const Color(0xFFFFF3CD);
       default:
         return Colors.grey[200]!;
     }
@@ -104,13 +150,16 @@ class _ConsultarScreenState extends State<ConsultarScreen> {
   Color _getEstadoTextColor(String estado) {
     switch (estado) {
       case 'pendiente':
-        return const Color(0xFF856404);
+        return const Color(0xFF721C24);
       case 'en_revision':
+      case 'revision':
         return const Color(0xFF004085);
       case 'resuelta':
         return const Color(0xFF155724);
       case 'rechazada':
         return const Color(0xFF721C24);
+      case 'resuelto_pendiente_validacion':
+        return const Color(0xFF856404);
       default:
         return Colors.grey[800]!;
     }
@@ -133,43 +182,20 @@ class _ConsultarScreenState extends State<ConsultarScreen> {
 
   List<String> _extraerImagenes(Map<String, dynamic> denuncia) {
     final urls = <String>[];
-
     final imagenPrincipal = denuncia['imagen_url'];
-    if (imagenPrincipal != null && imagenPrincipal.toString().trim().isNotEmpty) {
+    if (imagenPrincipal != null &&
+        imagenPrincipal.toString().trim().isNotEmpty) {
       urls.add(imagenPrincipal.toString().trim());
     }
-
-    final imagenesUrls = denuncia['imagenes_urls'];
-    if (imagenesUrls is List) {
-      for (final item in imagenesUrls) {
-        final url = item?.toString().trim() ?? '';
-        if (url.isNotEmpty && !urls.contains(url)) {
-          urls.add(url);
-        }
-      }
-    }
-
     final evidencias = denuncia['evidencias'];
     if (evidencias is List) {
-      for (final evidencia in evidencias) {
-        if (evidencia is Map) {
-          final posiblesCampos = [
-            evidencia['imagen_url'],
-            evidencia['url'],
-            evidencia['archivo_url'],
-            evidencia['evidencia_url'],
-          ];
-
-          for (final valor in posiblesCampos) {
-            final url = valor?.toString().trim() ?? '';
-            if (url.isNotEmpty && !urls.contains(url)) {
-              urls.add(url);
-            }
-          }
+      for (final e in evidencias) {
+        if (e is Map) {
+          final url = e['archivo_url']?.toString().trim() ?? '';
+          if (url.isNotEmpty && !urls.contains(url)) urls.add(url);
         }
       }
     }
-
     return urls;
   }
 
@@ -186,17 +212,46 @@ class _ConsultarScreenState extends State<ConsultarScreen> {
         title: const Text('Consultar Estado'),
         backgroundColor: AppConfig.azulOscuro,
         elevation: 0,
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(52),
+          child: Container(
+            color: Colors.white.withOpacity(0.08),
+            child: TabBar(
+              controller: _tabController,
+              indicatorColor: Colors.white,
+              indicatorWeight: 3,
+              labelColor: Colors.white,
+              unselectedLabelColor: Colors.white70,
+              labelStyle: const TextStyle(
+                fontWeight: FontWeight.w700,
+                fontSize: 13,
+              ),
+              tabs: const [
+                Tab(icon: Icon(Icons.search_rounded), text: 'Por código'),
+                Tab(icon: Icon(Icons.list_alt_rounded), text: 'Mis reportes'),
+              ],
+            ),
+          ),
+        ),
       ),
       drawer: CiudadanoDrawer.maybe(context, currentIndex: 2),
       bottomNavigationBar: CiudadanoBottomNav.maybe(context, currentIndex: 2),
-      body: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 1100),
-          child: SingleChildScrollView(
-            padding: EdgeInsets.all(isMobile ? 16 : 32),
-            child: isMobile ? _buildMobileLayout() : _buildWebLayout(),
+      body: TabBarView(
+        controller: _tabController,
+        children: [
+          Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 1100),
+              child: SingleChildScrollView(
+                padding: EdgeInsets.all(isMobile ? 16 : 32),
+                child: isMobile
+                    ? _buildMobileLayout()
+                    : _buildWebLayout(),
+              ),
+            ),
           ),
-        ),
+          _buildMisReportesTab(isMobile),
+        ],
       ),
     );
   }
@@ -284,11 +339,11 @@ class _ConsultarScreenState extends State<ConsultarScreen> {
                 child: const Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.confirmation_number_outlined,
-                        size: 16, color: Colors.white),
+                    Icon(Icons.track_changes_rounded,
+                        size: 15, color: Colors.white),
                     SizedBox(width: 7),
                     Text(
-                      'Seguimiento ciudadano',
+                      'Seguimiento',
                       style: TextStyle(
                         color: Colors.white,
                         fontSize: 12,
@@ -298,23 +353,23 @@ class _ConsultarScreenState extends State<ConsultarScreen> {
                   ],
                 ),
               ),
-              const SizedBox(height: 18),
+              const SizedBox(height: 14),
               const Text(
-                'Consulta el estado de tu reporte',
+                'Consultar denuncia',
                 style: TextStyle(
-                  fontSize: 28,
-                  height: 1.08,
-                  fontWeight: FontWeight.w800,
+                  fontSize: 26,
+                  fontWeight: FontWeight.w900,
                   color: Colors.white,
+                  letterSpacing: -0.5,
                 ),
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 8),
               Text(
-                'Ingresa el código único generado al enviar tu denuncia para conocer el avance del proceso.',
+                'Ingresa tu código único para conocer el estado actual.',
                 style: TextStyle(
                   fontSize: 14,
                   height: 1.4,
-                  color: Colors.white.withOpacity(0.82),
+                  color: Colors.white.withOpacity(0.84),
                 ),
               ),
             ],
@@ -330,47 +385,46 @@ class _ConsultarScreenState extends State<ConsultarScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const _CardHeading(
-            icon: Icons.key_rounded,
-            title: 'Código de seguimiento',
-            subtitle: 'Escribe el código tal como aparece en tu comprobante.',
+            icon: Icons.search_rounded,
+            title: 'Buscar por código',
+            subtitle: 'Ingresa el código que recibiste al reportar.',
           ),
           const SizedBox(height: 18),
           TextField(
             controller: _codigoController,
             textCapitalization: TextCapitalization.characters,
             decoration: InputDecoration(
+              labelText: 'Código de seguimiento',
               hintText: 'Ej: PSJ-8A4B2C9D',
               prefixIcon: const Icon(Icons.confirmation_number_rounded),
               filled: true,
               fillColor: const Color(0xFFF8FAFC),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
+              border:
+                  OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
             ),
             onSubmitted: (_) => _consultar(),
           ),
-          const SizedBox(height: 18),
+          const SizedBox(height: 14),
           SizedBox(
             width: double.infinity,
-            height: 50,
+            height: 48,
             child: ElevatedButton.icon(
               onPressed: _consultando ? null : _consultar,
               icon: _consultando
                   ? const SizedBox(
-                      height: 18,
                       width: 18,
+                      height: 18,
                       child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.white,
-                      ),
+                          strokeWidth: 2, color: Colors.white),
                     )
                   : const Icon(Icons.search_rounded),
-              label: Text(_consultando ? 'Consultando...' : 'Consultar'),
+              label: Text(_consultando ? 'Buscando...' : 'Consultar estado'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppConfig.azulOscuro,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
+                    borderRadius: BorderRadius.circular(14)),
+                textStyle:
+                    const TextStyle(fontWeight: FontWeight.w800, fontSize: 14),
               ),
             ),
           ),
@@ -381,203 +435,97 @@ class _ConsultarScreenState extends State<ConsultarScreen> {
 
   Widget _buildResultSection() {
     if (!_buscado) return const SizedBox.shrink();
-
     if (_consultando) {
       return const Padding(
-        padding: EdgeInsets.only(top: 20),
+        padding: EdgeInsets.all(32),
+        child: Center(child: CircularProgressIndicator()),
+      );
+    }
+    if (_denunciaEncontrada == null) {
+      return Padding(
+        padding: const EdgeInsets.only(top: 18),
         child: _SoftCard(
-          child: Center(
-            child: Padding(
-              padding: EdgeInsets.all(24),
-              child: CircularProgressIndicator(),
-            ),
+          child: Column(
+            children: [
+              Icon(Icons.search_off_rounded,
+                  size: 52, color: AppConfig.grisOscuro.withOpacity(0.4)),
+              const SizedBox(height: 14),
+              const Text(
+                'No se encontró ninguna denuncia con ese código',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Verifica que el código sea exactamente como fue generado.',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 13, color: AppConfig.grisOscuro),
+              ),
+            ],
           ),
         ),
       );
     }
-
-    if (_denunciaEncontrada != null) {
-      return Padding(
-        padding: const EdgeInsets.only(top: 20),
-        child: _buildResultadoCard(),
-      );
-    }
-
     return Padding(
-      padding: const EdgeInsets.only(top: 20),
-      child: _SoftCard(
-        child: Column(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: AppConfig.rojo.withOpacity(0.08),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.error_outline_rounded,
-                size: 54,
-                color: AppConfig.rojo,
-              ),
-            ),
-            const SizedBox(height: 16),
-            const Text(
-              'No se encontró el reporte',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.w800,
-                color: AppConfig.rojo,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Verifique que el código sea correcto.',
-              style: TextStyle(fontSize: 14, color: AppConfig.grisOscuro),
-            ),
-          ],
-        ),
-      ),
+      padding: const EdgeInsets.only(top: 18),
+      child: _buildDenunciaCard(_denunciaEncontrada!),
     );
   }
 
-  Widget _buildResultadoCard() {
-    final d = _denunciaEncontrada!;
-    final estado = d['estado']?.toString() ?? '';
-    final respuesta = d['respuesta_oficial']?.toString();
+  Widget _buildDenunciaCard(Map<String, dynamic> d) {
+    final estado = d['estado']?.toString() ?? 'pendiente';
     final imagenes = _extraerImagenes(d);
+    final respuesta = d['respuesta_oficial']?.toString();
 
     return _SoftCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: AppConfig.verde.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: const Row(
-              children: [
-                Icon(Icons.check_circle_rounded, color: AppConfig.verde),
-                SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    'Reporte encontrado',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w800,
-                      fontSize: 16,
-                    ),
-                  ),
-                ),
-              ],
-            ),
+          const _CardHeading(
+            icon: Icons.assignment_rounded,
+            title: 'Detalle de la denuncia',
+            subtitle: 'Información completa del reporte.',
           ),
-          const SizedBox(height: 22),
-
-          const Text(
-            'Detalles del reporte',
-            style: TextStyle(
-              fontWeight: FontWeight.w800,
-              fontSize: 20,
-              color: AppConfig.azulOscuro,
-            ),
-          ),
-          const SizedBox(height: 16),
-
+          const SizedBox(height: 18),
           _buildDetailRow('Código', d['codigo_unico']?.toString() ?? '—'),
-          _buildDetailRow('Ubicación', d['ubicacion']?.toString() ?? '—'),
-          _buildDetailRow('Tipo', d['categoria']?.toString() ?? '—'),
-          _buildDetailRow('Fecha', _formatFecha(d['creado_en'])),
           _buildEstadoRow(estado),
+          _buildDetailRow('Categoría', d['categoria']?.toString() ?? '—'),
+          _buildDetailRow('Ubicación', d['ubicacion']?.toString() ?? '—'),
           _buildDetailRow('Descripción', d['descripcion']?.toString() ?? '—'),
-
+          _buildDetailRow('Fecha', _formatFecha(d['creado_en'])),
           if (imagenes.isNotEmpty) ...[
-            const SizedBox(height: 18),
+            const Divider(height: 24),
             const Text(
-              'Evidencias fotográficas',
-              style: TextStyle(
-                fontWeight: FontWeight.w800,
-                fontSize: 16,
-                color: AppConfig.azulOscuro,
-              ),
+              'Evidencias',
+              style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 10),
             SizedBox(
-              height: 210,
+              height: 110,
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
                 itemCount: imagenes.length,
-                separatorBuilder: (_, __) => const SizedBox(width: 12),
-                itemBuilder: (context, index) {
-                  final url = imagenes[index];
-                  return GestureDetector(
-                    onTap: () {
-                      showDialog(
-                        context: context,
-                        builder: (_) => Dialog(
-                          insetPadding: const EdgeInsets.all(16),
-                          child: Stack(
-                            children: [
-                              InteractiveViewer(
-                                child: ClipRRect(
-                                  borderRadius: BorderRadius.circular(12),
-                                  child: Image.network(
-                                    url,
-                                    fit: BoxFit.contain,
-                                    errorBuilder: (_, __, ___) => Container(
-                                      width: double.infinity,
-                                      height: 300,
-                                      alignment: Alignment.center,
-                                      child: const Icon(
-                                        Icons.broken_image_rounded,
-                                        size: 56,
-                                        color: Colors.grey,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              Positioned(
-                                right: 8,
-                                top: 8,
-                                child: IconButton(
-                                  onPressed: () => Navigator.pop(context),
-                                  icon: const Icon(Icons.close_rounded),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
-                    },
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(16),
-                      child: Container(
-                        width: 220,
-                        color: const Color(0xFFF3F6FB),
-                        child: Image.network(
-                          url,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => Container(
-                            alignment: Alignment.center,
-                            color: const Color(0xFFF3F6FB),
-                            child: const Icon(
-                              Icons.broken_image_rounded,
-                              size: 42,
-                              color: Colors.grey,
-                            ),
-                          ),
-                        ),
-                      ),
+                separatorBuilder: (_, __) => const SizedBox(width: 8),
+                itemBuilder: (_, i) => ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: Image.network(
+                    imagenes[i],
+                    width: 110,
+                    height: 110,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => Container(
+                      width: 110,
+                      height: 110,
+                      color: AppConfig.grisClaro,
+                      child: const Icon(Icons.broken_image_rounded,
+                          size: 42, color: Colors.grey),
                     ),
-                  );
-                },
+                  ),
+                ),
               ),
             ),
           ],
-
           const Divider(height: 34),
-
           const Text(
             'Respuesta oficial',
             style: TextStyle(
@@ -594,20 +542,17 @@ class _ConsultarScreenState extends State<ConsultarScreen> {
               borderRadius: BorderRadius.circular(16),
               border: Border.all(color: AppConfig.grisMedio),
             ),
-            child: Column(
+            child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Icon(
-                      Icons.chat_bubble_outline_rounded,
-                      size: 19,
-                      color: AppConfig.azulClaro,
-                    ),
-                    const SizedBox(width: 9),
-                    Expanded(
-                      child: Text(
+                const Icon(Icons.chat_bubble_outline_rounded,
+                    size: 19, color: AppConfig.azulClaro),
+                const SizedBox(width: 9),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
                         (respuesta != null && respuesta.isNotEmpty)
                             ? respuesta
                             : 'Aún no hay respuesta oficial para este reporte.',
@@ -621,17 +566,273 @@ class _ConsultarScreenState extends State<ConsultarScreen> {
                               : AppConfig.grisOscuro,
                         ),
                       ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 10),
-                Text(
-                  'Última actualización: ${_formatFecha(d['actualizado_en'])}',
-                  style: TextStyle(fontSize: 11, color: AppConfig.grisOscuro),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Última actualización: ${_formatFecha(d['actualizado_en'])}',
+                        style: TextStyle(
+                            fontSize: 11, color: AppConfig.grisOscuro),
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMisReportesTab(bool isMobile) {
+    Provider.of<CiudadanoAuthService>(context);
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 900),
+        child: SingleChildScrollView(
+          padding: EdgeInsets.all(isMobile ? 16 : 32),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(22),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [AppConfig.azulOscuro, AppConfig.azulClaro],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(24),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.list_alt_rounded,
+                        color: Colors.white, size: 36),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Mis reportes',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 20,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Reportes donde compartiste tus datos.',
+                            style: TextStyle(
+                              color: Colors.white.withOpacity(0.8),
+                              fontSize: 13,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: () {
+                        setState(() {
+                          _cargadoMios = false;
+                          _misReportes = [];
+                        });
+                        _cargarMisReportes();
+                      },
+                      icon: const Icon(Icons.refresh_rounded,
+                          color: Colors.white),
+                      tooltip: 'Actualizar',
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 18),
+              if (_cargandoMios)
+                const Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(32),
+                    child: CircularProgressIndicator(),
+                  ),
+                )
+              else if (!_cargadoMios)
+                _SoftCard(
+                  child: Column(
+                    children: [
+                      const Icon(Icons.info_outline_rounded,
+                          size: 48, color: AppConfig.azulClaro),
+                      const SizedBox(height: 12),
+                      const Text(
+                        'Solo aparecen aquí los reportes donde elegiste compartir tus datos.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                            fontSize: 14, fontWeight: FontWeight.w600),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        'Los reportes anónimos solo se pueden consultar con el código.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                            fontSize: 13, color: AppConfig.grisOscuro),
+                      ),
+                      const SizedBox(height: 16),
+                      ElevatedButton.icon(
+                        onPressed: _cargarMisReportes,
+                        icon: const Icon(Icons.refresh_rounded),
+                        label: const Text('Cargar mis reportes'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppConfig.azulOscuro,
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14)),
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              else if (_misReportes.isEmpty)
+                _SoftCard(
+                  child: Column(
+                    children: [
+                      Icon(Icons.assignment_late_outlined,
+                          size: 52,
+                          color: AppConfig.grisOscuro.withOpacity(0.4)),
+                      const SizedBox(height: 14),
+                      const Text(
+                        'No tienes reportes registrados con tus datos',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                            fontSize: 15, fontWeight: FontWeight.w700),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        'Al hacer un reporte, elige "Compartir mis datos" para que aparezca aquí.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                            fontSize: 13, color: AppConfig.grisOscuro),
+                      ),
+                    ],
+                  ),
+                )
+              else
+                ListView.separated(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: _misReportes.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 12),
+                  itemBuilder: (_, i) =>
+                      _buildMiniReporteCard(_misReportes[i]),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMiniReporteCard(Map<String, dynamic> d) {
+    final estado = d['estado']?.toString() ?? 'pendiente';
+    return _SoftCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      d['codigo_unico']?.toString() ?? '—',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w900,
+                        fontSize: 16,
+                        color: AppConfig.azulOscuro,
+                        letterSpacing: 1,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      d['categoria']?.toString() ?? '—',
+                      style: TextStyle(
+                          fontSize: 13, color: AppConfig.grisOscuro),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: _getEstadoColor(estado),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Text(
+                  _getEstadoText(estado),
+                  style: TextStyle(
+                    color: _getEstadoTextColor(estado),
+                    fontWeight: FontWeight.w700,
+                    fontSize: 12,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              const Icon(Icons.location_on_rounded,
+                  size: 14, color: AppConfig.azulClaro),
+              const SizedBox(width: 5),
+              Expanded(
+                child: Text(
+                  d['ubicacion']?.toString() ?? '—',
+                  style: TextStyle(
+                      fontSize: 12.5, color: AppConfig.grisOscuro),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Row(
+            children: [
+              const Icon(Icons.access_time_rounded,
+                  size: 14, color: AppConfig.azulClaro),
+              const SizedBox(width: 5),
+              Text(
+                _formatFecha(d['creado_en']),
+                style: TextStyle(fontSize: 12, color: AppConfig.grisOscuro),
+              ),
+            ],
+          ),
+          if (d['respuesta_oficial'] != null &&
+              d['respuesta_oficial'].toString().isNotEmpty) ...[
+            const SizedBox(height: 10),
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: AppConfig.verde.withOpacity(0.07),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppConfig.verde.withOpacity(0.25)),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(Icons.chat_bubble_outline_rounded,
+                      size: 15, color: AppConfig.verde),
+                  const SizedBox(width: 7),
+                  Expanded(
+                    child: Text(
+                      d['respuesta_oficial'].toString(),
+                      style: const TextStyle(
+                          fontSize: 12.5, fontStyle: FontStyle.italic),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -648,20 +849,16 @@ class _ConsultarScreenState extends State<ConsultarScreen> {
             child: Text(
               '$label:',
               style: const TextStyle(
-                fontWeight: FontWeight.w700,
-                fontSize: 13.5,
-                color: Colors.black87,
-              ),
+                  fontWeight: FontWeight.w700,
+                  fontSize: 13.5,
+                  color: Colors.black87),
             ),
           ),
           Expanded(
             child: Text(
               value,
               style: TextStyle(
-                fontSize: 13.5,
-                height: 1.35,
-                color: AppConfig.grisOscuro,
-              ),
+                  fontSize: 13.5, height: 1.35, color: AppConfig.grisOscuro),
             ),
           ),
         ],
@@ -719,17 +916,17 @@ class _ConsultarScreenState extends State<ConsultarScreen> {
             subtitle: 'Ten en cuenta antes de consultar.',
           ),
           const SizedBox(height: 18),
-          _TipItem(
+          const _TipItem(
             icon: Icons.check_circle_outline_rounded,
             text: 'Copia el código exactamente como fue generado.',
           ),
-          _TipItem(
+          const _TipItem(
             icon: Icons.schedule_rounded,
             text: 'La actualización del estado puede tomar un tiempo.',
           ),
-          _TipItem(
-            icon: Icons.privacy_tip_outlined,
-            text: 'El seguimiento no requiere datos personales.',
+          const _TipItem(
+            icon: Icons.list_alt_rounded,
+            text: 'Si compartiste tus datos, revisa la pestaña "Mis reportes".',
           ),
         ],
       ),
@@ -803,7 +1000,10 @@ class _CardHeading extends StatelessWidget {
               const SizedBox(height: 3),
               Text(
                 subtitle,
-                style: TextStyle(fontSize: 12.5, color: AppConfig.grisOscuro),
+                style: TextStyle(
+                  fontSize: 12.5,
+                  color: AppConfig.grisOscuro,
+                ),
               ),
             ],
           ),
@@ -831,10 +1031,7 @@ class _TipItem extends StatelessWidget {
             child: Text(
               text,
               style: TextStyle(
-                fontSize: 13,
-                height: 1.3,
-                color: AppConfig.grisOscuro,
-              ),
+                  fontSize: 13, height: 1.3, color: AppConfig.grisOscuro),
             ),
           ),
         ],

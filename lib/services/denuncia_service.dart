@@ -25,19 +25,19 @@ class DenunciaService extends ChangeNotifier {
     required String categoria,
     required String descripcion,
     List<Uint8List>? imagenesBytes,
+    bool esAnonima = true,
+    int? ciudadanoId,
+    String? ciudadanoNombre,
+    String? ciudadanoApellido,
+    String? ciudadanoCorreo,
+    String? ciudadanoTelefono,
   }) async {
     _setLoading(true);
 
     try {
-      if (ubicacion.trim().isEmpty) {
-        throw Exception('La ubicación es requerida');
-      }
-      if (categoria.trim().isEmpty) {
-        throw Exception('La categoría es requerida');
-      }
-      if (descripcion.trim().isEmpty) {
-        throw Exception('La descripción es requerida');
-      }
+      if (ubicacion.trim().isEmpty) throw Exception('La ubicación es requerida');
+      if (categoria.trim().isEmpty) throw Exception('La categoría es requerida');
+      if (descripcion.trim().isEmpty) throw Exception('La descripción es requerida');
 
       if (imagenesBytes != null) {
         for (int i = 0; i < imagenesBytes.length; i++) {
@@ -62,9 +62,7 @@ class DenunciaService extends ChangeNotifier {
               imagenPath,
               imagenesBytes.first,
               fileOptions: const FileOptions(
-                contentType: 'image/jpeg',
-                upsert: false,
-              ),
+                  contentType: 'image/jpeg', upsert: false),
             );
 
         imagenUrl = _supabase.storage
@@ -72,7 +70,7 @@ class DenunciaService extends ChangeNotifier {
             .getPublicUrl(imagenPath);
       }
 
-      final response = await _supabase.from('denuncias').insert({
+      final Map<String, dynamic> payload = {
         'codigo_unico': codigoUnico,
         'ubicacion': ubicacion.trim(),
         'latitud': latitud,
@@ -82,9 +80,21 @@ class DenunciaService extends ChangeNotifier {
         'imagen_url': imagenUrl,
         'imagen_path': imagenPath,
         'estado': 'pendiente',
+        'es_anonima': esAnonima,
         'creado_en': fechaActual,
         'actualizado_en': fechaActual,
-      }).select().single();
+      };
+
+      if (!esAnonima) {
+        payload['ciudadano_id'] = ciudadanoId;
+        payload['ciudadano_nombre'] = ciudadanoNombre;
+        payload['ciudadano_apellido'] = ciudadanoApellido;
+        payload['ciudadano_correo'] = ciudadanoCorreo;
+        payload['ciudadano_telefono'] = ciudadanoTelefono;
+      }
+
+      final response =
+          await _supabase.from('denuncias').insert(payload).select().single();
 
       final nuevaDenuncia = Map<String, dynamic>.from(response);
       final denunciaId = nuevaDenuncia['id'] as int;
@@ -98,13 +108,13 @@ class DenunciaService extends ChangeNotifier {
           await _supabase.storage.from(_bucketEvidencias).uploadBinary(
                 ruta,
                 imagenesBytes[i],
-                fileOptions: const FileOptions(
-                  contentType: 'image/jpeg',
-                ),
+                fileOptions:
+                    const FileOptions(contentType: 'image/jpeg'),
               );
 
-          final url =
-              _supabase.storage.from(_bucketEvidencias).getPublicUrl(ruta);
+          final url = _supabase.storage
+              .from(_bucketEvidencias)
+              .getPublicUrl(ruta);
 
           await _supabase.from('evidencias').insert({
             'denuncia_id': denunciaId,
@@ -116,7 +126,6 @@ class DenunciaService extends ChangeNotifier {
 
       _denuncias.insert(0, nuevaDenuncia);
       notifyListeners();
-
       return nuevaDenuncia;
     } catch (e) {
       debugPrint('Error al crear denuncia: $e');
@@ -142,23 +151,20 @@ class DenunciaService extends ChangeNotifier {
           .maybeSingle();
 
       if (response == null) return null;
-
       return Map<String, dynamic>.from(response);
     } catch (e) {
-      debugPrint('Error al obtener denuncia por código: $e');
+      debugPrint('Error al obtener denuncia: $e');
       return null;
     }
   }
 
   Future<List<Map<String, dynamic>>> obtenerTodasDenuncias() async {
     _setLoading(true);
-
     try {
       final response = await _supabase
           .from('denuncias')
           .select()
           .order('creado_en', ascending: false);
-
       _denuncias = List<Map<String, dynamic>>.from(response);
       notifyListeners();
       return _denuncias;
@@ -176,7 +182,6 @@ class DenunciaService extends ChangeNotifier {
         'estado': nuevoEstado,
         'actualizado_en': DateTime.now().toIso8601String(),
       }).eq('id', id);
-
       notifyListeners();
       return true;
     } catch (e) {
@@ -186,22 +191,14 @@ class DenunciaService extends ChangeNotifier {
   }
 
   Future<bool> actualizarEstadoConRespuesta(
-    int id,
-    String nuevoEstado,
-    String respuesta,
-  ) async {
+      int id, String nuevoEstado, String respuesta) async {
     try {
       final Map<String, dynamic> data = {
         'estado': nuevoEstado,
         'actualizado_en': DateTime.now().toIso8601String(),
       };
-
-      if (respuesta.isNotEmpty) {
-        data['respuesta_oficial'] = respuesta;
-      }
-
+      if (respuesta.isNotEmpty) data['respuesta_oficial'] = respuesta;
       await _supabase.from('denuncias').update(data).eq('id', id);
-
       notifyListeners();
       return true;
     } catch (e) {
@@ -217,7 +214,6 @@ class DenunciaService extends ChangeNotifier {
         'estado': 'en_revision',
         'actualizado_en': DateTime.now().toIso8601String(),
       }).eq('id', denunciaId);
-
       notifyListeners();
       return true;
     } catch (e) {
@@ -233,7 +229,6 @@ class DenunciaService extends ChangeNotifier {
         'estado': 'resuelto_pendiente_validacion',
         'actualizado_en': DateTime.now().toIso8601String(),
       }).eq('id', id);
-
       notifyListeners();
       return true;
     } catch (e) {

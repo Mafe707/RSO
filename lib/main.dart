@@ -7,6 +7,7 @@ import 'core/supabase/supabase_config.dart';
 import 'services/auth_service.dart';
 import 'services/admin_auth_service.dart';
 import 'services/denuncia_service.dart';
+import 'services/ciudadano_auth_service.dart';
 
 import 'presentation/screens/rol_selection_screen.dart';
 
@@ -23,22 +24,17 @@ class RSOApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
-        ChangeNotifierProvider<AuthService>(
-          create: (_) => AuthService(),
-        ),
-        ChangeNotifierProvider<AdminAuthService>(
-          create: (_) => AdminAuthService(),
-        ),
-        ChangeNotifierProvider<DenunciaService>(
-          create: (_) => DenunciaService(),
-        ),
+        ChangeNotifierProvider<AuthService>(create: (_) => AuthService()),
+        ChangeNotifierProvider<AdminAuthService>(create: (_) => AdminAuthService()),
+        ChangeNotifierProvider<DenunciaService>(create: (_) => DenunciaService()),
+        ChangeNotifierProvider<CiudadanoAuthService>(create: (_) => CiudadanoAuthService()),
       ],
       child: MaterialApp(
         title: 'RSO - Ruta Sin Obstáculos',
         theme: AppConfig.lightTheme,
         debugShowCheckedModeBanner: false,
         home: const RolSelectionScreen(),
-      ), // ← cierre de MaterialApp
-    ); // ← cierre de MultiProvider
+      ),
+    );
   }
 }

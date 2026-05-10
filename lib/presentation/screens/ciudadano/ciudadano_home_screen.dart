@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../../../services/ciudadano_auth_service.dart';
+import 'ciudadano_login_screen.dart';
+import 'ciudadano_perfil_screen.dart';
 
 import '../../../config/app_config.dart';
 import 'reportar_screen.dart';
@@ -21,6 +25,10 @@ class CiudadanoHomeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isMobile = _isMobile(context);
+    final ciudadanoSvc = Provider.of<CiudadanoAuthService>(context);
+    final nombre = ciudadanoSvc.ciudadanoData?['nombre'] as String? ?? 'Ciudadano';
+    final apellido = ciudadanoSvc.ciudadanoData?['apellido'] as String? ?? '';
+    final inicial = nombre.isNotEmpty ? nombre[0].toUpperCase() : 'C';
 
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FB),
@@ -32,19 +40,95 @@ class CiudadanoHomeScreen extends StatelessWidget {
           style: TextStyle(fontWeight: FontWeight.w700),
         ),
         centerTitle: isMobile,
+        actions: [
+          // Avatar + nombre (solo en web)
+          if (!isMobile)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              child: InkWell(
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const CiudadanoPerfilScreen()),
+                ),
+                borderRadius: BorderRadius.circular(12),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  child: Row(
+                    children: [
+                      CircleAvatar(
+                        radius: 17,
+                        backgroundColor: Colors.white.withOpacity(0.22),
+                        child: Text(
+                          inicial,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w800,
+                            fontSize: 15,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        '$nombre $apellido',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 13.5,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          // En móvil solo el ícono de perfil
+          if (isMobile)
+            InkWell(
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const CiudadanoPerfilScreen()),
+              ),
+              borderRadius: BorderRadius.circular(50),
+              child: Padding(
+                padding: const EdgeInsets.all(8),
+                child: CircleAvatar(
+                  radius: 16,
+                  backgroundColor: Colors.white.withOpacity(0.22),
+                  child: Text(
+                    inicial,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 13,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          // Botón logout
+          IconButton(
+            icon: const Icon(Icons.logout_rounded),
+            tooltip: 'Cerrar sesión',
+            onPressed: () async {
+              final svc = Provider.of<CiudadanoAuthService>(context, listen: false);
+              await svc.logout();
+              if (context.mounted) {
+                Navigator.pushAndRemoveUntil(
+                  context,
+                  MaterialPageRoute(builder: (_) => const CiudadanoLoginScreen()),
+                  (route) => false,
+                );
+              }
+            },
+          ),
+        ],
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(48),
           child: _LocationBar(isMobile: isMobile),
         ),
       ),
-      drawer: CiudadanoDrawer.maybe(
-        context,
-        currentIndex: 0,
-      ),
-      bottomNavigationBar: CiudadanoBottomNav.maybe(
-        context,
-        currentIndex: 0,
-      ),
+      drawer: CiudadanoDrawer.maybe(context, currentIndex: 0),
+      bottomNavigationBar: CiudadanoBottomNav.maybe(context, currentIndex: 0),
       body: SafeArea(
         top: false,
         child: Center(
@@ -55,7 +139,7 @@ class CiudadanoHomeScreen extends StatelessWidget {
                 horizontal: isMobile ? 16 : 32,
                 vertical: isMobile ? 16 : 28,
               ),
-              child: _buildHomeContent(context, isMobile),
+              child: _buildHomeContent(context, isMobile, nombre),
             ),
           ),
         ),
@@ -63,11 +147,15 @@ class CiudadanoHomeScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildHomeContent(BuildContext context, bool isMobile) {
+  Widget _buildHomeContent(
+    BuildContext context,
+    bool isMobile,
+    String nombreCiudadano,
+  ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildWelcomeBanner(isMobile),
+        _buildWelcomeBanner(isMobile, nombreCiudadano),
         SizedBox(height: isMobile ? 22 : 28),
         _SectionHeader(
           title: 'Acciones rápidas',
@@ -98,7 +186,7 @@ class CiudadanoHomeScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildWelcomeBanner(bool isMobile) {
+  Widget _buildWelcomeBanner(bool isMobile, String nombreCiudadano) {
     return Container(
       width: double.infinity,
       padding: EdgeInsets.all(isMobile ? 22 : 30),
@@ -106,10 +194,7 @@ class CiudadanoHomeScreen extends StatelessWidget {
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [
-            AppConfig.azulOscuro,
-            AppConfig.azulClaro,
-          ],
+          colors: [AppConfig.azulOscuro, AppConfig.azulClaro],
         ),
         borderRadius: BorderRadius.circular(isMobile ? 24 : 30),
         boxShadow: [
@@ -135,8 +220,7 @@ class CiudadanoHomeScreen extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
                 decoration: BoxDecoration(
                   color: Colors.white.withOpacity(0.16),
                   borderRadius: BorderRadius.circular(999),
@@ -159,6 +243,15 @@ class CiudadanoHomeScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 18),
+              Text(
+                'Hola, $nombreCiudadano 👋',
+                style: TextStyle(
+                  fontSize: isMobile ? 14 : 16,
+                  color: Colors.white.withOpacity(0.9),
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 6),
               Text(
                 'Ayuda a mantener libre el espacio público',
                 style: TextStyle(
@@ -186,18 +279,9 @@ class CiudadanoHomeScreen extends StatelessWidget {
                 spacing: 10,
                 runSpacing: 10,
                 children: const [
-                  _BannerChip(
-                    icon: Icons.lock_outline_rounded,
-                    text: 'Reporte seguro',
-                  ),
-                  _BannerChip(
-                    icon: Icons.confirmation_number_outlined,
-                    text: 'Código de seguimiento',
-                  ),
-                  _BannerChip(
-                    icon: Icons.access_time_rounded,
-                    text: 'Disponible 24/7',
-                  ),
+                  _BannerChip(icon: Icons.lock_outline_rounded, text: 'Reporte seguro'),
+                  _BannerChip(icon: Icons.confirmation_number_outlined, text: 'Código de seguimiento'),
+                  _BannerChip(icon: Icons.access_time_rounded, text: 'Disponible 24/7'),
                 ],
               ),
             ],
@@ -215,12 +299,10 @@ class CiudadanoHomeScreen extends StatelessWidget {
           title: 'Reportar invasión',
           subtitle: 'Registra ubicación, categoría, descripción y evidencia.',
           color: AppConfig.azulOscuro,
-          onTap: () {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (_) => const ReportarScreen()),
-            );
-          },
+          onTap: () => Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => const ReportarScreen()),
+          ),
         ),
         const SizedBox(height: 14),
         _ActionTile(
@@ -228,12 +310,10 @@ class CiudadanoHomeScreen extends StatelessWidget {
           title: 'Consultar estado',
           subtitle: 'Usa tu código único para conocer el avance.',
           color: AppConfig.azulClaro,
-          onTap: () {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (_) => const ConsultarScreen()),
-            );
-          },
+          onTap: () => Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => const ConsultarScreen()),
+          ),
         ),
         const SizedBox(height: 14),
         _ActionTile(
@@ -241,12 +321,10 @@ class CiudadanoHomeScreen extends StatelessWidget {
           title: 'Mapa de reportes',
           subtitle: 'Visualiza puntos y reportes registrados.',
           color: AppConfig.rojo,
-          onTap: () {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (_) => const MapaScreen()),
-            );
-          },
+          onTap: () => Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => const MapaScreen()),
+          ),
         ),
       ],
     );
@@ -261,12 +339,10 @@ class CiudadanoHomeScreen extends StatelessWidget {
             title: 'Reportar',
             subtitle: 'Crear una nueva denuncia ciudadana',
             color: AppConfig.azulOscuro,
-            onTap: () {
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(builder: (_) => const ReportarScreen()),
-              );
-            },
+            onTap: () => Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (_) => const ReportarScreen()),
+            ),
           ),
         ),
         const SizedBox(width: 16),
@@ -276,12 +352,10 @@ class CiudadanoHomeScreen extends StatelessWidget {
             title: 'Consultar',
             subtitle: 'Revisar el estado de un reporte',
             color: AppConfig.azulClaro,
-            onTap: () {
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(builder: (_) => const ConsultarScreen()),
-              );
-            },
+            onTap: () => Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (_) => const ConsultarScreen()),
+            ),
           ),
         ),
         const SizedBox(width: 16),
@@ -291,12 +365,10 @@ class CiudadanoHomeScreen extends StatelessWidget {
             title: 'Mapa',
             subtitle: 'Ver reportes por ubicación',
             color: AppConfig.rojo,
-            onTap: () {
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(builder: (_) => const MapaScreen()),
-              );
-            },
+            onTap: () => Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (_) => const MapaScreen()),
+            ),
           ),
         ),
       ],
@@ -314,40 +386,19 @@ class CiudadanoHomeScreen extends StatelessWidget {
             subtitle: 'Proceso simple para hacer seguimiento.',
           ),
           const SizedBox(height: 18),
-          _buildStep(
-            number: 1,
-            title: 'Reporta',
-            text:
-                'Registra ubicación, categoría, descripción y evidencia fotográfica.',
-          ),
+          _buildStep(number: 1, title: 'Reporta', text: 'Registra ubicación, categoría, descripción y evidencia fotográfica.'),
           const SizedBox(height: 14),
-          _buildStep(
-            number: 2,
-            title: 'Guarda tu código',
-            text: 'Recibirás un código único para consultar el avance.',
-          ),
+          _buildStep(number: 2, title: 'Guarda tu código', text: 'Recibirás un código único para consultar el avance.'),
           const SizedBox(height: 14),
-          _buildStep(
-            number: 3,
-            title: 'Consulta',
-            text: 'Revisa el estado de tu reporte cuando lo necesites.',
-          ),
+          _buildStep(number: 3, title: 'Consulta', text: 'Revisa el estado de tu reporte cuando lo necesites.'),
           const SizedBox(height: 14),
-          _buildStep(
-            number: 4,
-            title: 'Seguimiento institucional',
-            text: 'La autoridad competente revisará y gestionará el caso.',
-          ),
+          _buildStep(number: 4, title: 'Seguimiento institucional', text: 'La autoridad competente revisará y gestionará el caso.'),
         ],
       ),
     );
   }
 
-  Widget _buildStep({
-    required int number,
-    required String title,
-    required String text,
-  }) {
+  Widget _buildStep({required int number, required String title, required String text}) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -362,10 +413,7 @@ class CiudadanoHomeScreen extends StatelessWidget {
           child: Center(
             child: Text(
               '$number',
-              style: const TextStyle(
-                color: AppConfig.azulOscuro,
-                fontWeight: FontWeight.w800,
-              ),
+              style: const TextStyle(color: AppConfig.azulOscuro, fontWeight: FontWeight.w800),
             ),
           ),
         ),
@@ -374,23 +422,9 @@ class CiudadanoHomeScreen extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 14.5,
-                  fontWeight: FontWeight.w800,
-                  color: Colors.black87,
-                ),
-              ),
+              Text(title, style: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.w800, color: Colors.black87)),
               const SizedBox(height: 3),
-              Text(
-                text,
-                style: TextStyle(
-                  fontSize: 13,
-                  height: 1.35,
-                  color: AppConfig.grisOscuro,
-                ),
-              ),
+              Text(text, style: TextStyle(fontSize: 13, height: 1.35, color: AppConfig.grisOscuro)),
             ],
           ),
         ),
@@ -419,8 +453,7 @@ class CiudadanoHomeScreen extends StatelessWidget {
           const _InfoRow(
             icon: Icons.directions_car_rounded,
             title: 'Invasión vehicular',
-            text:
-                'Vehículos que bloquean zonas peatonales o espacios públicos.',
+            text: 'Vehículos que bloquean zonas peatonales o espacios públicos.',
             color: AppConfig.azulClaro,
           ),
           const SizedBox(height: 12),
@@ -434,18 +467,17 @@ class CiudadanoHomeScreen extends StatelessWidget {
           SizedBox(
             width: double.infinity,
             child: OutlinedButton.icon(
-              onPressed: () {
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(builder: (_) => const InformacionScreen()),
-                );
-              },
+              onPressed: () => Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (_) => const InformacionScreen()),
+              ),
               icon: const Icon(Icons.arrow_forward_rounded),
               label: const Text('Ver más información'),
               style: OutlinedButton.styleFrom(
                 foregroundColor: AppConfig.azulOscuro,
                 side: BorderSide(color: AppConfig.azulOscuro.withOpacity(0.25)),
                 padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
               ),
             ),
           ),
@@ -455,12 +487,11 @@ class CiudadanoHomeScreen extends StatelessWidget {
   }
 }
 
+// ─── Widgets internos ────────────────────────────────────────────────────────
+
 class _LocationBar extends StatelessWidget {
   final bool isMobile;
-
-  const _LocationBar({
-    required this.isMobile,
-  });
+  const _LocationBar({required this.isMobile});
 
   @override
   Widget build(BuildContext context) {
@@ -473,11 +504,7 @@ class _LocationBar extends StatelessWidget {
           const SizedBox(width: 6),
           const Text(
             'San Juan de Pasto',
-            style: TextStyle(
-              fontSize: 12,
-              color: Colors.white70,
-              fontWeight: FontWeight.w500,
-            ),
+            style: TextStyle(fontSize: 12, color: Colors.white70, fontWeight: FontWeight.w500),
           ),
           const Spacer(),
           Container(
@@ -488,11 +515,7 @@ class _LocationBar extends StatelessWidget {
             ),
             child: const Text(
               'Ciudadano',
-              style: TextStyle(
-                fontSize: 11,
-                color: Colors.white,
-                fontWeight: FontWeight.w700,
-              ),
+              style: TextStyle(fontSize: 11, color: Colors.white, fontWeight: FontWeight.w700),
             ),
           ),
         ],
@@ -506,11 +529,7 @@ class _SectionHeader extends StatelessWidget {
   final String subtitle;
   final String? actionText;
 
-  const _SectionHeader({
-    required this.title,
-    required this.subtitle,
-    this.actionText,
-  });
+  const _SectionHeader({required this.title, required this.subtitle, this.actionText});
 
   @override
   Widget build(BuildContext context) {
@@ -530,13 +549,7 @@ class _SectionHeader extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 4),
-              Text(
-                subtitle,
-                style: TextStyle(
-                  fontSize: 13.5,
-                  color: AppConfig.grisOscuro,
-                ),
-              ),
+              Text(subtitle, style: TextStyle(fontSize: 13.5, color: AppConfig.grisOscuro)),
             ],
           ),
         ),
@@ -550,19 +563,11 @@ class _SectionHeader extends StatelessWidget {
             ),
             child: Row(
               children: [
-                const Icon(
-                  Icons.location_city_rounded,
-                  size: 16,
-                  color: AppConfig.azulOscuro,
-                ),
+                const Icon(Icons.location_city_rounded, size: 16, color: AppConfig.azulOscuro),
                 const SizedBox(width: 6),
                 Text(
                   actionText!,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: AppConfig.azulOscuro,
-                    fontWeight: FontWeight.w700,
-                  ),
+                  style: const TextStyle(fontSize: 12, color: AppConfig.azulOscuro, fontWeight: FontWeight.w700),
                 ),
               ],
             ),
@@ -612,15 +617,11 @@ class _ActionCardState extends State<_ActionCard> {
               color: Colors.white,
               borderRadius: BorderRadius.circular(22),
               border: Border.all(
-                color: _hovering
-                    ? widget.color.withOpacity(0.42)
-                    : AppConfig.grisMedio,
+                color: _hovering ? widget.color.withOpacity(0.42) : AppConfig.grisMedio,
               ),
               boxShadow: [
                 BoxShadow(
-                  color: _hovering
-                      ? widget.color.withOpacity(0.12)
-                      : Colors.black.withOpacity(0.045),
+                  color: _hovering ? widget.color.withOpacity(0.12) : Colors.black.withOpacity(0.045),
                   blurRadius: _hovering ? 18 : 12,
                   offset: const Offset(0, 8),
                 ),
@@ -641,28 +642,17 @@ class _ActionCardState extends State<_ActionCard> {
                 const SizedBox(height: 18),
                 Text(
                   widget.title,
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w800,
-                    color: widget.color,
-                  ),
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: widget.color),
                 ),
                 const SizedBox(height: 7),
                 Text(
                   widget.subtitle,
-                  style: TextStyle(
-                    fontSize: 13.5,
-                    height: 1.35,
-                    color: AppConfig.grisOscuro,
-                  ),
+                  style: TextStyle(fontSize: 13.5, height: 1.35, color: AppConfig.grisOscuro),
                 ),
                 const SizedBox(height: 18),
                 Align(
                   alignment: Alignment.centerRight,
-                  child: Icon(
-                    Icons.arrow_forward_rounded,
-                    color: widget.color,
-                  ),
+                  child: Icon(Icons.arrow_forward_rounded, color: widget.color),
                 ),
               ],
             ),
@@ -718,32 +708,14 @@ class _ActionTile extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      title,
-                      style: const TextStyle(
-                        fontSize: 16.5,
-                        fontWeight: FontWeight.w800,
-                        color: Colors.black87,
-                      ),
-                    ),
+                    Text(title, style: const TextStyle(fontSize: 16.5, fontWeight: FontWeight.w800, color: Colors.black87)),
                     const SizedBox(height: 4),
-                    Text(
-                      subtitle,
-                      style: TextStyle(
-                        fontSize: 12.5,
-                        height: 1.35,
-                        color: AppConfig.grisOscuro,
-                      ),
-                    ),
+                    Text(subtitle, style: TextStyle(fontSize: 12.5, height: 1.35, color: AppConfig.grisOscuro)),
                   ],
                 ),
               ),
               const SizedBox(width: 10),
-              Icon(
-                Icons.chevron_right_rounded,
-                color: color,
-                size: 28,
-              ),
+              Icon(Icons.chevron_right_rounded, color: color, size: 28),
             ],
           ),
         ),
@@ -754,10 +726,7 @@ class _ActionTile extends StatelessWidget {
 
 class _SoftCard extends StatelessWidget {
   final Widget child;
-
-  const _SoftCard({
-    required this.child,
-  });
+  const _SoftCard({required this.child});
 
   @override
   Widget build(BuildContext context) {
@@ -786,11 +755,7 @@ class _CardHeading extends StatelessWidget {
   final String title;
   final String subtitle;
 
-  const _CardHeading({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-  });
+  const _CardHeading({required this.icon, required this.title, required this.subtitle});
 
   @override
   Widget build(BuildContext context) {
@@ -803,33 +768,16 @@ class _CardHeading extends StatelessWidget {
             color: AppConfig.azulOscuro.withOpacity(0.08),
             borderRadius: BorderRadius.circular(14),
           ),
-          child: Icon(
-            icon,
-            color: AppConfig.azulOscuro,
-            size: 24,
-          ),
+          child: Icon(icon, color: AppConfig.azulOscuro, size: 24),
         ),
         const SizedBox(width: 13),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w800,
-                  color: AppConfig.azulOscuro,
-                ),
-              ),
+              Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: AppConfig.azulOscuro)),
               const SizedBox(height: 3),
-              Text(
-                subtitle,
-                style: TextStyle(
-                  fontSize: 12.5,
-                  color: AppConfig.grisOscuro,
-                ),
-              ),
+              Text(subtitle, style: TextStyle(fontSize: 12.5, color: AppConfig.grisOscuro)),
             ],
           ),
         ),
@@ -844,12 +792,7 @@ class _InfoRow extends StatelessWidget {
   final String text;
   final Color color;
 
-  const _InfoRow({
-    required this.icon,
-    required this.title,
-    required this.text,
-    required this.color,
-  });
+  const _InfoRow({required this.icon, required this.title, required this.text, required this.color});
 
   @override
   Widget build(BuildContext context) {
@@ -869,22 +812,9 @@ class _InfoRow extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
+              Text(title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800)),
               const SizedBox(height: 2),
-              Text(
-                text,
-                style: TextStyle(
-                  fontSize: 12.5,
-                  height: 1.3,
-                  color: AppConfig.grisOscuro,
-                ),
-              ),
+              Text(text, style: TextStyle(fontSize: 12.5, height: 1.3, color: AppConfig.grisOscuro)),
             ],
           ),
         ),
@@ -896,19 +826,12 @@ class _InfoRow extends StatelessWidget {
 class _BannerChip extends StatelessWidget {
   final IconData icon;
   final String text;
-
-  const _BannerChip({
-    required this.icon,
-    required this.text,
-  });
+  const _BannerChip({required this.icon, required this.text});
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 12,
-        vertical: 8,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.14),
         borderRadius: BorderRadius.circular(999),
@@ -919,14 +842,7 @@ class _BannerChip extends StatelessWidget {
         children: [
           Icon(icon, size: 15, color: Colors.white),
           const SizedBox(width: 6),
-          Text(
-            text,
-            style: const TextStyle(
-              fontSize: 11.5,
-              color: Colors.white,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
+          Text(text, style: const TextStyle(fontSize: 11.5, color: Colors.white, fontWeight: FontWeight.w600)),
         ],
       ),
     );

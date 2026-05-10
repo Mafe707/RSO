@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../config/app_config.dart';
-import 'ciudadano/ciudadano_home_screen.dart';
+import 'ciudadano/ciudadano_login_screen.dart';
 import 'funcionario/login_screen.dart';
 import 'administrador/login_screen.dart';
 
@@ -27,10 +27,7 @@ class RolSelectionScreen extends StatelessWidget {
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
-                colors: [
-                  AppConfig.azulOscuro,
-                  AppConfig.azulClaro,
-                ],
+                colors: [AppConfig.azulOscuro, AppConfig.azulClaro],
               ),
             ),
             child: SafeArea(
@@ -62,6 +59,21 @@ class RolSelectionScreen extends StatelessWidget {
     );
   }
 
+  void _irACiudadano(BuildContext context) {
+    Navigator.push(context,
+        MaterialPageRoute(builder: (_) => const CiudadanoLoginScreen()));
+  }
+
+  void _irAFuncionario(BuildContext context) {
+    Navigator.push(context,
+        MaterialPageRoute(builder: (_) => const FuncionarioLoginScreen()));
+  }
+
+  void _irAAdmin(BuildContext context) {
+    Navigator.push(context,
+        MaterialPageRoute(builder: (_) => const AdminLoginScreen()));
+  }
+
   Widget _buildMobileLayout(BuildContext context) {
     return Column(
       children: [
@@ -72,52 +84,28 @@ class RolSelectionScreen extends StatelessWidget {
           children: [
             const _CardTitle(),
             const SizedBox(height: 22),
-            _buildRolButton(
-              context: context,
+            _RolButton(
               icon: Icons.person_rounded,
               title: 'Ciudadano',
               subtitle: 'Reporta invasiones y consulta el estado de tus solicitudes.',
               color: AppConfig.azulClaro,
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const CiudadanoHomeScreen(),
-                  ),
-                );
-              },
+              onTap: () => _irACiudadano(context),
             ),
             const SizedBox(height: 14),
-            _buildRolButton(
-              context: context,
+            _RolButton(
               icon: Icons.badge_rounded,
               title: 'Funcionario',
               subtitle: 'Gestiona reportes asignados y realiza seguimiento.',
               color: AppConfig.azulOscuro,
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const FuncionarioLoginScreen(),
-                  ),
-                );
-              },
+              onTap: () => _irAFuncionario(context),
             ),
             const SizedBox(height: 14),
-            _buildRolButton(
-              context: context,
+            _RolButton(
               icon: Icons.admin_panel_settings_rounded,
               title: 'Administrador',
               subtitle: 'Administra usuarios, reportes y configuración general.',
               color: AppConfig.rojo,
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const AdminLoginScreen(),
-                  ),
-                );
-              },
+              onTap: () => _irAAdmin(context),
             ),
           ],
         ),
@@ -130,94 +118,40 @@ class RolSelectionScreen extends StatelessWidget {
   Widget _buildDesktopLayout(BuildContext context) {
     return Row(
       children: [
-        const Expanded(
-          flex: 5,
-          child: _HeaderSection(isDesktop: true),
-        ),
+        const Expanded(flex: 5, child: _HeaderSection(isDesktop: true)),
         const SizedBox(width: 42),
         Expanded(
           flex: 5,
           child: _RoleCard(
             isDesktop: true,
             children: [
-              _CardTitle(),
-              SizedBox(height: 24),
-              _DesktopRoleButtons(),
+              const _CardTitle(),
+              const SizedBox(height: 24),
+              _RolButton(
+                icon: Icons.person_rounded,
+                title: 'Ciudadano',
+                subtitle: 'Reporta invasiones y consulta el estado de tus solicitudes.',
+                color: AppConfig.azulClaro,
+                onTap: () => _irACiudadano(context),
+              ),
+              const SizedBox(height: 16),
+              _RolButton(
+                icon: Icons.badge_rounded,
+                title: 'Funcionario',
+                subtitle: 'Gestiona reportes asignados y realiza seguimiento.',
+                color: AppConfig.azulOscuro,
+                onTap: () => _irAFuncionario(context),
+              ),
+              const SizedBox(height: 16),
+              _RolButton(
+                icon: Icons.admin_panel_settings_rounded,
+                title: 'Administrador',
+                subtitle: 'Administra usuarios, reportes y configuración general.',
+                color: AppConfig.rojo,
+                onTap: () => _irAAdmin(context),
+              ),
             ],
           ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildRolButton({
-    required BuildContext context,
-    required IconData icon,
-    required String title,
-    required String subtitle,
-    required Color color,
-    required VoidCallback onTap,
-  }) {
-    return _RolButton(
-      icon: icon,
-      title: title,
-      subtitle: subtitle,
-      color: color,
-      onTap: onTap,
-    );
-  }
-}
-
-class _DesktopRoleButtons extends StatelessWidget {
-  const _DesktopRoleButtons();
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        _RolButton(
-          icon: Icons.person_rounded,
-          title: 'Ciudadano',
-          subtitle: 'Reporta invasiones y consulta el estado de tus solicitudes.',
-          color: AppConfig.azulClaro,
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => const CiudadanoHomeScreen(),
-              ),
-            );
-          },
-        ),
-        const SizedBox(height: 16),
-        _RolButton(
-          icon: Icons.badge_rounded,
-          title: 'Funcionario',
-          subtitle: 'Gestiona reportes asignados y realiza seguimiento.',
-          color: AppConfig.azulOscuro,
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => const FuncionarioLoginScreen(),
-              ),
-            );
-          },
-        ),
-        const SizedBox(height: 16),
-        _RolButton(
-          icon: Icons.admin_panel_settings_rounded,
-          title: 'Administrador',
-          subtitle: 'Administra usuarios, reportes y configuración general.',
-          color: AppConfig.rojo,
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => const AdminLoginScreen(),
-              ),
-            );
-          },
         ),
       ],
     );
@@ -226,10 +160,7 @@ class _DesktopRoleButtons extends StatelessWidget {
 
 class _HeaderSection extends StatelessWidget {
   final bool isDesktop;
-
-  const _HeaderSection({
-    required this.isDesktop,
-  });
+  const _HeaderSection({required this.isDesktop});
 
   @override
   Widget build(BuildContext context) {
@@ -243,15 +174,10 @@ class _HeaderSection extends StatelessWidget {
           decoration: BoxDecoration(
             color: Colors.white.withOpacity(0.16),
             borderRadius: BorderRadius.circular(isDesktop ? 32 : 28),
-            border: Border.all(
-              color: Colors.white.withOpacity(0.22),
-            ),
+            border: Border.all(color: Colors.white.withOpacity(0.22)),
           ),
-          child: Icon(
-            Icons.route_rounded,
-            size: isDesktop ? 82 : 68,
-            color: Colors.white,
-          ),
+          child: Icon(Icons.route_rounded,
+              size: isDesktop ? 82 : 68, color: Colors.white),
         ),
         SizedBox(height: isDesktop ? 30 : 22),
         Text(
@@ -272,71 +198,27 @@ class _HeaderSection extends StatelessWidget {
             'Sistema de reporte y gestión de invasiones al espacio público.',
             textAlign: isDesktop ? TextAlign.left : TextAlign.center,
             style: TextStyle(
-              fontSize: isDesktop ? 19 : 15,
+              fontSize: isDesktop ? 17 : 14,
               height: 1.45,
               color: Colors.white.withOpacity(0.84),
-              fontWeight: FontWeight.w400,
             ),
           ),
         ),
-        SizedBox(height: isDesktop ? 28 : 18),
+        const SizedBox(height: 24),
         Wrap(
           alignment: isDesktop ? WrapAlignment.start : WrapAlignment.center,
           spacing: 10,
           runSpacing: 10,
           children: const [
-            _InfoChip(
-              icon: Icons.public_rounded,
-              text: 'Ciudadanía',
-            ),
-            _InfoChip(
-              icon: Icons.verified_user_rounded,
-              text: 'Gestión institucional',
-            ),
-            _InfoChip(
-              icon: Icons.analytics_rounded,
-              text: 'Seguimiento',
-            ),
+            _InfoChip(icon: Icons.location_city_rounded, text: 'San Juan de Pasto'),
+            _InfoChip(icon: Icons.verified_rounded, text: 'Sistema oficial'),
           ],
         ),
         if (isDesktop) ...[
-          const SizedBox(height: 40),
+          const SizedBox(height: 32),
           const _Footer(alignment: CrossAxisAlignment.start),
         ],
       ],
-    );
-  }
-}
-
-class _RoleCard extends StatelessWidget {
-  final bool isDesktop;
-  final List<Widget> children;
-
-  const _RoleCard({
-    required this.isDesktop,
-    required this.children,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: EdgeInsets.all(isDesktop ? 34 : 22),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(isDesktop ? 32 : 26),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.18),
-            blurRadius: 30,
-            offset: const Offset(0, 18),
-          ),
-        ],
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: children,
-      ),
     );
   }
 }
@@ -347,28 +229,52 @@ class _CardTitle extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
           'Selecciona tu rol',
-          textAlign: TextAlign.center,
           style: TextStyle(
-            fontSize: 24,
-            fontWeight: FontWeight.w800,
-            color: AppConfig.azulOscuro,
-            letterSpacing: -0.3,
+            fontSize: 22,
+            fontWeight: FontWeight.w900,
+            color: Colors.black87,
           ),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 6),
         Text(
-          'Elige cómo deseas ingresar al sistema.',
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            fontSize: 14,
-            height: 1.35,
-            color: AppConfig.grisOscuro,
-          ),
+          'Accede al módulo correspondiente a tu perfil.',
+          style: TextStyle(fontSize: 14, color: AppConfig.grisOscuro),
         ),
       ],
+    );
+  }
+}
+
+class _RoleCard extends StatelessWidget {
+  final bool isDesktop;
+  final List<Widget> children;
+  const _RoleCard({required this.isDesktop, required this.children});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.all(isDesktop ? 32 : 24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(30),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.16),
+            blurRadius: 28,
+            offset: const Offset(0, 18),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: children,
+      ),
     );
   }
 }
@@ -410,9 +316,7 @@ class _RolButtonState extends State<_RolButton> {
             duration: const Duration(milliseconds: 180),
             padding: const EdgeInsets.all(18),
             decoration: BoxDecoration(
-              color: _hovering
-                  ? widget.color.withOpacity(0.06)
-                  : Colors.white,
+              color: _hovering ? widget.color.withOpacity(0.06) : Colors.white,
               borderRadius: BorderRadius.circular(20),
               border: Border.all(
                 color: _hovering
@@ -438,34 +342,24 @@ class _RolButtonState extends State<_RolButton> {
                     color: widget.color.withOpacity(0.11),
                     borderRadius: BorderRadius.circular(16),
                   ),
-                  child: Icon(
-                    widget.icon,
-                    color: widget.color,
-                    size: 30,
-                  ),
+                  child: Icon(widget.icon, color: widget.color, size: 30),
                 ),
                 const SizedBox(width: 16),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        widget.title,
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w800,
-                          color: Colors.black87,
-                        ),
-                      ),
+                      Text(widget.title,
+                          style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w800,
+                              color: Colors.black87)),
                       const SizedBox(height: 5),
-                      Text(
-                        widget.subtitle,
-                        style: TextStyle(
-                          fontSize: 13,
-                          height: 1.35,
-                          color: AppConfig.grisOscuro,
-                        ),
-                      ),
+                      Text(widget.subtitle,
+                          style: TextStyle(
+                              fontSize: 13,
+                              height: 1.35,
+                              color: AppConfig.grisOscuro)),
                     ],
                   ),
                 ),
@@ -479,11 +373,9 @@ class _RolButtonState extends State<_RolButton> {
                         : AppConfig.grisClaro,
                     shape: BoxShape.circle,
                   ),
-                  child: Icon(
-                    Icons.arrow_forward_ios_rounded,
-                    size: 15,
-                    color: _hovering ? widget.color : AppConfig.grisOscuro,
-                  ),
+                  child: Icon(Icons.arrow_forward_ios_rounded,
+                      size: 15,
+                      color: _hovering ? widget.color : AppConfig.grisOscuro),
                 ),
               ],
             ),
@@ -497,43 +389,27 @@ class _RolButtonState extends State<_RolButton> {
 class _InfoChip extends StatelessWidget {
   final IconData icon;
   final String text;
-
-  const _InfoChip({
-    required this.icon,
-    required this.text,
-  });
+  const _InfoChip({required this.icon, required this.text});
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 13,
-        vertical: 9,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 9),
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.14),
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(
-          color: Colors.white.withOpacity(0.18),
-        ),
+        border: Border.all(color: Colors.white.withOpacity(0.18)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            icon,
-            size: 16,
-            color: Colors.white,
-          ),
+          Icon(icon, size: 16, color: Colors.white),
           const SizedBox(width: 7),
-          Text(
-            text,
-            style: TextStyle(
-              fontSize: 12,
-              color: Colors.white.withOpacity(0.92),
-              fontWeight: FontWeight.w600,
-            ),
-          ),
+          Text(text,
+              style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.white.withOpacity(0.92),
+                  fontWeight: FontWeight.w600)),
         ],
       ),
     );
@@ -542,10 +418,7 @@ class _InfoChip extends StatelessWidget {
 
 class _Footer extends StatelessWidget {
   final CrossAxisAlignment alignment;
-
-  const _Footer({
-    this.alignment = CrossAxisAlignment.center,
-  });
+  const _Footer({this.alignment = CrossAxisAlignment.center});
 
   @override
   Widget build(BuildContext context) {
@@ -557,10 +430,7 @@ class _Footer extends StatelessWidget {
           textAlign: alignment == CrossAxisAlignment.center
               ? TextAlign.center
               : TextAlign.left,
-          style: TextStyle(
-            fontSize: 12,
-            color: Colors.white.withOpacity(0.75),
-          ),
+          style: TextStyle(fontSize: 12, color: Colors.white.withOpacity(0.75)),
         ),
         const SizedBox(height: 4),
         Text(
@@ -568,10 +438,7 @@ class _Footer extends StatelessWidget {
           textAlign: alignment == CrossAxisAlignment.center
               ? TextAlign.center
               : TextAlign.left,
-          style: TextStyle(
-            fontSize: 11,
-            color: Colors.white.withOpacity(0.58),
-          ),
+          style: TextStyle(fontSize: 11, color: Colors.white.withOpacity(0.58)),
         ),
       ],
     );
@@ -587,29 +454,17 @@ class _BackgroundDecoration extends StatelessWidget {
       child: Stack(
         children: [
           Positioned(
-            top: -90,
-            right: -70,
-            child: _BlurCircle(
-              size: 230,
-              color: Colors.white.withOpacity(0.08),
-            ),
-          ),
+              top: -90,
+              right: -70,
+              child: _BlurCircle(size: 230, color: Colors.white.withOpacity(0.08))),
           Positioned(
-            bottom: -120,
-            left: -90,
-            child: _BlurCircle(
-              size: 280,
-              color: Colors.white.withOpacity(0.07),
-            ),
-          ),
+              bottom: -120,
+              left: -90,
+              child: _BlurCircle(size: 280, color: Colors.white.withOpacity(0.07))),
           Positioned(
-            top: 180,
-            left: 40,
-            child: _BlurCircle(
-              size: 80,
-              color: Colors.white.withOpacity(0.06),
-            ),
-          ),
+              top: 180,
+              left: 40,
+              child: _BlurCircle(size: 80, color: Colors.white.withOpacity(0.06))),
         ],
       ),
     );
@@ -619,21 +474,14 @@ class _BackgroundDecoration extends StatelessWidget {
 class _BlurCircle extends StatelessWidget {
   final double size;
   final Color color;
-
-  const _BlurCircle({
-    required this.size,
-    required this.color,
-  });
+  const _BlurCircle({required this.size, required this.color});
 
   @override
   Widget build(BuildContext context) {
     return Container(
       width: size,
       height: size,
-      decoration: BoxDecoration(
-        color: color,
-        shape: BoxShape.circle,
-      ),
+      decoration: BoxDecoration(color: color, shape: BoxShape.circle),
     );
   }
 }

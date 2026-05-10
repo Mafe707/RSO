@@ -9,28 +9,26 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  
-  # Universal IO (funciona en web y móvil)
-  universal_io: ^2.0.4
 
   # Supabase
   supabase_flutter: ^2.0.0
 
   # UI
   cupertino_icons: ^1.0.6
-  
-  # Manejo de estado
+
+  # Estado
   provider: ^6.0.5
-  
+
   # Imágenes
   image_picker: ^1.0.5
-  
+
+  # Mapa — funciona en web Y móvil sin API key
+  flutter_map: ^6.1.0
+  latlong2: ^0.9.0
+
   # Geolocalización
   geolocator: ^10.1.0
-  
-  # Para obtener direcciones a partir de coordenadas
-  geocoding: ^2.1.1
-  
+
   # Íconos adicionales
   font_awesome_flutter: ^10.7.0
 
