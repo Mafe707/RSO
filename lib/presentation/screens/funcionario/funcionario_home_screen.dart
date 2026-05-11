@@ -12,6 +12,7 @@ import 'mis_casos_screen.dart';
 import 'nuevos_reportes_screen.dart';
 import 'mapa_casos_screen.dart';
 import 'mi_perfil_screen.dart';
+import 'login_screen.dart';
 
 class FuncionarioHomeScreen extends StatefulWidget {
   const FuncionarioHomeScreen({super.key});
@@ -59,15 +60,10 @@ class _FuncionarioHomeScreenState extends State<FuncionarioHomeScreen> {
 
       setState(() {
         _totalCasos = data.length;
-        _pendientes =
-            data.where((d) => d['estado'] == 'pendiente').length;
-        _enRevision =
-            data.where((d) => d['estado'] == 'revision').length;
-        _resueltos =
-            data.where((d) => d['estado'] == 'resuelta').length;
-        _actividadReciente = List<Map<String, dynamic>>.from(
-          data.take(3),
-        );
+        _pendientes = data.where((d) => d['estado'] == 'pendiente').length;
+        _enRevision = data.where((d) => d['estado'] == 'revision').length;
+        _resueltos = data.where((d) => d['estado'] == 'resuelta').length;
+        _actividadReciente = List<Map<String, dynamic>>.from(data.take(3));
         _loadingStats = false;
       });
     } catch (e) {
@@ -94,10 +90,16 @@ class _FuncionarioHomeScreenState extends State<FuncionarioHomeScreen> {
   }
 
   Future<void> _cerrarSesion() async {
-    final authService = Provider.of<AuthService>(context, listen: false);
-    await authService.logout();
-    if (mounted) Navigator.popUntil(context, (route) => route.isFirst);
+  final authService = Provider.of<AuthService>(context, listen: false);
+  await authService.logout();
+  if (mounted) {
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(builder: (_) => const FuncionarioLoginScreen()),
+      (route) => false,
+    );
   }
+}
 
   void _goTo(Widget screen) {
     Navigator.pushReplacement(
@@ -123,6 +125,7 @@ class _FuncionarioHomeScreenState extends State<FuncionarioHomeScreen> {
     final userData = _buildUserData(context);
     final nombre = userData['nombre']?.toString() ?? 'Funcionario';
     final correo = userData['correo']?.toString() ?? '';
+    final inicial = nombre.isNotEmpty ? nombre[0].toUpperCase() : 'F';
 
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FB),
@@ -135,6 +138,64 @@ class _FuncionarioHomeScreenState extends State<FuncionarioHomeScreen> {
         elevation: 0,
         centerTitle: isMobile,
         actions: [
+          // Avatar + nombre (web) o solo avatar (móvil) → va a Mi Perfil
+          if (!isMobile)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              child: InkWell(
+                onTap: () => _goTo(MiPerfilScreen(userData: userData)),
+                borderRadius: BorderRadius.circular(12),
+                child: Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  child: Row(
+                    children: [
+                      CircleAvatar(
+                        radius: 17,
+                        backgroundColor: Colors.white.withOpacity(0.22),
+                        child: Text(
+                          inicial,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w800,
+                            fontSize: 15,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        nombre,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 13.5,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            )
+          else
+            InkWell(
+              onTap: () => _goTo(MiPerfilScreen(userData: userData)),
+              borderRadius: BorderRadius.circular(50),
+              child: Padding(
+                padding: const EdgeInsets.all(8),
+                child: CircleAvatar(
+                  radius: 16,
+                  backgroundColor: Colors.white.withOpacity(0.22),
+                  child: Text(
+                    inicial,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 13,
+                    ),
+                  ),
+                ),
+              ),
+            ),
           IconButton(
             tooltip: 'Actualizar',
             icon: const Icon(Icons.refresh_rounded, color: Colors.white),
@@ -250,7 +311,7 @@ class _FuncionarioHomeScreenState extends State<FuncionarioHomeScreen> {
               ),
               const SizedBox(height: 18),
               Text(
-                'Hola, $nombre',
+                'Hola, $nombre 👋',
                 style: TextStyle(
                   fontSize: isMobile ? 27 : 38,
                   height: 1.08,
@@ -277,7 +338,8 @@ class _FuncionarioHomeScreenState extends State<FuncionarioHomeScreen> {
                       _HeroChip(icon: Icons.work_rounded, text: cargo),
                     if (departamento.isNotEmpty)
                       _HeroChip(
-                          icon: Icons.apartment_rounded, text: departamento),
+                          icon: Icons.corporate_fare_rounded,
+                          text: departamento),
                   ],
                 ),
               ],
@@ -519,8 +581,7 @@ class _SectionHeader extends StatelessWidget {
                 color: AppConfig.azulOscuro)),
         const SizedBox(height: 4),
         Text(subtitle,
-            style:
-                TextStyle(fontSize: 13.5, color: AppConfig.grisOscuro)),
+            style: TextStyle(fontSize: 13.5, color: AppConfig.grisOscuro)),
       ],
     );
   }
@@ -628,7 +689,7 @@ class _ActionTile extends StatelessWidget {
                       top: 0,
                       child: Container(
                         padding: const EdgeInsets.all(4),
-                        decoration: BoxDecoration(
+                        decoration: const BoxDecoration(
                           color: AppConfig.rojo,
                           shape: BoxShape.circle,
                         ),
@@ -792,8 +853,8 @@ class _CardHeading extends StatelessWidget {
                       color: AppConfig.azulOscuro)),
               const SizedBox(height: 3),
               Text(subtitle,
-                  style: TextStyle(
-                      fontSize: 12.5, color: AppConfig.grisOscuro)),
+                  style:
+                      TextStyle(fontSize: 12.5, color: AppConfig.grisOscuro)),
             ],
           ),
         ),
@@ -832,8 +893,8 @@ class _ActivityItem extends StatelessWidget {
                   style: const TextStyle(fontWeight: FontWeight.w800)),
               const SizedBox(height: 3),
               Text(time,
-                  style: TextStyle(
-                      fontSize: 11.5, color: AppConfig.grisOscuro)),
+                  style:
+                      TextStyle(fontSize: 11.5, color: AppConfig.grisOscuro)),
             ],
           ),
         ),

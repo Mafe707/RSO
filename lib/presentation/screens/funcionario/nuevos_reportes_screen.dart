@@ -8,6 +8,7 @@ import '../../../core/supabase/supabase_config.dart';
 
 import 'funcionario_bottom_nav.dart';
 import 'funcionario_drawer.dart';
+import 'login_screen.dart';
 
 class NuevosReportesScreen extends StatefulWidget {
   final Map<String, dynamic> userData;
@@ -38,7 +39,6 @@ class _NuevosReportesScreenState extends State<NuevosReportesScreen> {
     });
 
     try {
-      // Trae denuncias sin funcionario asignado (disponibles para asignarse)
       final response = await _supabase
           .from('denuncias')
           .select()
@@ -102,10 +102,16 @@ class _NuevosReportesScreenState extends State<NuevosReportesScreen> {
   }
 
   Future<void> _cerrarSesion() async {
-    final authService = Provider.of<AuthService>(context, listen: false);
-    await authService.logout();
-    if (mounted) Navigator.popUntil(context, (route) => route.isFirst);
+  final authService = Provider.of<AuthService>(context, listen: false);
+  await authService.logout();
+  if (mounted) {
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(builder: (_) => const FuncionarioLoginScreen()),
+      (route) => false,
+    );
   }
+}
 
   bool _isMobile(BuildContext context) =>
       MediaQuery.of(context).size.width < 780;
@@ -145,8 +151,10 @@ class _NuevosReportesScreenState extends State<NuevosReportesScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FB),
       appBar: AppBar(
-        title: const Text('Nuevos Reportes',
-            style: TextStyle(fontWeight: FontWeight.w800)),
+        title: const Text(
+          'Nuevos Reportes',
+          style: TextStyle(fontWeight: FontWeight.w800),
+        ),
         backgroundColor: AppConfig.azulOscuro,
         elevation: 0,
         centerTitle: isMobile,
@@ -163,8 +171,11 @@ class _NuevosReportesScreenState extends State<NuevosReportesScreen> {
           ),
         ],
       ),
-      drawer: FuncionarioDrawer.maybe(context,
-          currentIndex: 2, userData: widget.userData),
+      drawer: FuncionarioDrawer.maybe(
+        context,
+        currentIndex: 2,
+        userData: widget.userData,
+      ),
       bottomNavigationBar:
           FuncionarioBottomNav.maybe(context, currentIndex: 2),
       body: SafeArea(
@@ -274,16 +285,19 @@ class _NuevosReportesScreenState extends State<NuevosReportesScreen> {
           Positioned(
             right: -14,
             bottom: -24,
-            child: Icon(Icons.flag_rounded,
-                size: isMobile ? 90 : 130,
-                color: Colors.white.withOpacity(0.08)),
+            child: Icon(
+              Icons.flag_rounded,
+              size: isMobile ? 90 : 130,
+              color: Colors.white.withOpacity(0.08),
+            ),
           ),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               _HeroBadge(
-                  icon: Icons.new_releases_rounded,
-                  text: 'Reportes sin asignar'),
+                icon: Icons.new_releases_rounded,
+                text: 'Reportes sin asignar',
+              ),
               const SizedBox(height: 18),
               Text(
                 'Nuevos reportes',
@@ -325,9 +339,10 @@ class _NuevosReportesScreenState extends State<NuevosReportesScreen> {
           ),
           const SizedBox(height: 18),
           _SummaryRow(
-              label: 'Total disponibles',
-              value: '$total',
-              color: AppConfig.rojo),
+            label: 'Total disponibles',
+            value: '$total',
+            color: AppConfig.rojo,
+          ),
         ],
       ),
     );
@@ -349,11 +364,11 @@ class _ReportCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isNarrow = MediaQuery.of(context).size.width < 520;
     final codigo = reporte['codigo_unico'] ?? 'Sin código';
     final ubicacion = reporte['ubicacion'] ?? 'Sin ubicación';
     final categoria = reporte['categoria'] ?? 'Sin categoría';
     final descripcion = reporte['descripcion'] ?? '';
+    final imagenUrl = reporte['imagen_url']?.toString();
     final fecha = reporte['creado_en'] != null
         ? DateTime.tryParse(reporte['creado_en'].toString())
         : null;
@@ -368,89 +383,126 @@ class _ReportCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
         side: BorderSide(color: AppConfig.grisMedio),
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: isNarrow
-            ? Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _content(codigo, ubicacion, categoria, descripcion, fechaStr),
-                  const SizedBox(height: 14),
-                  SizedBox(width: double.infinity, child: _assignButton()),
-                ],
-              )
-            : Row(
-                children: [
-                  Expanded(
-                    child: _content(
-                        codigo, ubicacion, categoria, descripcion, fechaStr),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (imagenUrl != null && imagenUrl.isNotEmpty)
+            ClipRRect(
+              borderRadius:
+                  const BorderRadius.vertical(top: Radius.circular(20)),
+              child: Image.network(
+                imagenUrl,
+                width: double.infinity,
+                height: 160,
+                fit: BoxFit.cover,
+                loadingBuilder: (context, child, progress) {
+                  if (progress == null) return child;
+                  return Container(
+                    height: 160,
+                    color: AppConfig.grisClaro,
+                    child: const Center(
+                      child: CircularProgressIndicator(),
+                    ),
+                  );
+                },
+                errorBuilder: (context, error, stack) =>
+                    const SizedBox.shrink(),
+              ),
+            ),
+          Padding(
+            padding: const EdgeInsets.all(14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    CircleAvatar(
+                      backgroundColor: AppConfig.rojo.withOpacity(0.12),
+                      child: Text(
+                        categoriaIcon,
+                        style: const TextStyle(fontSize: 18),
+                      ),
+                    ),
+                    const SizedBox(width: 13),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            codigo,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w900,
+                              color: AppConfig.azulOscuro,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            ubicacion,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          if (descripcion.isNotEmpty) ...[
+                            const SizedBox(height: 3),
+                            Text(
+                              descripcion,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 12.5,
+                                color: AppConfig.grisOscuro,
+                                height: 1.3,
+                              ),
+                            ),
+                          ],
+                          const SizedBox(height: 8),
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 6,
+                            children: [
+                              _StatusChip(
+                                label: categoria,
+                                color: AppConfig.azulOscuro,
+                              ),
+                              if (fechaStr.isNotEmpty)
+                                _StatusChip(
+                                  label: fechaStr,
+                                  color: AppConfig.azulClaro,
+                                ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: onAssign,
+                    icon: const Icon(
+                      Icons.person_add_alt_1_rounded,
+                      size: 18,
+                    ),
+                    label: const Text('Asignar a mí'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppConfig.verde,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 13,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                    ),
                   ),
-                  const SizedBox(width: 14),
-                  _assignButton(),
-                ],
-              ),
-      ),
-    );
-  }
-
-  Widget _content(String codigo, String ubicacion, String categoria,
-      String descripcion, String fecha) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        CircleAvatar(
-          backgroundColor: AppConfig.rojo.withOpacity(0.12),
-          child: Text(categoriaIcon, style: const TextStyle(fontSize: 18)),
-        ),
-        const SizedBox(width: 13),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                codigo,
-                style: const TextStyle(
-                    fontWeight: FontWeight.w900, color: AppConfig.azulOscuro),
-              ),
-              const SizedBox(height: 4),
-              Text(ubicacion,
-                  style: const TextStyle(fontWeight: FontWeight.w600)),
-              if (descripcion.isNotEmpty) ...[
-                const SizedBox(height: 3),
-                Text(
-                  descripcion,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                      fontSize: 12.5, color: AppConfig.grisOscuro, height: 1.3),
                 ),
               ],
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 8,
-                runSpacing: 6,
-                children: [
-                  _StatusChip(label: categoria, color: AppConfig.azulOscuro),
-                  if (fecha.isNotEmpty)
-                    _StatusChip(label: fecha, color: AppConfig.azulClaro),
-                ],
-              ),
-            ],
+            ),
           ),
-        ),
-      ],
-    );
-  }
-
-  Widget _assignButton() {
-    return ElevatedButton.icon(
-      onPressed: onAssign,
-      icon: const Icon(Icons.person_add_alt_1_rounded, size: 18),
-      label: const Text('Asignar a mí'),
-      style: ElevatedButton.styleFrom(
-        backgroundColor: AppConfig.verde,
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        ],
       ),
     );
   }
@@ -470,9 +522,14 @@ class _StatusChip extends StatelessWidget {
         color: color.withOpacity(0.12),
         borderRadius: BorderRadius.circular(999),
       ),
-      child: Text(label,
-          style: TextStyle(
-              fontSize: 10.5, color: color, fontWeight: FontWeight.w800)),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 10.5,
+          color: color,
+          fontWeight: FontWeight.w800,
+        ),
+      ),
     );
   }
 }
@@ -482,8 +539,11 @@ class _SummaryRow extends StatelessWidget {
   final String value;
   final Color color;
 
-  const _SummaryRow(
-      {required this.label, required this.value, required this.color});
+  const _SummaryRow({
+    required this.label,
+    required this.value,
+    required this.color,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -496,11 +556,19 @@ class _SummaryRow extends StatelessWidget {
       child: Row(
         children: [
           Expanded(
-              child: Text(label,
-                  style: const TextStyle(fontWeight: FontWeight.w800))),
-          Text(value,
-              style: TextStyle(
-                  color: color, fontSize: 18, fontWeight: FontWeight.w900)),
+            child: Text(
+              label,
+              style: const TextStyle(fontWeight: FontWeight.w800),
+            ),
+          ),
+          Text(
+            value,
+            style: TextStyle(
+              color: color,
+              fontSize: 18,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
         ],
       ),
     );
@@ -539,8 +607,11 @@ class _CardHeading extends StatelessWidget {
   final String title;
   final String subtitle;
 
-  const _CardHeading(
-      {required this.icon, required this.title, required this.subtitle});
+  const _CardHeading({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -560,15 +631,22 @@ class _CardHeading extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(title,
-                  style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w900,
-                      color: AppConfig.azulOscuro)),
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w900,
+                  color: AppConfig.azulOscuro,
+                ),
+              ),
               const SizedBox(height: 3),
-              Text(subtitle,
-                  style: TextStyle(
-                      fontSize: 12.5, color: AppConfig.grisOscuro)),
+              Text(
+                subtitle,
+                style: TextStyle(
+                  fontSize: 12.5,
+                  color: AppConfig.grisOscuro,
+                ),
+              ),
             ],
           ),
         ),
@@ -596,11 +674,14 @@ class _HeroBadge extends StatelessWidget {
         children: [
           Icon(icon, size: 16, color: Colors.white),
           const SizedBox(width: 7),
-          Text(text,
-              style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w800)),
+          Text(
+            text,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 12,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
         ],
       ),
     );
@@ -612,8 +693,11 @@ class _EmptyState extends StatelessWidget {
   final String title;
   final String text;
 
-  const _EmptyState(
-      {required this.icon, required this.title, required this.text});
+  const _EmptyState({
+    required this.icon,
+    required this.title,
+    required this.text,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -626,15 +710,20 @@ class _EmptyState extends StatelessWidget {
             children: [
               Icon(icon, size: 54, color: AppConfig.azulClaro),
               const SizedBox(height: 12),
-              Text(title,
-                  style: const TextStyle(
-                      fontSize: 19,
-                      fontWeight: FontWeight.w900,
-                      color: AppConfig.azulOscuro)),
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 19,
+                  fontWeight: FontWeight.w900,
+                  color: AppConfig.azulOscuro,
+                ),
+              ),
               const SizedBox(height: 6),
-              Text(text,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: AppConfig.grisOscuro)),
+              Text(
+                text,
+                textAlign: TextAlign.center,
+                style: TextStyle(color: AppConfig.grisOscuro),
+              ),
             ],
           ),
         ),

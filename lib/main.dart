@@ -10,6 +10,7 @@ import 'services/denuncia_service.dart';
 import 'services/ciudadano_auth_service.dart';
 
 import 'presentation/screens/rol_selection_screen.dart';
+import 'presentation/screens/funcionario/funcionario_home_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -25,15 +26,28 @@ class RSOApp extends StatelessWidget {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider<AuthService>(create: (_) => AuthService()),
-        ChangeNotifierProvider<AdminAuthService>(create: (_) => AdminAuthService()),
-        ChangeNotifierProvider<DenunciaService>(create: (_) => DenunciaService()),
-        ChangeNotifierProvider<CiudadanoAuthService>(create: (_) => CiudadanoAuthService()),
+        ChangeNotifierProvider<AdminAuthService>(
+          create: (_) => AdminAuthService(),
+        ),
+        ChangeNotifierProvider<DenunciaService>(
+          create: (_) => DenunciaService(),
+        ),
+        ChangeNotifierProvider<CiudadanoAuthService>(
+          create: (_) => CiudadanoAuthService(),
+        ),
       ],
       child: MaterialApp(
         title: 'RSO - Ruta Sin Obstáculos',
         theme: AppConfig.lightTheme,
         debugShowCheckedModeBanner: false,
-        home: const RolSelectionScreen(),
+        home: Consumer<AuthService>(
+          builder: (context, auth, _) {
+            if (auth.isLoggedIn) {
+              return const FuncionarioHomeScreen();
+            }
+            return const RolSelectionScreen();
+          },
+        ),
       ),
     );
   }

@@ -6,6 +6,7 @@ import '../../../services/ciudadano_auth_service.dart';
 import '../../../services/denuncia_service.dart';
 import 'ciudadano_bottom_nav.dart';
 import 'ciudadano_drawer.dart';
+import 'ciudadano_login_screen.dart';
 
 class ConsultarScreen extends StatefulWidget {
   const ConsultarScreen({super.key});
@@ -218,6 +219,23 @@ class _ConsultarScreenState extends State<ConsultarScreen>
         toolbarHeight: 64,
         centerTitle: true,
         titleSpacing: 0,
+        actions: [
+          IconButton(
+            tooltip: 'Cerrar sesión',
+            icon: const Icon(Icons.logout_rounded, color: Colors.white),
+            onPressed: () async {
+              final svc = Provider.of<CiudadanoAuthService>(context, listen: false);
+              await svc.logout();
+              if (context.mounted) {
+                Navigator.pushAndRemoveUntil(
+                  context,
+                  MaterialPageRoute(builder: (_) => const CiudadanoLoginScreen()),
+                  (route) => false,
+                );
+              }
+            },
+          ),
+        ],
       ),
       drawer: CiudadanoDrawer.maybe(context, currentIndex: 2),
       bottomNavigationBar: CiudadanoBottomNav.maybe(context, currentIndex: 2),

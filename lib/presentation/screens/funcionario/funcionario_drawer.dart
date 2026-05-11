@@ -9,6 +9,7 @@ import 'mis_casos_screen.dart';
 import 'nuevos_reportes_screen.dart';
 import 'mapa_casos_screen.dart';
 import 'mi_perfil_screen.dart';
+import 'login_screen.dart';
 
 class FuncionarioDrawer extends StatelessWidget {
   final int currentIndex;
@@ -69,14 +70,16 @@ class FuncionarioDrawer extends StatelessWidget {
   }
 
   Future<void> _logout(BuildContext context) async {
-    final authService = Provider.of<AuthService>(context, listen: false);
-
-    await authService.logout();
-
-    if (context.mounted) {
-      Navigator.popUntil(context, (route) => route.isFirst);
-    }
+  final authService = Provider.of<AuthService>(context, listen: false);
+  await authService.logout();
+  if (context.mounted) {
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(builder: (_) => const FuncionarioLoginScreen()),
+      (route) => false,
+    );
   }
+}
 
   @override
   Widget build(BuildContext context) {

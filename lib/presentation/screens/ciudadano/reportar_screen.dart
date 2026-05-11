@@ -16,6 +16,7 @@ import '../../../services/denuncia_service.dart';
 import 'ciudadano_bottom_nav.dart';
 import 'ciudadano_drawer.dart';
 import 'ciudadano_home_screen.dart';
+import 'ciudadano_login_screen.dart';
 
 class ReportarScreen extends StatefulWidget {
   const ReportarScreen({super.key});
@@ -470,6 +471,23 @@ class _ReportarScreenState extends State<ReportarScreen> {
         title: const Text('Reportar Invasión'),
         backgroundColor: AppConfig.azulOscuro,
         elevation: 0,
+        actions: [
+          IconButton(
+            tooltip: 'Cerrar sesión',
+            icon: const Icon(Icons.logout_rounded, color: Colors.white),
+            onPressed: () async {
+              final svc = Provider.of<CiudadanoAuthService>(context, listen: false);
+              await svc.logout();
+              if (context.mounted) {
+                Navigator.pushAndRemoveUntil(
+                  context,
+                  MaterialPageRoute(builder: (_) => const CiudadanoLoginScreen()),
+                  (route) => false,
+                );
+              }
+            },
+          ),
+        ],
       ),
       drawer: CiudadanoDrawer.maybe(context, currentIndex: 1),
       bottomNavigationBar: CiudadanoBottomNav.maybe(context, currentIndex: 1),

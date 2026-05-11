@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import '../../../config/app_config.dart';
+import '../../../services/ciudadano_auth_service.dart';
 import 'ciudadano_home_screen.dart';
+import 'ciudadano_login_screen.dart';
 import 'reportar_screen.dart';
 import 'consultar_screen.dart';
 import 'mapa_screen.dart';
@@ -25,6 +28,11 @@ class CiudadanoBottomNav extends StatelessWidget {
   }
 
   void _navigate(BuildContext context, int index) {
+    // índice 5 = cerrar sesión
+    if (index == 5) {
+      _logout(context);
+      return;
+    }
     if (index == currentIndex) return;
 
     Widget screen;
@@ -54,10 +62,20 @@ class CiudadanoBottomNav extends StatelessWidget {
     );
   }
 
+  Future<void> _logout(BuildContext context) async {
+    final svc = Provider.of<CiudadanoAuthService>(context, listen: false);
+    await svc.logout();
+    if (context.mounted) {
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (_) => const CiudadanoLoginScreen()),
+        (route) => false,
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    // Solo mostramos 5 ítems en el bottom nav.
-    // El perfil va en el AppBar (actions) en todas las pantallas.
     final displayIndex = currentIndex > 4 ? 0 : currentIndex;
 
     return NavigationBar(
@@ -92,6 +110,11 @@ class CiudadanoBottomNav extends StatelessWidget {
           icon: Icon(Icons.info_outline_rounded),
           selectedIcon: Icon(Icons.info_rounded),
           label: 'Info',
+        ),
+        NavigationDestination(
+          icon: Icon(Icons.logout_rounded, color: AppConfig.rojo),
+          selectedIcon: Icon(Icons.logout_rounded, color: AppConfig.rojo),
+          label: 'Salir',
         ),
       ],
     );

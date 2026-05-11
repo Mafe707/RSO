@@ -8,6 +8,7 @@ import '../../../core/supabase/supabase_config.dart';
 
 import 'funcionario_bottom_nav.dart';
 import 'funcionario_drawer.dart';
+import 'login_screen.dart';
 
 class MiPerfilScreen extends StatefulWidget {
   final Map<String, dynamic> userData;
@@ -63,10 +64,16 @@ class _MiPerfilScreenState extends State<MiPerfilScreen> {
       MediaQuery.of(context).size.width < 780;
 
   Future<void> _cerrarSesion() async {
-    final authService = Provider.of<AuthService>(context, listen: false);
-    await authService.logout();
-    if (mounted) Navigator.popUntil(context, (route) => route.isFirst);
+  final authService = Provider.of<AuthService>(context, listen: false);
+  await authService.logout();
+  if (mounted) {
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(builder: (_) => const FuncionarioLoginScreen()),
+      (route) => false,
+    );
   }
+}
 
   String _getInitial(String name) {
     final clean = name.trim();
@@ -78,7 +85,6 @@ class _MiPerfilScreenState extends State<MiPerfilScreen> {
   Widget build(BuildContext context) {
     final isMobile = _isMobile(context);
 
-    // Datos del funcionario desde AuthService (más confiable que userData)
     final authService = Provider.of<AuthService>(context, listen: false);
     final fd = authService.funcionarioData;
 
@@ -98,8 +104,10 @@ class _MiPerfilScreenState extends State<MiPerfilScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FB),
       appBar: AppBar(
-        title: const Text('Mi Perfil',
-            style: TextStyle(fontWeight: FontWeight.w800)),
+        title: const Text(
+          'Mi Perfil',
+          style: TextStyle(fontWeight: FontWeight.w800),
+        ),
         backgroundColor: AppConfig.azulOscuro,
         elevation: 0,
         centerTitle: isMobile,
@@ -111,8 +119,11 @@ class _MiPerfilScreenState extends State<MiPerfilScreen> {
           ),
         ],
       ),
-      drawer: FuncionarioDrawer.maybe(context,
-          currentIndex: 4, userData: widget.userData),
+      drawer: FuncionarioDrawer.maybe(
+        context,
+        currentIndex: 4,
+        userData: widget.userData,
+      ),
       bottomNavigationBar:
           FuncionarioBottomNav.maybe(context, currentIndex: 4),
       body: SafeArea(
@@ -137,11 +148,12 @@ class _MiPerfilScreenState extends State<MiPerfilScreen> {
     return Column(
       children: [
         _buildHero(
-            isMobile: true,
-            nombre: nombre,
-            correo: correo,
-            cargo: cargo,
-            departamento: departamento),
+          isMobile: true,
+          nombre: nombre,
+          correo: correo,
+          cargo: cargo,
+          departamento: departamento,
+        ),
         const SizedBox(height: 18),
         _buildInfoCard(nombre, correo, cargo, departamento),
         const SizedBox(height: 18),
@@ -162,11 +174,12 @@ class _MiPerfilScreenState extends State<MiPerfilScreen> {
           child: Column(
             children: [
               _buildHero(
-                  isMobile: false,
-                  nombre: nombre,
-                  correo: correo,
-                  cargo: cargo,
-                  departamento: departamento),
+                isMobile: false,
+                nombre: nombre,
+                correo: correo,
+                cargo: cargo,
+                departamento: departamento,
+              ),
               const SizedBox(height: 20),
               _buildSecurityCard(),
             ],
@@ -217,16 +230,19 @@ class _MiPerfilScreenState extends State<MiPerfilScreen> {
           Positioned(
             right: -12,
             bottom: -22,
-            child: Icon(Icons.person_rounded,
-                size: isMobile ? 90 : 130,
-                color: Colors.white.withOpacity(0.08)),
+            child: Icon(
+              Icons.person_rounded,
+              size: isMobile ? 90 : 130,
+              color: Colors.white.withOpacity(0.08),
+            ),
           ),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const _HeroBadge(
-                  icon: Icons.verified_user_rounded,
-                  text: 'Perfil institucional'),
+                icon: Icons.verified_user_rounded,
+                text: 'Perfil institucional',
+              ),
               const SizedBox(height: 22),
               Row(
                 crossAxisAlignment: CrossAxisAlignment.center,
@@ -237,9 +253,10 @@ class _MiPerfilScreenState extends State<MiPerfilScreen> {
                     child: Text(
                       _getInitial(nombre),
                       style: TextStyle(
-                          fontSize: isMobile ? 28 : 34,
-                          fontWeight: FontWeight.w900,
-                          color: AppConfig.azulOscuro),
+                        fontSize: isMobile ? 28 : 34,
+                        fontWeight: FontWeight.w900,
+                        color: AppConfig.azulOscuro,
+                      ),
                     ),
                   ),
                   const SizedBox(width: 16),
@@ -247,23 +264,28 @@ class _MiPerfilScreenState extends State<MiPerfilScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(nombre,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontSize: isMobile ? 25 : 34,
-                              height: 1.05,
-                              fontWeight: FontWeight.w900,
-                              color: Colors.white,
-                              letterSpacing: -0.5,
-                            )),
+                        Text(
+                          nombre,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: isMobile ? 25 : 34,
+                            height: 1.05,
+                            fontWeight: FontWeight.w900,
+                            color: Colors.white,
+                            letterSpacing: -0.5,
+                          ),
+                        ),
                         const SizedBox(height: 6),
-                        Text(correo,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                                color: Colors.white.withOpacity(0.82),
-                                fontSize: isMobile ? 12.5 : 14)),
+                        Text(
+                          correo,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: Colors.white.withOpacity(0.82),
+                            fontSize: isMobile ? 12.5 : 14,
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -276,7 +298,9 @@ class _MiPerfilScreenState extends State<MiPerfilScreen> {
                 children: [
                   _HeroChip(icon: Icons.work_rounded, text: cargo),
                   _HeroChip(
-                      icon: Icons.apartment_rounded, text: departamento),
+                    icon: Icons.corporate_fare_rounded,
+                    text: departamento,
+                  ),
                 ],
               ),
             ],
@@ -299,28 +323,32 @@ class _MiPerfilScreenState extends State<MiPerfilScreen> {
           ),
           const SizedBox(height: 20),
           _InfoTile(
-              icon: Icons.person_rounded,
-              label: 'Nombre completo',
-              value: nombre,
-              color: AppConfig.azulClaro),
+            icon: Icons.person_rounded,
+            label: 'Nombre completo',
+            value: nombre,
+            color: AppConfig.azulClaro,
+          ),
           const SizedBox(height: 12),
           _InfoTile(
-              icon: Icons.email_rounded,
-              label: 'Correo electrónico',
-              value: correo.isEmpty ? 'No disponible' : correo,
-              color: AppConfig.rojo),
+            icon: Icons.email_rounded,
+            label: 'Correo electrónico',
+            value: correo.isEmpty ? 'No disponible' : correo,
+            color: AppConfig.rojo,
+          ),
           const SizedBox(height: 12),
           _InfoTile(
-              icon: Icons.work_rounded,
-              label: 'Cargo',
-              value: cargo,
-              color: AppConfig.verde),
+            icon: Icons.work_rounded,
+            label: 'Cargo',
+            value: cargo,
+            color: AppConfig.verde,
+          ),
           const SizedBox(height: 12),
           _InfoTile(
-              icon: Icons.apartment_rounded,
-              label: 'Departamento',
-              value: departamento,
-              color: AppConfig.naranja),
+            icon: Icons.corporate_fare_rounded,
+            label: 'División / Área',
+            value: departamento,
+            color: AppConfig.naranja,
+          ),
         ],
       ),
     );
@@ -341,22 +369,25 @@ class _MiPerfilScreenState extends State<MiPerfilScreen> {
             const Center(child: CircularProgressIndicator())
           else ...[
             _MiniStatRow(
-                label: 'Casos asignados',
-                value: '$_totalCasos',
-                icon: Icons.assignment_rounded,
-                color: AppConfig.azulClaro),
+              label: 'Casos asignados',
+              value: '$_totalCasos',
+              icon: Icons.assignment_rounded,
+              color: AppConfig.azulClaro,
+            ),
             const SizedBox(height: 12),
             _MiniStatRow(
-                label: 'Casos en revisión',
-                value: '$_casosRevision',
-                icon: Icons.autorenew_rounded,
-                color: AppConfig.naranja),
+              label: 'Casos en revisión',
+              value: '$_casosRevision',
+              icon: Icons.autorenew_rounded,
+              color: AppConfig.naranja,
+            ),
             const SizedBox(height: 12),
             _MiniStatRow(
-                label: 'Casos resueltos',
-                value: '$_casosResueltos',
-                icon: Icons.check_circle_rounded,
-                color: AppConfig.verde),
+              label: 'Casos resueltos',
+              value: '$_casosResueltos',
+              icon: Icons.check_circle_rounded,
+              color: AppConfig.verde,
+            ),
           ],
         ],
       ),
@@ -385,24 +416,32 @@ class _MiPerfilScreenState extends State<MiPerfilScreen> {
               children: [
                 CircleAvatar(
                   backgroundColor: AppConfig.verde.withOpacity(0.12),
-                  child: const Icon(Icons.verified_rounded,
-                      color: AppConfig.verde),
+                  child: const Icon(
+                    Icons.verified_rounded,
+                    color: AppConfig.verde,
+                  ),
                 ),
                 const SizedBox(width: 13),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text('Sesión activa',
-                          style: TextStyle(
-                              fontWeight: FontWeight.w900,
-                              color: AppConfig.azulOscuro)),
+                      const Text(
+                        'Sesión activa',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w900,
+                          color: AppConfig.azulOscuro,
+                        ),
+                      ),
                       const SizedBox(height: 3),
-                      Text('Tu cuenta está autenticada y aprobada.',
-                          style: TextStyle(
-                              fontSize: 12.5,
-                              color: AppConfig.grisOscuro,
-                              height: 1.3)),
+                      Text(
+                        'Tu cuenta está autenticada y aprobada.',
+                        style: TextStyle(
+                          fontSize: 12.5,
+                          color: AppConfig.grisOscuro,
+                          height: 1.3,
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -420,9 +459,12 @@ class _MiPerfilScreenState extends State<MiPerfilScreen> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppConfig.rojo,
                 shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16)),
+                  borderRadius: BorderRadius.circular(16),
+                ),
                 textStyle: const TextStyle(
-                    fontWeight: FontWeight.w800, fontSize: 15),
+                  fontWeight: FontWeight.w800,
+                  fontSize: 15,
+                ),
               ),
             ),
           ),
@@ -438,11 +480,12 @@ class _InfoTile extends StatelessWidget {
   final String value;
   final Color color;
 
-  const _InfoTile(
-      {required this.icon,
-      required this.label,
-      required this.value,
-      required this.color});
+  const _InfoTile({
+    required this.icon,
+    required this.label,
+    required this.value,
+    required this.color,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -464,17 +507,23 @@ class _InfoTile extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(label,
-                    style: TextStyle(
-                        color: AppConfig.grisOscuro,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700)),
+                Text(
+                  label,
+                  style: TextStyle(
+                    color: AppConfig.grisOscuro,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
                 const SizedBox(height: 3),
-                Text(value,
-                    style: const TextStyle(
-                        color: AppConfig.azulOscuro,
-                        fontSize: 15,
-                        fontWeight: FontWeight.w900)),
+                Text(
+                  value,
+                  style: const TextStyle(
+                    color: AppConfig.azulOscuro,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
               ],
             ),
           ),
@@ -490,11 +539,12 @@ class _MiniStatRow extends StatelessWidget {
   final IconData icon;
   final Color color;
 
-  const _MiniStatRow(
-      {required this.label,
-      required this.value,
-      required this.icon,
-      required this.color});
+  const _MiniStatRow({
+    required this.label,
+    required this.value,
+    required this.icon,
+    required this.color,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -512,14 +562,22 @@ class _MiniStatRow extends StatelessWidget {
           ),
           const SizedBox(width: 13),
           Expanded(
-            child: Text(label,
-                style: const TextStyle(
-                    fontWeight: FontWeight.w800,
-                    color: AppConfig.azulOscuro)),
+            child: Text(
+              label,
+              style: const TextStyle(
+                fontWeight: FontWeight.w800,
+                color: AppConfig.azulOscuro,
+              ),
+            ),
           ),
-          Text(value,
-              style: TextStyle(
-                  fontSize: 20, fontWeight: FontWeight.w900, color: color)),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w900,
+              color: color,
+            ),
+          ),
         ],
       ),
     );
@@ -558,8 +616,11 @@ class _CardHeading extends StatelessWidget {
   final String title;
   final String subtitle;
 
-  const _CardHeading(
-      {required this.icon, required this.title, required this.subtitle});
+  const _CardHeading({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -579,15 +640,22 @@ class _CardHeading extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(title,
-                  style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w900,
-                      color: AppConfig.azulOscuro)),
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w900,
+                  color: AppConfig.azulOscuro,
+                ),
+              ),
               const SizedBox(height: 3),
-              Text(subtitle,
-                  style: TextStyle(
-                      fontSize: 12.5, color: AppConfig.grisOscuro)),
+              Text(
+                subtitle,
+                style: TextStyle(
+                  fontSize: 12.5,
+                  color: AppConfig.grisOscuro,
+                ),
+              ),
             ],
           ),
         ),
@@ -615,11 +683,14 @@ class _HeroBadge extends StatelessWidget {
         children: [
           Icon(icon, size: 16, color: Colors.white),
           const SizedBox(width: 7),
-          Text(text,
-              style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w800)),
+          Text(
+            text,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 12,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
         ],
       ),
     );
@@ -646,11 +717,14 @@ class _HeroChip extends StatelessWidget {
         children: [
           Icon(icon, size: 15, color: Colors.white),
           const SizedBox(width: 6),
-          Text(text,
-              style: const TextStyle(
-                  fontSize: 11.5,
-                  color: Colors.white,
-                  fontWeight: FontWeight.w700)),
+          Text(
+            text,
+            style: const TextStyle(
+              fontSize: 11.5,
+              color: Colors.white,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
         ],
       ),
     );

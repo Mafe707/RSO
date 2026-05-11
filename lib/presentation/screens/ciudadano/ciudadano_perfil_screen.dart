@@ -7,6 +7,7 @@ import '../../../core/supabase/supabase_config.dart';
 import '../../../services/ciudadano_auth_service.dart';
 import 'ciudadano_bottom_nav.dart';
 import 'ciudadano_drawer.dart';
+import 'ciudadano_login_screen.dart';
 
 class CiudadanoPerfilScreen extends StatefulWidget {
   const CiudadanoPerfilScreen({super.key});
@@ -192,6 +193,21 @@ class _CiudadanoPerfilScreenState extends State<CiudadanoPerfilScreen> {
                 ),
               ),
             ),
+          IconButton(
+            tooltip: 'Cerrar sesión',
+            icon: const Icon(Icons.logout_rounded, color: Colors.white),
+            onPressed: () async {
+              final svc = Provider.of<CiudadanoAuthService>(context, listen: false);
+              await svc.logout();
+              if (context.mounted) {
+                Navigator.pushAndRemoveUntil(
+                  context,
+                  MaterialPageRoute(builder: (_) => const CiudadanoLoginScreen()),
+                  (route) => false,
+                );
+              }
+            },
+          ),
         ],
       ),
       drawer: CiudadanoDrawer.maybe(context, currentIndex: 5),

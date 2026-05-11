@@ -33,6 +33,7 @@ class _FuncionarioRegisterScreenState extends State<FuncionarioRegisterScreen> {
     'Movilidad',
     'Medio Ambiente',
     'Control Urbano',
+    'Gestión Ambiental',
     'Otros',
   ];
 
@@ -499,8 +500,9 @@ class _FuncionarioRegisterScreenState extends State<FuncionarioRegisterScreen> {
           hint: 'Ingrese su apellido',
           icon: Icons.person_outline_rounded),
       validator: (value) {
-        if (value == null || value.trim().isEmpty)
+        if (value == null || value.trim().isEmpty) {
           return 'El apellido es requerido';
+        }
         return null;
       },
     );
@@ -520,8 +522,9 @@ class _FuncionarioRegisterScreenState extends State<FuncionarioRegisterScreen> {
         if (value == null || value.trim().isEmpty) return 'El correo es requerido';
         final emailRegex = RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$');
         if (!emailRegex.hasMatch(value)) return 'Ingrese un correo válido';
-        if (!value.toLowerCase().endsWith('@alcaldia.gov.co'))
+        if (!value.toLowerCase().endsWith('@alcaldia.gov.co')) {
           return 'Debe usar @alcaldia.gov.co';
+        }
         return null;
       },
     );
@@ -545,8 +548,9 @@ class _FuncionarioRegisterScreenState extends State<FuncionarioRegisterScreen> {
       validator: (value) {
         if (value == null || value.isEmpty) return 'La contraseña es requerida';
         if (value.length < 8) return 'Mínimo 8 caracteres';
-        if (!value.contains(RegExp(r'[A-Z]')))
+        if (!value.contains(RegExp(r'[A-Z]'))) {
           return 'Debe tener una letra mayúscula';
+        }
         if (!value.contains(RegExp(r'[0-9]'))) return 'Debe tener un número';
         return null;
       },
@@ -564,14 +568,16 @@ class _FuncionarioRegisterScreenState extends State<FuncionarioRegisterScreen> {
           icon: Icon(_obscureConfirmPassword
               ? Icons.visibility_off_rounded
               : Icons.visibility_rounded),
-          onPressed: () =>
-              setState(() => _obscureConfirmPassword = !_obscureConfirmPassword),
+          onPressed: () => setState(
+            () => _obscureConfirmPassword = !_obscureConfirmPassword,
+          ),
         ),
       ),
       obscureText: _obscureConfirmPassword,
       validator: (value) {
-        if (value != _passwordController.text)
+        if (value != _passwordController.text) {
           return 'Las contraseñas no coinciden';
+        }
         return null;
       },
     );
@@ -595,12 +601,12 @@ class _FuncionarioRegisterScreenState extends State<FuncionarioRegisterScreen> {
   Widget _departamentoField() {
     return DropdownButtonFormField<String>(
       value: _departamentoSeleccionado,
-      hint: const Text('Seleccione un departamento'),
+      hint: const Text('Seleccione una división'),
       isExpanded: true,
       decoration: _inputDecoration(
-        label: 'Departamento',
-        hint: 'Seleccione un departamento',
-        icon: Icons.apartment_rounded,
+        label: 'División / Área',
+        hint: 'Seleccione una división',
+        icon: Icons.corporate_fare_rounded,
       ),
       items: _departamentos
           .map((depto) =>
@@ -608,7 +614,7 @@ class _FuncionarioRegisterScreenState extends State<FuncionarioRegisterScreen> {
           .toList(),
       onChanged: (value) => setState(() => _departamentoSeleccionado = value),
       validator: (value) {
-        if (value == null) return 'Seleccione un departamento';
+        if (value == null) return 'Seleccione una división / área';
         return null;
       },
     );
@@ -700,7 +706,10 @@ class _FuncionarioRegisterScreenState extends State<FuncionarioRegisterScreen> {
               child: const Text(
                 'Acepto los términos y condiciones y la política de privacidad del sistema',
                 style: TextStyle(
-                    color: AppConfig.grisOscuro, fontSize: 13, height: 1.35),
+                  color: AppConfig.grisOscuro,
+                  fontSize: 13,
+                  height: 1.35,
+                ),
               ),
             ),
           ),
@@ -785,8 +794,10 @@ class _FormHeader extends StatelessWidget {
             color: AppConfig.azulOscuro.withOpacity(0.08),
             borderRadius: BorderRadius.circular(18),
           ),
-          child: const Icon(Icons.assignment_ind_rounded,
-              color: AppConfig.azulOscuro),
+          child: const Icon(
+            Icons.assignment_ind_rounded,
+            color: AppConfig.azulOscuro,
+          ),
         ),
         const SizedBox(width: 14),
         Expanded(
@@ -819,8 +830,11 @@ class _PanelHeading extends StatelessWidget {
   final String title;
   final String subtitle;
 
-  const _PanelHeading(
-      {required this.icon, required this.title, required this.subtitle});
+  const _PanelHeading({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -840,14 +854,22 @@ class _PanelHeading extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(title,
-                  style: const TextStyle(
-                      fontSize: 17,
-                      fontWeight: FontWeight.w900,
-                      color: AppConfig.azulOscuro)),
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w900,
+                  color: AppConfig.azulOscuro,
+                ),
+              ),
               const SizedBox(height: 3),
-              Text(subtitle,
-                  style: TextStyle(fontSize: 12.5, color: AppConfig.grisOscuro)),
+              Text(
+                subtitle,
+                style: TextStyle(
+                  fontSize: 12.5,
+                  color: AppConfig.grisOscuro,
+                ),
+              ),
             ],
           ),
         ),
@@ -861,7 +883,11 @@ class _TipItem extends StatelessWidget {
   final String text;
   final bool isLast;
 
-  const _TipItem({required this.icon, required this.text, this.isLast = false});
+  const _TipItem({
+    required this.icon,
+    required this.text,
+    this.isLast = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -873,11 +899,14 @@ class _TipItem extends StatelessWidget {
             Icon(icon, color: AppConfig.azulClaro, size: 22),
             const SizedBox(width: 10),
             Expanded(
-              child: Text(text,
-                  style: TextStyle(
-                      fontSize: 13,
-                      height: 1.35,
-                      color: AppConfig.grisOscuro)),
+              child: Text(
+                text,
+                style: TextStyle(
+                  fontSize: 13,
+                  height: 1.35,
+                  color: AppConfig.grisOscuro,
+                ),
+              ),
             ),
           ],
         ),
@@ -907,11 +936,14 @@ class _HeroChip extends StatelessWidget {
         children: [
           Icon(icon, size: 15, color: Colors.white),
           const SizedBox(width: 6),
-          Text(text,
-              style: const TextStyle(
-                  fontSize: 11.5,
-                  color: Colors.white,
-                  fontWeight: FontWeight.w700)),
+          Text(
+            text,
+            style: const TextStyle(
+              fontSize: 11.5,
+              color: Colors.white,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
         ],
       ),
     );
@@ -924,8 +956,7 @@ class _LoadingCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
-      shape:
-          RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
       child: const Padding(
         padding: EdgeInsets.all(26),
         child: Column(
@@ -933,8 +964,10 @@ class _LoadingCard extends StatelessWidget {
           children: [
             CircularProgressIndicator(),
             SizedBox(height: 16),
-            Text('Creando cuenta...',
-                style: TextStyle(fontWeight: FontWeight.w700)),
+            Text(
+              'Creando cuenta...',
+              style: TextStyle(fontWeight: FontWeight.w700),
+            ),
           ],
         ),
       ),

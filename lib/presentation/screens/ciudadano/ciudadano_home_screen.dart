@@ -41,7 +41,6 @@ class CiudadanoHomeScreen extends StatelessWidget {
         ),
         centerTitle: isMobile,
         actions: [
-          // Avatar + nombre (solo en web)
           if (!isMobile)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 4),
@@ -81,7 +80,6 @@ class CiudadanoHomeScreen extends StatelessWidget {
                 ),
               ),
             ),
-          // En móvil solo el ícono de perfil
           if (isMobile)
             InkWell(
               onTap: () => Navigator.push(
@@ -105,7 +103,6 @@ class CiudadanoHomeScreen extends StatelessWidget {
                 ),
               ),
             ),
-          // Botón logout
           IconButton(
             icon: const Icon(Icons.logout_rounded),
             tooltip: 'Cerrar sesión',
@@ -208,11 +205,11 @@ class CiudadanoHomeScreen extends StatelessWidget {
       child: Stack(
         children: [
           Positioned(
-            right: -20,
-            top: -20,
+            right: isMobile ? -10 : -20,
+            top: isMobile ? 12 : -12,
             child: Icon(
               Icons.route_rounded,
-              size: isMobile ? 96 : 140,
+              size: isMobile ? 72 : 140,
               color: Colors.white.withOpacity(0.08),
             ),
           ),
@@ -279,9 +276,18 @@ class CiudadanoHomeScreen extends StatelessWidget {
                 spacing: 10,
                 runSpacing: 10,
                 children: const [
-                  _BannerChip(icon: Icons.lock_outline_rounded, text: 'Reporte seguro'),
-                  _BannerChip(icon: Icons.confirmation_number_outlined, text: 'Código de seguimiento'),
-                  _BannerChip(icon: Icons.access_time_rounded, text: 'Disponible 24/7'),
+                  _BannerChip(
+                    icon: Icons.lock_outline_rounded,
+                    text: 'Reporte seguro',
+                  ),
+                  _BannerChip(
+                    icon: Icons.confirmation_number_outlined,
+                    text: 'Código de seguimiento',
+                  ),
+                  _BannerChip(
+                    icon: Icons.access_time_rounded,
+                    text: 'Disponible 24/7',
+                  ),
                 ],
               ),
             ],
@@ -386,19 +392,39 @@ class CiudadanoHomeScreen extends StatelessWidget {
             subtitle: 'Proceso simple para hacer seguimiento.',
           ),
           const SizedBox(height: 18),
-          _buildStep(number: 1, title: 'Reporta', text: 'Registra ubicación, categoría, descripción y evidencia fotográfica.'),
+          _buildStep(
+            number: 1,
+            title: 'Reporta',
+            text: 'Registra ubicación, categoría, descripción y evidencia fotográfica.',
+          ),
           const SizedBox(height: 14),
-          _buildStep(number: 2, title: 'Guarda tu código', text: 'Recibirás un código único para consultar el avance.'),
+          _buildStep(
+            number: 2,
+            title: 'Guarda tu código',
+            text: 'Recibirás un código único para consultar el avance.',
+          ),
           const SizedBox(height: 14),
-          _buildStep(number: 3, title: 'Consulta', text: 'Revisa el estado de tu reporte cuando lo necesites.'),
+          _buildStep(
+            number: 3,
+            title: 'Consulta',
+            text: 'Revisa el estado de tu reporte cuando lo necesites.',
+          ),
           const SizedBox(height: 14),
-          _buildStep(number: 4, title: 'Seguimiento institucional', text: 'La autoridad competente revisará y gestionará el caso.'),
+          _buildStep(
+            number: 4,
+            title: 'Seguimiento institucional',
+            text: 'La autoridad competente revisará y gestionará el caso.',
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildStep({required int number, required String title, required String text}) {
+  Widget _buildStep({
+    required int number,
+    required String title,
+    required String text,
+  }) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -413,7 +439,10 @@ class CiudadanoHomeScreen extends StatelessWidget {
           child: Center(
             child: Text(
               '$number',
-              style: const TextStyle(color: AppConfig.azulOscuro, fontWeight: FontWeight.w800),
+              style: const TextStyle(
+                color: AppConfig.azulOscuro,
+                fontWeight: FontWeight.w800,
+              ),
             ),
           ),
         ),
@@ -422,9 +451,23 @@ class CiudadanoHomeScreen extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(title, style: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.w800, color: Colors.black87)),
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 14.5,
+                  fontWeight: FontWeight.w800,
+                  color: Colors.black87,
+                ),
+              ),
               const SizedBox(height: 3),
-              Text(text, style: TextStyle(fontSize: 13, height: 1.35, color: AppConfig.grisOscuro)),
+              Text(
+                text,
+                style: TextStyle(
+                  fontSize: 13,
+                  height: 1.35,
+                  color: AppConfig.grisOscuro,
+                ),
+              ),
             ],
           ),
         ),
@@ -477,7 +520,9 @@ class CiudadanoHomeScreen extends StatelessWidget {
                 foregroundColor: AppConfig.azulOscuro,
                 side: BorderSide(color: AppConfig.azulOscuro.withOpacity(0.25)),
                 padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
               ),
             ),
           ),
@@ -486,8 +531,6 @@ class CiudadanoHomeScreen extends StatelessWidget {
     );
   }
 }
-
-// ─── Widgets internos ────────────────────────────────────────────────────────
 
 class _LocationBar extends StatelessWidget {
   final bool isMobile;
@@ -504,18 +547,26 @@ class _LocationBar extends StatelessWidget {
           const SizedBox(width: 6),
           const Text(
             'San Juan de Pasto',
-            style: TextStyle(fontSize: 12, color: Colors.white70, fontWeight: FontWeight.w500),
+            style: TextStyle(
+              fontSize: 12,
+              color: Colors.white70,
+              fontWeight: FontWeight.w500,
+            ),
           ),
           const Spacer(),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 5),
             decoration: BoxDecoration(
-              color: AppConfig.rojo.withOpacity(0.92),
+              color: const Color.fromARGB(255, 38, 151, 188).withOpacity(0.92),
               borderRadius: BorderRadius.circular(999),
             ),
             child: const Text(
               'Ciudadano',
-              style: TextStyle(fontSize: 11, color: Colors.white, fontWeight: FontWeight.w700),
+              style: TextStyle(
+                fontSize: 11,
+                color: Colors.white,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ),
         ],
@@ -529,7 +580,11 @@ class _SectionHeader extends StatelessWidget {
   final String subtitle;
   final String? actionText;
 
-  const _SectionHeader({required this.title, required this.subtitle, this.actionText});
+  const _SectionHeader({
+    required this.title,
+    required this.subtitle,
+    this.actionText,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -549,7 +604,13 @@ class _SectionHeader extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 4),
-              Text(subtitle, style: TextStyle(fontSize: 13.5, color: AppConfig.grisOscuro)),
+              Text(
+                subtitle,
+                style: TextStyle(
+                  fontSize: 13.5,
+                  color: AppConfig.grisOscuro,
+                ),
+              ),
             ],
           ),
         ),
@@ -563,11 +624,19 @@ class _SectionHeader extends StatelessWidget {
             ),
             child: Row(
               children: [
-                const Icon(Icons.location_city_rounded, size: 16, color: AppConfig.azulOscuro),
+                const Icon(
+                  Icons.location_city_rounded,
+                  size: 16,
+                  color: AppConfig.azulOscuro,
+                ),
                 const SizedBox(width: 6),
                 Text(
                   actionText!,
-                  style: const TextStyle(fontSize: 12, color: AppConfig.azulOscuro, fontWeight: FontWeight.w700),
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: AppConfig.azulOscuro,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
               ],
             ),
@@ -617,11 +686,15 @@ class _ActionCardState extends State<_ActionCard> {
               color: Colors.white,
               borderRadius: BorderRadius.circular(22),
               border: Border.all(
-                color: _hovering ? widget.color.withOpacity(0.42) : AppConfig.grisMedio,
+                color: _hovering
+                    ? widget.color.withOpacity(0.42)
+                    : AppConfig.grisMedio,
               ),
               boxShadow: [
                 BoxShadow(
-                  color: _hovering ? widget.color.withOpacity(0.12) : Colors.black.withOpacity(0.045),
+                  color: _hovering
+                      ? widget.color.withOpacity(0.12)
+                      : Colors.black.withOpacity(0.045),
                   blurRadius: _hovering ? 18 : 12,
                   offset: const Offset(0, 8),
                 ),
@@ -642,12 +715,20 @@ class _ActionCardState extends State<_ActionCard> {
                 const SizedBox(height: 18),
                 Text(
                   widget.title,
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: widget.color),
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                    color: widget.color,
+                  ),
                 ),
                 const SizedBox(height: 7),
                 Text(
                   widget.subtitle,
-                  style: TextStyle(fontSize: 13.5, height: 1.35, color: AppConfig.grisOscuro),
+                  style: TextStyle(
+                    fontSize: 13.5,
+                    height: 1.35,
+                    color: AppConfig.grisOscuro,
+                  ),
                 ),
                 const SizedBox(height: 18),
                 Align(
@@ -708,9 +789,23 @@ class _ActionTile extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(title, style: const TextStyle(fontSize: 16.5, fontWeight: FontWeight.w800, color: Colors.black87)),
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 16.5,
+                        fontWeight: FontWeight.w800,
+                        color: Colors.black87,
+                      ),
+                    ),
                     const SizedBox(height: 4),
-                    Text(subtitle, style: TextStyle(fontSize: 12.5, height: 1.35, color: AppConfig.grisOscuro)),
+                    Text(
+                      subtitle,
+                      style: TextStyle(
+                        fontSize: 12.5,
+                        height: 1.35,
+                        color: AppConfig.grisOscuro,
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -755,7 +850,11 @@ class _CardHeading extends StatelessWidget {
   final String title;
   final String subtitle;
 
-  const _CardHeading({required this.icon, required this.title, required this.subtitle});
+  const _CardHeading({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -775,9 +874,22 @@ class _CardHeading extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: AppConfig.azulOscuro)),
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  color: AppConfig.azulOscuro,
+                ),
+              ),
               const SizedBox(height: 3),
-              Text(subtitle, style: TextStyle(fontSize: 12.5, color: AppConfig.grisOscuro)),
+              Text(
+                subtitle,
+                style: TextStyle(
+                  fontSize: 12.5,
+                  color: AppConfig.grisOscuro,
+                ),
+              ),
             ],
           ),
         ),
@@ -792,7 +904,12 @@ class _InfoRow extends StatelessWidget {
   final String text;
   final Color color;
 
-  const _InfoRow({required this.icon, required this.title, required this.text, required this.color});
+  const _InfoRow({
+    required this.icon,
+    required this.title,
+    required this.text,
+    required this.color,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -812,9 +929,22 @@ class _InfoRow extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800)),
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
               const SizedBox(height: 2),
-              Text(text, style: TextStyle(fontSize: 12.5, height: 1.3, color: AppConfig.grisOscuro)),
+              Text(
+                text,
+                style: TextStyle(
+                  fontSize: 12.5,
+                  height: 1.3,
+                  color: AppConfig.grisOscuro,
+                ),
+              ),
             ],
           ),
         ),
@@ -842,7 +972,14 @@ class _BannerChip extends StatelessWidget {
         children: [
           Icon(icon, size: 15, color: Colors.white),
           const SizedBox(width: 6),
-          Text(text, style: const TextStyle(fontSize: 11.5, color: Colors.white, fontWeight: FontWeight.w600)),
+          Text(
+            text,
+            style: const TextStyle(
+              fontSize: 11.5,
+              color: Colors.white,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
         ],
       ),
     );

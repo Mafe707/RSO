@@ -3,6 +3,9 @@ import 'package:flutter/material.dart';
 import '../../../config/app_config.dart';
 import 'ciudadano_bottom_nav.dart';
 import 'ciudadano_drawer.dart';
+import 'package:provider/provider.dart';
+import '../../../services/ciudadano_auth_service.dart';
+import 'ciudadano_login_screen.dart';
 
 class InformacionScreen extends StatelessWidget {
   const InformacionScreen({super.key});
@@ -21,6 +24,23 @@ class InformacionScreen extends StatelessWidget {
         title: const Text('Información'),
         backgroundColor: AppConfig.azulOscuro,
         elevation: 0,
+        actions: [
+          IconButton(
+            tooltip: 'Cerrar sesión',
+            icon: const Icon(Icons.logout_rounded, color: Colors.white),
+            onPressed: () async {
+              final svc = Provider.of<CiudadanoAuthService>(context, listen: false);
+              await svc.logout();
+              if (context.mounted) {
+                Navigator.pushAndRemoveUntil(
+                  context,
+                  MaterialPageRoute(builder: (_) => const CiudadanoLoginScreen()),
+                  (route) => false,
+                );
+              }
+            },
+          ),
+        ],
       ),
       drawer: CiudadanoDrawer.maybe(
         context,
@@ -157,7 +177,7 @@ class InformacionScreen extends StatelessWidget {
               ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 680),
                 child: Text(
-                  'El espacio público es de todos y debe mantenerse libre de obstáculos que impidan su uso y disfrute por parte de la comunidad.',
+                  'El espacio público es de todos y debe mantenerse libre de obstáculos que impidan su uso y disfrute por parte de la comunidad. Cada ciudadano decide si desea reportar de forma anónima o compartiendo sus datos.',
                   style: TextStyle(
                     fontSize: isMobile ? 14 : 16,
                     height: 1.45,
@@ -232,13 +252,15 @@ class InformacionScreen extends StatelessWidget {
       ),
       const _BenefitCard(
         icon: Icons.shield_rounded,
-        title: 'Reporte seguro',
-        description: 'Sistema pensado para proteger la identidad ciudadana.',
+        title: 'Tú decides',
+        description:
+            'Puedes reportar de forma anónima o compartir tus datos personales.',
       ),
       const _BenefitCard(
         icon: Icons.check_circle_rounded,
         title: 'Seguimiento',
-        description: 'Cada reporte puede ser consultado con su código.',
+        description:
+            'Si compartes tus datos, podrás revisar tu historial de reportes. Si eliges anonimato, cada consulta se hace con el código de seguimiento.',
       ),
     ];
 
@@ -290,17 +312,17 @@ class InformacionScreen extends StatelessWidget {
           _FaqCard(
             question: '¿Por qué necesito registrarme?',
             answer:
-                'El registro permite hacer seguimiento de tus denuncias y proteger el sistema contra reportes fraudulentos. Tus datos están seguros y protegidos.',
+                'El registro permite hacer seguimiento de tus denuncias, proteger el sistema contra reportes fraudulentos y consultar tu historial cuando decides compartir tus datos.',
           ),
           _FaqCard(
             question: '¿Mi reporte puede ser anónimo?',
             answer:
-                'Sí. Al crear un reporte puedes elegir si deseas compartir tus datos personales con las autoridades o mantener tu identidad en anonimato. Solo el código de seguimiento identifica tu denuncia.',
+                'Sí. Al crear un reporte puedes elegir si deseas compartir tus datos personales o mantener tu identidad en anonimato. Si compartes tus datos, podrás revisar tu historial de reportes; si eliges anonimato, cada consulta se realiza con el código de seguimiento.',
           ),
           _FaqCard(
             question: '¿Qué pasa después de hacer un reporte?',
             answer:
-                'Tu reporte es enviado a las autoridades competentes para su verificación y gestión. Puedes seguir su estado con el código de seguimiento único que recibes.',
+                'Tu reporte es enviado a las autoridades competentes para su verificación y gestión. Si elegiste anonimato, el seguimiento se hace con el código de seguimiento; si compartiste tus datos, también podrás verlo en tu historial de reportes.',
           ),
           _FaqCard(
             question: '¿En qué plazo se gestiona un reporte?',
@@ -310,7 +332,7 @@ class InformacionScreen extends StatelessWidget {
           _FaqCard(
             question: '¿Qué pasa si pierdo mi código de seguimiento?',
             answer:
-                'El código es la única forma de consultar tu denuncia. No es posible recuperarlo, por lo que es muy importante guardarlo en el momento de hacer el reporte.',
+                'Si el reporte fue anónimo, el código es la única forma de consultarlo. Si compartiste tus datos, podrás revisarlo desde tu historial de reportes. En ambos casos, es importante guardar el código.',
             isLast: true,
           ),
         ],

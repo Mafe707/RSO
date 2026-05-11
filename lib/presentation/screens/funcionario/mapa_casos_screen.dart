@@ -6,6 +6,7 @@ import '../../../services/auth_service.dart';
 
 import 'funcionario_bottom_nav.dart';
 import 'funcionario_drawer.dart';
+import 'login_screen.dart';
 
 class MapaCasosScreen extends StatefulWidget {
   const MapaCasosScreen({super.key});
@@ -70,17 +71,16 @@ class _MapaCasosScreenState extends State<MapaCasosScreen> {
   }
 
   Future<void> _cerrarSesion() async {
-    final authService = Provider.of<AuthService>(
+  final authService = Provider.of<AuthService>(context, listen: false);
+  await authService.logout();
+  if (mounted) {
+    Navigator.pushAndRemoveUntil(
       context,
-      listen: false,
+      MaterialPageRoute(builder: (_) => const FuncionarioLoginScreen()),
+      (route) => false,
     );
-
-    await authService.logout();
-
-    if (mounted) {
-      Navigator.popUntil(context, (route) => route.isFirst);
-    }
   }
+}
 
   List<Map<String, dynamic>> get _casosFiltrados {
     return _casos.where((caso) {

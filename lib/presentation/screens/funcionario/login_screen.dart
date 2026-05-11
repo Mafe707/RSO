@@ -6,6 +6,7 @@ import '../../../services/auth_service.dart';
 
 import 'funcionario_home_screen.dart';
 import 'register_screen.dart';
+import '../rol_selection_screen.dart';
 
 class FuncionarioLoginScreen extends StatefulWidget {
   const FuncionarioLoginScreen({super.key});
@@ -104,7 +105,7 @@ class _FuncionarioLoginScreenState extends State<FuncionarioLoginScreen> {
             ElevatedButton(
               onPressed: () => Navigator.pop(context),
               style: ElevatedButton.styleFrom(
-                backgroundColor: AppConfig.azulClaro,
+                backgroundColor: const Color(0xFF123765),
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(14)),
               ),
@@ -258,11 +259,14 @@ class _FuncionarioLoginScreenState extends State<FuncionarioLoginScreen> {
             width: 74,
             height: 74,
             decoration: BoxDecoration(
-              color: AppConfig.azulClaro.withOpacity(0.12),
+              color: const Color(0xFF123765).withOpacity(0.12),
               shape: BoxShape.circle,
             ),
-            child: const Icon(Icons.person_rounded,
-                size: 42, color: AppConfig.azulClaro),
+            child: const Icon(
+              Icons.person_rounded,
+              size: 42,
+              color: Color(0xFF123765),
+            ),
           ),
           const SizedBox(height: 18),
           const Text(
@@ -270,7 +274,7 @@ class _FuncionarioLoginScreenState extends State<FuncionarioLoginScreen> {
             style: TextStyle(
               fontSize: 25,
               fontWeight: FontWeight.w900,
-              color: AppConfig.azulOscuro,
+              color: Color(0xFF123765),
               letterSpacing: -0.3,
             ),
           ),
@@ -290,11 +294,16 @@ class _FuncionarioLoginScreenState extends State<FuncionarioLoginScreen> {
               hintText: 'funcionario@alcaldia.gov.co',
               helperText: 'Debe ser @alcaldia.gov.co',
               helperStyle: const TextStyle(fontSize: 11),
-              prefixIcon: const Icon(Icons.email_rounded),
+              prefixIcon: const Icon(Icons.email_rounded,
+                  color: Color(0xFF123765)),
               filled: true,
               fillColor: const Color(0xFFF8FAFC),
               border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(16)),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: const BorderSide(color: Color(0xFF123765)),
+              ),
             ),
           ),
           const SizedBox(height: 16),
@@ -304,7 +313,8 @@ class _FuncionarioLoginScreenState extends State<FuncionarioLoginScreen> {
             obscureText: _obscurePassword,
             decoration: InputDecoration(
               labelText: 'Contraseña',
-              prefixIcon: const Icon(Icons.lock_rounded),
+              prefixIcon:
+                  const Icon(Icons.lock_rounded, color: Color(0xFF123765)),
               suffixIcon: IconButton(
                 icon: Icon(_obscurePassword
                     ? Icons.visibility_off_rounded
@@ -318,6 +328,10 @@ class _FuncionarioLoginScreenState extends State<FuncionarioLoginScreen> {
               fillColor: const Color(0xFFF8FAFC),
               border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(16)),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: const BorderSide(color: Color(0xFF123765)),
+              ),
             ),
             onSubmitted: (_) {
               if (!authService.isLoading) _login();
@@ -352,7 +366,7 @@ class _FuncionarioLoginScreenState extends State<FuncionarioLoginScreen> {
                   ? 'Iniciando sesión...'
                   : 'Iniciar sesión'),
               style: ElevatedButton.styleFrom(
-                backgroundColor: AppConfig.azulClaro,
+                backgroundColor: const Color(0xFF123765),
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(16)),
                 textStyle: const TextStyle(
@@ -382,8 +396,17 @@ class _FuncionarioLoginScreenState extends State<FuncionarioLoginScreen> {
           ),
           const Divider(height: 28),
           TextButton.icon(
-            onPressed:
-                authService.isLoading ? null : () => Navigator.pop(context),
+            onPressed: authService.isLoading
+                ? null
+                : () {
+                    Navigator.pushAndRemoveUntil(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const RolSelectionScreen(),
+                      ),
+                      (route) => false,
+                    );
+                  },
             icon: const Icon(Icons.arrow_back_rounded),
             label: const Text('Volver a selección de roles'),
           ),

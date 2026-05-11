@@ -9,6 +9,7 @@ import '../../../core/supabase/supabase_config.dart';
 
 import 'funcionario_bottom_nav.dart';
 import 'funcionario_drawer.dart';
+import 'login_screen.dart';
 
 class MisCasosScreen extends StatefulWidget {
   final Map<String, dynamic> userData;
@@ -54,7 +55,9 @@ class _MisCasosScreenState extends State<MisCasosScreen> {
 
       final response = await _supabase
           .from('denuncias')
-          .select()
+          .select(
+            'id, codigo_unico, ubicacion, categoria, estado, descripcion, respuesta_oficial, imagen_url, creado_en, actualizado_en',
+          )
           .eq('funcionario_id', funcionarioId)
           .order('creado_en', ascending: false);
 
@@ -119,19 +122,15 @@ class _MisCasosScreenState extends State<MisCasosScreen> {
     if (ok) {
       await _cargarCasos();
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text(
-            'Caso enviado a validación del administrador',
-          ),
+        const SnackBar(
+          content: Text('Caso enviado a validación del administrador'),
           backgroundColor: AppConfig.verde,
         ),
       );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text(
-            'No se pudo enviar el caso a validación',
-          ),
+        const SnackBar(
+          content: Text('No se pudo enviar el caso a validación'),
           backgroundColor: AppConfig.rojo,
         ),
       );
@@ -139,10 +138,16 @@ class _MisCasosScreenState extends State<MisCasosScreen> {
   }
 
   Future<void> _cerrarSesion() async {
-    final authService = Provider.of<AuthService>(context, listen: false);
-    await authService.logout();
-    if (mounted) Navigator.popUntil(context, (route) => route.isFirst);
+  final authService = Provider.of<AuthService>(context, listen: false);
+  await authService.logout();
+  if (mounted) {
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(builder: (_) => const FuncionarioLoginScreen()),
+      (route) => false,
+    );
   }
+}
 
   List<Map<String, dynamic>> get _casosFiltrados {
     return _casos.where((caso) {
@@ -207,9 +212,99 @@ class _MisCasosScreenState extends State<MisCasosScreen> {
     final estado = caso['estado'] ?? 'pendiente';
     final descripcion = caso['descripcion'] ?? '';
     final respuestaActual = caso['respuesta_oficial']?.toString() ?? '';
+    final imagenUrl = caso['imagen_url']?.toString();
     final id = caso['id'] as int;
 
     final respuestaController = TextEditingController(text: respuestaActual);
+
+    void abrirImagenCompleta() {
+      if (imagenUrl == null || imagenUrl.isEmpty) return;
+
+      showGeneralDialog(
+        context: context,
+        barrierDismissible: true,
+        barrierLabel: 'Imagen completa',
+        barrierColor: Colors.black87,
+        transitionDuration: const Duration(milliseconds: 180),
+        pageBuilder: (context, animation, secondaryAnimation) {
+          return Scaffold(
+            backgroundColor: Colors.black,
+            body: SafeArea(
+              child: Stack(
+                children: [
+                  Center(
+                    child: InteractiveViewer(
+                      minScale: 1,
+                      maxScale: 4,
+                      child: Image.network(
+                        imagenUrl,
+                        fit: BoxFit.contain,
+                        loadingBuilder: (context, child, progress) {
+                          if (progress == null) return child;
+                          return SizedBox(
+                            width: double.infinity,
+                            height: double.infinity,
+                            child: Center(
+                              child: Container(
+                                padding: const EdgeInsets.all(18),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withOpacity(0.10),
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                                child: const CircularProgressIndicator(
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                        errorBuilder: (context, error, stack) {
+                          return Container(
+                            width: double.infinity,
+                            height: double.infinity,
+                            color: Colors.black,
+                            child: const Center(
+                              child: Icon(
+                                Icons.broken_image_rounded,
+                                color: Colors.white70,
+                                size: 54,
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    top: 12,
+                    right: 12,
+                    child: Material(
+                      color: Colors.white.withOpacity(0.12),
+                      shape: const CircleBorder(),
+                      child: IconButton(
+                        icon: const Icon(Icons.close_rounded,
+                            color: Colors.white),
+                        onPressed: () => Navigator.pop(context),
+                        tooltip: 'Cerrar',
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+        transitionBuilder: (context, animation, secondaryAnimation, child) {
+          return FadeTransition(
+            opacity: CurvedAnimation(
+              parent: animation,
+              curve: Curves.easeOut,
+            ),
+            child: child,
+          );
+        },
+      );
+    }
 
     showModalBottomSheet(
       context: context,
@@ -284,6 +379,105 @@ class _MisCasosScreenState extends State<MisCasosScreen> {
                     ],
                   ),
                   const SizedBox(height: 18),
+
+                  if (imagenUrl != null && imagenUrl.isNotEmpty) ...[
+                    GestureDetector(
+                      onTap: abrirImagenCompleta,
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(16),
+                        child: Stack(
+                          children: [
+                            Image.network(
+                              imagenUrl,
+                              width: double.infinity,
+                              height: 200,
+                              fit: BoxFit.cover,
+                              loadingBuilder: (context, child, progress) {
+                                if (progress == null) return child;
+                                return Container(
+                                  height: 200,
+                                  decoration: BoxDecoration(
+                                    color: AppConfig.grisClaro,
+                                    borderRadius: BorderRadius.circular(16),
+                                  ),
+                                  child: const Center(
+                                    child: CircularProgressIndicator(),
+                                  ),
+                                );
+                              },
+                              errorBuilder: (context, error, stack) =>
+                                  Container(
+                                height: 80,
+                                decoration: BoxDecoration(
+                                  color: AppConfig.grisClaro,
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                                child: const Center(
+                                  child: Icon(
+                                    Icons.broken_image_rounded,
+                                    color: Colors.grey,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            Positioned(
+                              right: 10,
+                              bottom: 10,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 6,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.black.withOpacity(0.45),
+                                  borderRadius: BorderRadius.circular(999),
+                                ),
+                                child: const Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      Icons.zoom_in_rounded,
+                                      size: 14,
+                                      color: Colors.white,
+                                    ),
+                                    SizedBox(width: 5),
+                                    Text(
+                                      'Ver completa',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 11.5,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.image_rounded,
+                          size: 14,
+                          color: Colors.grey,
+                        ),
+                        const SizedBox(width: 5),
+                        Text(
+                          'Toca la imagen para verla completa',
+                          style: TextStyle(
+                            fontSize: 11.5,
+                            color: AppConfig.grisOscuro,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                  ],
+
                   const Divider(),
                   _buildInfoRow('Categoría', categoria),
                   _buildInfoRow('Ubicación', ubicacion),
@@ -888,8 +1082,7 @@ class _MisCasosScreenState extends State<MisCasosScreen> {
               ),
               DropdownMenuItem(value: 'devuelto', child: Text('Devuelto')),
             ],
-            onChanged: (value) =>
-                setState(() => _filtroEstado = value ?? ''),
+            onChanged: (value) => setState(() => _filtroEstado = value ?? ''),
             decoration: InputDecoration(
               filled: true,
               fillColor: const Color(0xFFF8FAFC),
