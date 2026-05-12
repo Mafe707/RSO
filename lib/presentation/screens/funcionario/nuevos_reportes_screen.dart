@@ -72,7 +72,7 @@ class _NuevosReportesScreenState extends State<NuevosReportesScreen> {
     try {
       await _supabase.from('denuncias').update({
         'funcionario_id': funcionarioId,
-        'estado': 'revision',
+        'estado': 'en_revision',
         'actualizado_en': DateTime.now().toIso8601String(),
       }).eq('id', denunciaId);
 

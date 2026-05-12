@@ -36,7 +36,7 @@ class AdminDrawer extends StatelessWidget {
   Widget build(BuildContext context) {
     final adminName = adminData['nombre']?.toString() ?? 'Supervisor';
     final adminEmail = adminData['correo']?.toString() ?? '';
-    final adminRole = adminData['rol']?.toString() ?? 'supervisor';
+    final adminRole = adminData['rol']?.toString() ?? 'admin';
 
     return Drawer(
       child: Container(
@@ -67,8 +67,8 @@ class AdminDrawer extends StatelessWidget {
                       onTap: () { Navigator.pop(context); onSelect(1); },
                     ),
                     _DrawerItem(
-                      icon: Icons.how_to_reg_rounded,
-                      title: 'Aprobación de Funcionarios',
+                      icon: Icons.manage_accounts_rounded,
+                      title: 'Gestión de Funcionarios',
                       selected: currentIndex == 2,
                       onTap: () { Navigator.pop(context); onSelect(2); },
                     ),
@@ -116,6 +116,11 @@ class _AdminHeader extends StatelessWidget {
     required this.adminEmail,
     required this.adminRole,
   });
+
+  String _capitalize(String s) {
+    if (s.isEmpty) return s;
+    return s[0].toUpperCase() + s.substring(1).toLowerCase();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -175,7 +180,7 @@ class _AdminHeader extends StatelessWidget {
                     borderRadius: BorderRadius.circular(999),
                   ),
                   child: Text(
-                    'Supervisor',
+                    _capitalize(adminRole),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(

@@ -61,8 +61,8 @@ class _FuncionarioHomeScreenState extends State<FuncionarioHomeScreen> {
       setState(() {
         _totalCasos = data.length;
         _pendientes = data.where((d) => d['estado'] == 'pendiente').length;
-        _enRevision = data.where((d) => d['estado'] == 'revision').length;
-        _resueltos = data.where((d) => d['estado'] == 'resuelta').length;
+        _enRevision = data.where((d) => d['estado'] == 'en_revision').length;
+        _resueltos = data.where((d) => d['estado'] == 'resuelto_publicado').length;
         _actividadReciente = List<Map<String, dynamic>>.from(data.take(3));
         _loadingStats = false;
       });

@@ -140,9 +140,9 @@ class AdminBottomNav extends StatelessWidget {
           label: 'Validación',
         ),
         NavigationDestination(
-          icon: Icon(Icons.how_to_reg_outlined),
-          selectedIcon: Icon(Icons.how_to_reg_rounded),
-          label: 'Aprobación',
+          icon: Icon(Icons.manage_accounts_outlined),
+          selectedIcon: Icon(Icons.manage_accounts_rounded),
+          label: 'Funcionarios',
         ),
         NavigationDestination(
           icon: Icon(Icons.more_horiz_rounded),

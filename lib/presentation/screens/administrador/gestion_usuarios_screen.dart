@@ -4,18 +4,19 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../config/app_config.dart';
 import '../../../core/supabase/supabase_config.dart';
 
-class AprobacionFuncionariosScreen extends StatefulWidget {
-  const AprobacionFuncionariosScreen({super.key});
+class GestionFuncionariosScreen extends StatefulWidget {
+  const GestionFuncionariosScreen({super.key});
 
   @override
-  State<AprobacionFuncionariosScreen> createState() =>
-      _AprobacionFuncionariosScreenState();
+  State<GestionFuncionariosScreen> createState() =>
+      _GestionFuncionariosScreenState();
 }
 
-class _AprobacionFuncionariosScreenState
-    extends State<AprobacionFuncionariosScreen> {
+class _GestionFuncionariosScreenState
+    extends State<GestionFuncionariosScreen> {
   final SupabaseClient _supabase = SupabaseConfig.client;
 
+  // '' = Todos
   String _filtroEstado = 'pendiente';
   String _buscarTexto = '';
   bool _cargando = true;
@@ -42,6 +43,10 @@ class _AprobacionFuncionariosScreenState
     } catch (e) {
       if (!mounted) return;
       setState(() => _cargando = false);
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('Error al cargar funcionarios: $e'),
+        backgroundColor: AppConfig.rojo,
+      ));
     }
   }
 
@@ -101,6 +106,10 @@ class _AprobacionFuncionariosScreenState
       _cargarFuncionarios();
     } catch (e) {
       if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('Error al rechazar: $e'),
+        backgroundColor: AppConfig.rojo,
+      ));
     }
   }
 
@@ -122,6 +131,23 @@ class _AprobacionFuncionariosScreenState
       _cargarFuncionarios();
     } catch (e) {
       if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('Error: $e'),
+        backgroundColor: AppConfig.rojo,
+      ));
+    }
+  }
+
+  Future<int> _contarReportesAsignados(int funcionarioId) async {
+    try {
+      final response = await _supabase
+          .from('denuncias')
+          .select('id')
+          .eq('funcionario_id', funcionarioId)
+          .eq('estado', 'en_revision');
+      return (response as List).length;
+    } catch (_) {
+      return 0;
     }
   }
 
@@ -134,126 +160,198 @@ class _AprobacionFuncionariosScreenState
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
       builder: (ctx) {
-        return Container(
-          margin: const EdgeInsets.all(12),
-          padding: const EdgeInsets.all(22),
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(
-              top: Radius.circular(28),
-              bottom: Radius.circular(18),
-            ),
-          ),
-          child: SafeArea(
-            top: false,
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Center(
-                    child: Container(
-                      width: 46, height: 5,
-                      margin: const EdgeInsets.only(bottom: 18),
-                      decoration: BoxDecoration(
-                        color: AppConfig.grisMedio,
-                        borderRadius: BorderRadius.circular(999),
-                      ),
-                    ),
+        return StatefulBuilder(
+          builder: (ctx, setModalState) {
+            int? reportesAsignados;
+
+            // Cargar reportes asignados
+            Future.microtask(() async {
+              final count = await _contarReportesAsignados(func['id'] as int);
+              if (ctx.mounted) setModalState(() => reportesAsignados = count);
+            });
+
+            return Padding(
+              padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
+              child: Container(
+                margin: const EdgeInsets.all(12),
+                padding: const EdgeInsets.all(22),
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.vertical(
+                    top: Radius.circular(28),
+                    bottom: Radius.circular(18),
                   ),
-                  Row(
-                    children: [
-                      CircleAvatar(
-                        radius: 30,
-                        backgroundColor: _estadoColor(estado).withOpacity(0.12),
-                        child: Text(
-                          (func['nombre']?.toString() ?? 'F')[0].toUpperCase(),
-                          style: TextStyle(
-                            color: _estadoColor(estado),
-                            fontWeight: FontWeight.w900, fontSize: 22,
+                ),
+                child: SafeArea(
+                  top: false,
+                  child: SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Center(
+                          child: Container(
+                            width: 46, height: 5,
+                            margin: const EdgeInsets.only(bottom: 18),
+                            decoration: BoxDecoration(
+                              color: AppConfig.grisMedio,
+                              borderRadius: BorderRadius.circular(999),
+                            ),
                           ),
                         ),
-                      ),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                        Row(
                           children: [
-                            Text(func['nombre'] ?? '—', style: const TextStyle(
-                              fontSize: 20, fontWeight: FontWeight.w900, color: AppConfig.azulOscuro,
-                            )),
-                            const SizedBox(height: 4),
-                            Text(func['correo'] ?? '—',
-                              style: TextStyle(color: AppConfig.grisOscuro, fontSize: 13)),
+                            CircleAvatar(
+                              radius: 30,
+                              backgroundColor: _estadoColor(estado).withOpacity(0.12),
+                              child: Text(
+                                (func['nombre']?.toString() ?? 'F')[0].toUpperCase(),
+                                style: TextStyle(
+                                  color: _estadoColor(estado),
+                                  fontWeight: FontWeight.w900, fontSize: 22,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 14),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(func['nombre'] ?? '—', style: const TextStyle(
+                                    fontSize: 20, fontWeight: FontWeight.w900, color: AppConfig.azulOscuro,
+                                  )),
+                                  const SizedBox(height: 4),
+                                  Text(func['correo'] ?? '—',
+                                    style: TextStyle(color: AppConfig.grisOscuro, fontSize: 13)),
+                                ],
+                              ),
+                            ),
                           ],
                         ),
-                      ),
-                    ],
-                  ),
-                  const Divider(height: 30),
-                  _buildInfoRow('Cargo', func['cargo'] ?? '—'),
-                  _buildInfoRow('Departamento', func['departamento'] ?? '—'),
-                  _buildInfoRow('Estado', _estadoText(estado)),
-                  _buildInfoRow('Activo', activo ? 'Sí' : 'No'),
-                  const SizedBox(height: 20),
+                        const Divider(height: 30),
+                        _buildInfoRow('Cargo', func['cargo'] ?? '—'),
+                        _buildInfoRow('Departamento', func['departamento'] ?? '—'),
+                        _buildInfoRow('Estado', _estadoText(estado)),
+                        _buildInfoRow('Activo', activo ? 'Sí' : 'No'),
+                        _buildInfoRow(
+                          'Fecha registro',
+                          _formatFecha(func['creado_en']),
+                        ),
+                        // Reportes asignados actualmente
+                        const SizedBox(height: 4),
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: AppConfig.azulClaro.withOpacity(0.08),
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.assignment_rounded, color: AppConfig.azulClaro, size: 20),
+                              const SizedBox(width: 10),
+                              Text(
+                                reportesAsignados == null
+                                    ? 'Cargando reportes asignados...'
+                                    : 'Reportes en revisión actualmente: $reportesAsignados',
+                                style: const TextStyle(
+                                  fontSize: 13, fontWeight: FontWeight.w700, color: AppConfig.azulClaro,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 20),
 
-                  if (estado == 'pendiente') ...[
-                    LayoutBuilder(builder: (context, constraints) {
-                      final isNarrow = constraints.maxWidth < 430;
-                      final aprobarBtn = ElevatedButton.icon(
-                        onPressed: () { Navigator.pop(ctx); _aprobar(func); },
-                        icon: const Icon(Icons.check_rounded),
-                        label: const Text('Aprobar'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppConfig.verde,
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                        ),
-                      );
-                      final rechazarBtn = ElevatedButton.icon(
-                        onPressed: () { Navigator.pop(ctx); _rechazar(func); },
-                        icon: const Icon(Icons.close_rounded),
-                        label: const Text('Rechazar'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppConfig.rojo,
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                        ),
-                      );
-                      if (isNarrow) {
-                        return Column(children: [
-                          SizedBox(width: double.infinity, child: aprobarBtn),
-                          const SizedBox(height: 12),
-                          SizedBox(width: double.infinity, child: rechazarBtn),
-                        ]);
-                      }
-                      return Row(children: [
-                        Expanded(child: aprobarBtn),
-                        const SizedBox(width: 12),
-                        Expanded(child: rechazarBtn),
-                      ]);
-                    }),
-                  ] else if (estado == 'aprobado') ...[
-                    SizedBox(
-                      width: double.infinity,
-                      height: 48,
-                      child: ElevatedButton.icon(
-                        onPressed: () { Navigator.pop(ctx); _toggleActivo(func); },
-                        icon: Icon(activo ? Icons.block_rounded : Icons.check_circle_rounded),
-                        label: Text(activo ? 'Desactivar' : 'Activar'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: activo ? AppConfig.naranja : AppConfig.verde,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                        ),
-                      ),
+                        if (estado == 'pendiente') ...[
+                          LayoutBuilder(builder: (context, constraints) {
+                            final isNarrow = constraints.maxWidth < 430;
+                            final aprobarBtn = ElevatedButton.icon(
+                              onPressed: () { Navigator.pop(ctx); _aprobar(func); },
+                              icon: const Icon(Icons.check_rounded),
+                              label: const Text('Aprobar'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppConfig.verde,
+                                padding: const EdgeInsets.symmetric(vertical: 14),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                              ),
+                            );
+                            final rechazarBtn = ElevatedButton.icon(
+                              onPressed: () { Navigator.pop(ctx); _rechazar(func); },
+                              icon: const Icon(Icons.close_rounded),
+                              label: const Text('Rechazar'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppConfig.rojo,
+                                padding: const EdgeInsets.symmetric(vertical: 14),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                              ),
+                            );
+                            if (isNarrow) {
+                              return Column(children: [
+                                SizedBox(width: double.infinity, child: aprobarBtn),
+                                const SizedBox(height: 10),
+                                SizedBox(width: double.infinity, child: rechazarBtn),
+                              ]);
+                            }
+                            return Row(children: [
+                              Expanded(child: aprobarBtn),
+                              const SizedBox(width: 12),
+                              Expanded(child: rechazarBtn),
+                            ]);
+                          }),
+                        ] else if (estado == 'aprobado') ...[
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton.icon(
+                              onPressed: () { Navigator.pop(ctx); _toggleActivo(func); },
+                              icon: Icon(activo ? Icons.block_rounded : Icons.check_circle_rounded),
+                              label: Text(activo ? 'Desactivar funcionario' : 'Activar funcionario'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: activo ? AppConfig.naranja : AppConfig.verde,
+                                padding: const EdgeInsets.symmetric(vertical: 14),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
-                  ],
-                ],
+                  ),
+                ),
               ),
-            ),
-          ),
+            );
+          },
         );
       },
+    );
+  }
+
+  String _formatFecha(dynamic fecha) {
+    if (fecha == null) return '—';
+    try {
+      final dt = DateTime.parse(fecha.toString()).toLocal();
+      return '${dt.day.toString().padLeft(2,'0')}/${dt.month.toString().padLeft(2,'0')}/${dt.year}';
+    } catch (_) {
+      return fecha.toString();
+    }
+  }
+
+  Widget _buildInfoRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 130,
+            child: Text(label,
+              style: TextStyle(fontSize: 13, color: AppConfig.grisOscuro, fontWeight: FontWeight.w700)),
+          ),
+          Expanded(
+            child: Text(value,
+              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+          ),
+        ],
+      ),
     );
   }
 
@@ -268,28 +366,11 @@ class _AprobacionFuncionariosScreenState
 
   String _estadoText(String estado) {
     switch (estado) {
-      case 'pendiente': return 'Pendiente aprobación';
+      case 'pendiente': return 'Pendiente';
       case 'aprobado': return 'Aprobado';
       case 'rechazado': return 'Rechazado';
       default: return estado;
     }
-  }
-
-  Widget _buildInfoRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 7),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(width: 112, child: Text('$label:', style: const TextStyle(
-            fontWeight: FontWeight.w800, color: Colors.black87,
-          ))),
-          Expanded(child: Text(value, style: TextStyle(
-            color: AppConfig.grisOscuro, height: 1.35,
-          ))),
-        ],
-      ),
-    );
   }
 
   @override
@@ -301,88 +382,70 @@ class _AprobacionFuncionariosScreenState
       child: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 1180),
-          child: Padding(
-            padding: EdgeInsets.all(isMobile ? 16 : 28),
-            child: isMobile ? _buildMobileLayout() : _buildWebLayout(),
+          child: Column(
+            children: [
+              Padding(
+                padding: EdgeInsets.fromLTRB(isMobile ? 16 : 28, isMobile ? 16 : 28, isMobile ? 16 : 28, 0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildHero(isMobile: isMobile),
+                    SizedBox(height: isMobile ? 16 : 20),
+                    _buildResumen(),
+                    SizedBox(height: isMobile ? 16 : 20),
+                    _buildFiltros(isMobile),
+                    SizedBox(height: isMobile ? 12 : 16),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: Padding(
+                  padding: EdgeInsets.fromLTRB(isMobile ? 16 : 28, 0, isMobile ? 16 : 28, isMobile ? 16 : 28),
+                  child: _buildLista(),
+                ),
+              ),
+            ],
           ),
         ),
       ),
-    );
-  }
-
-  Widget _buildMobileLayout() {
-    return Column(
-      children: [
-        _buildHero(isMobile: true),
-        const SizedBox(height: 16),
-        _buildFilters(),
-        const SizedBox(height: 12),
-        Expanded(child: _buildLista()),
-      ],
-    );
-  }
-
-  Widget _buildWebLayout() {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Expanded(flex: 4, child: Column(children: [
-          _buildHero(isMobile: false),
-          const SizedBox(height: 20),
-          _buildResumenCard(),
-        ])),
-        const SizedBox(width: 24),
-        Expanded(flex: 6, child: Column(children: [
-          _buildFilters(),
-          const SizedBox(height: 14),
-          Expanded(child: _buildLista()),
-        ])),
-      ],
     );
   }
 
   Widget _buildHero({required bool isMobile}) {
     return Container(
       width: double.infinity,
-      padding: EdgeInsets.all(isMobile ? 22 : 30),
+      padding: EdgeInsets.all(isMobile ? 22 : 28),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           colors: [AppConfig.azulOscuro, AppConfig.azulClaro],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(isMobile ? 24 : 30),
+        borderRadius: BorderRadius.circular(isMobile ? 22 : 28),
         boxShadow: [
-          BoxShadow(color: AppConfig.azulOscuro.withOpacity(0.18), blurRadius: 22, offset: const Offset(0, 12)),
+          BoxShadow(color: AppConfig.azulClaro.withOpacity(0.18), blurRadius: 20, offset: const Offset(0, 10)),
         ],
       ),
       child: Stack(
         children: [
           Positioned(
-            right: -14, bottom: -24,
-            child: Icon(Icons.how_to_reg_rounded,
-              size: isMobile ? 90 : 130, color: Colors.white.withOpacity(0.08)),
+            right: -10, bottom: -20,
+            child: Icon(Icons.manage_accounts_rounded,
+              size: isMobile ? 80 : 110, color: Colors.white.withOpacity(0.08)),
           ),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _HeroBadge(icon: Icons.manage_accounts_rounded, text: 'Aprobación de funcionarios'),
-              const SizedBox(height: 18),
-              Text(
-                'Aprobación de funcionarios',
+              const _HeroBadge(icon: Icons.manage_accounts_rounded, text: 'Gestión de Funcionarios'),
+              const SizedBox(height: 14),
+              Text('Gestión de Funcionarios',
                 style: TextStyle(
-                  fontSize: isMobile ? 26 : 36, height: 1.08,
-                  fontWeight: FontWeight.w900, color: Colors.white, letterSpacing: -0.6,
-                ),
-              ),
-              const SizedBox(height: 10),
-              Text(
-                'Valida registros institucionales, aprueba o rechaza accesos al sistema.',
-                style: TextStyle(
-                  fontSize: isMobile ? 13.5 : 15.5, height: 1.4,
-                  color: Colors.white.withOpacity(0.84),
-                ),
-              ),
+                  fontSize: isMobile ? 22 : 30, fontWeight: FontWeight.w900,
+                  color: Colors.white, letterSpacing: -0.5,
+                )),
+              const SizedBox(height: 8),
+              Text('Aprueba, rechaza o gestiona el estado de los funcionarios del sistema.',
+                style: TextStyle(fontSize: isMobile ? 13 : 14.5, color: Colors.white.withOpacity(0.84))),
             ],
           ),
         ],
@@ -390,72 +453,78 @@ class _AprobacionFuncionariosScreenState
     );
   }
 
-  Widget _buildResumenCard() {
+  Widget _buildResumen() {
     final pendientes = _funcionarios.where((f) => f['estado'] == 'pendiente').length;
     final aprobados = _funcionarios.where((f) => f['estado'] == 'aprobado').length;
     final rechazados = _funcionarios.where((f) => f['estado'] == 'rechazado').length;
 
-    return _SoftCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const _CardHeading(icon: Icons.insights_rounded, title: 'Resumen', subtitle: 'Estado de funcionarios.'),
-          const SizedBox(height: 18),
-          _SummaryRow(label: 'Pendientes', value: '$pendientes', color: AppConfig.naranja),
-          const SizedBox(height: 10),
-          _SummaryRow(label: 'Aprobados', value: '$aprobados', color: AppConfig.verde),
-          const SizedBox(height: 10),
-          _SummaryRow(label: 'Rechazados', value: '$rechazados', color: AppConfig.rojo),
-        ],
-      ),
+    return Row(
+      children: [
+        Expanded(child: _SummaryRow(label: 'Pendientes', value: '$pendientes', color: AppConfig.naranja)),
+        const SizedBox(width: 12),
+        Expanded(child: _SummaryRow(label: 'Aprobados', value: '$aprobados', color: AppConfig.verde)),
+        const SizedBox(width: 12),
+        Expanded(child: _SummaryRow(label: 'Rechazados', value: '$rechazados', color: AppConfig.rojo)),
+      ],
     );
   }
 
-  Widget _buildFilters() {
-    return _SoftCard(
-      child: Column(
-        children: [
-          Row(children: const [
-            Icon(Icons.tune_rounded, color: AppConfig.azulOscuro),
-            SizedBox(width: 8),
-            Text('Filtros', style: TextStyle(
-              fontSize: 16, fontWeight: FontWeight.w900, color: AppConfig.azulOscuro,
-            )),
-          ]),
-          const SizedBox(height: 16),
-          DropdownButtonFormField<String>(
-            value: _filtroEstado.isEmpty ? null : _filtroEstado,
-            hint: const Text('Estado'),
-            isExpanded: true,
-            items: const [
-              DropdownMenuItem(value: '', child: Text('Todos')),
-              DropdownMenuItem(value: 'pendiente', child: Text('Pendientes')),
-              DropdownMenuItem(value: 'aprobado', child: Text('Aprobados')),
-              DropdownMenuItem(value: 'rechazado', child: Text('Rechazados')),
-            ],
-            onChanged: (v) => setState(() => _filtroEstado = v ?? ''),
-            decoration: InputDecoration(
-              filled: true, fillColor: const Color(0xFFF8FAFC),
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
+  Widget _buildFiltros(bool isMobile) {
+    final filtros = [
+      {'label': 'Todos', 'value': ''},
+      {'label': 'Pendientes', 'value': 'pendiente'},
+      {'label': 'Aprobados', 'value': 'aprobado'},
+      {'label': 'Rechazados', 'value': 'rechazado'},
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        TextField(
+          onChanged: (v) => setState(() => _buscarTexto = v),
+          decoration: InputDecoration(
+            hintText: 'Buscar por nombre, correo o cargo...',
+            prefixIcon: const Icon(Icons.search_rounded),
+            filled: true,
+            fillColor: Colors.white,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(16),
+              borderSide: BorderSide(color: AppConfig.grisMedio),
             ),
+            contentPadding: const EdgeInsets.symmetric(vertical: 14),
           ),
-          const SizedBox(height: 12),
-          TextField(
-            decoration: InputDecoration(
-              hintText: 'Buscar por nombre, correo, cargo...',
-              prefixIcon: const Icon(Icons.search_rounded),
-              filled: true, fillColor: const Color(0xFFF8FAFC),
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
-            ),
-            onChanged: (v) => setState(() => _buscarTexto = v),
+        ),
+        const SizedBox(height: 12),
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: filtros.map((f) {
+              final selected = _filtroEstado == f['value'];
+              return Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: FilterChip(
+                  label: Text(f['label']!),
+                  selected: selected,
+                  onSelected: (_) => setState(() => _filtroEstado = f['value']!),
+                  selectedColor: AppConfig.azulClaro.withOpacity(0.15),
+                  checkmarkColor: AppConfig.azulClaro,
+                  labelStyle: TextStyle(
+                    color: selected ? AppConfig.azulClaro : AppConfig.grisOscuro,
+                    fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
+                  ),
+                ),
+              );
+            }).toList(),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
   Widget _buildLista() {
-    if (_cargando) return const Center(child: CircularProgressIndicator());
+    if (_cargando) {
+      return const Center(child: CircularProgressIndicator());
+    }
 
     if (_filtrados.isEmpty) {
       return _SoftCard(
@@ -465,7 +534,7 @@ class _AprobacionFuncionariosScreenState
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.how_to_reg_rounded, size: 54, color: AppConfig.azulClaro),
+                const Icon(Icons.manage_accounts_rounded, size: 54, color: AppConfig.azulClaro),
                 const SizedBox(height: 12),
                 const Text('Sin resultados', style: TextStyle(
                   fontSize: 19, fontWeight: FontWeight.w900, color: AppConfig.azulOscuro,
@@ -583,10 +652,12 @@ class _SummaryRow extends StatelessWidget {
       decoration: BoxDecoration(
         color: color.withOpacity(0.08), borderRadius: BorderRadius.circular(16),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(child: Text(label, style: const TextStyle(fontWeight: FontWeight.w800))),
-          Text(value, style: TextStyle(color: color, fontSize: 18, fontWeight: FontWeight.w900)),
+          Text(value, style: TextStyle(color: color, fontSize: 20, fontWeight: FontWeight.w900)),
+          const SizedBox(height: 2),
+          Text(label, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
         ],
       ),
     );
@@ -611,41 +682,6 @@ class _SoftCard extends StatelessWidget {
         ],
       ),
       child: child,
-    );
-  }
-}
-
-class _CardHeading extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  const _CardHeading({required this.icon, required this.title, required this.subtitle});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Container(
-          height: 46, width: 46,
-          decoration: BoxDecoration(
-            color: AppConfig.azulClaro.withOpacity(0.1), borderRadius: BorderRadius.circular(15),
-          ),
-          child: Icon(icon, color: AppConfig.azulClaro),
-        ),
-        const SizedBox(width: 13),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(title, style: const TextStyle(
-                fontSize: 18, fontWeight: FontWeight.w900, color: AppConfig.azulOscuro,
-              )),
-              const SizedBox(height: 3),
-              Text(subtitle, style: TextStyle(fontSize: 12.5, color: AppConfig.grisOscuro)),
-            ],
-          ),
-        ),
-      ],
     );
   }
 }
