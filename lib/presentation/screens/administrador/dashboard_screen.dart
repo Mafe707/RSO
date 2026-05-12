@@ -9,6 +9,7 @@ import '../../../services/auth_service.dart';
 import 'admin_drawer.dart';
 import 'admin_bottom_nav.dart';
 
+import 'login_screen.dart';
 import 'gestion_reportes_screen.dart';
 import 'gestion_usuarios_screen.dart';
 import 'estadisticas_screen.dart';
@@ -34,35 +35,66 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
   String _getTitle() {
     switch (_selectedIndex) {
-      case 0: return 'Supervisión Administrativa';
-      case 1: return 'Validación de Reportes';
-      case 2: return 'Gestión de Funcionarios';
-      case 3: return 'Estadísticas';
-      case 4: return 'Configuración';
-      default: return 'Supervisión Administrativa';
+      case 0:
+        return 'Supervisión Administrativa';
+      case 1:
+        return 'Validación de Reportes';
+      case 2:
+        return 'Gestión de Funcionarios';
+      case 3:
+        return 'Estadísticas';
+      case 4:
+        return 'Configuración';
+      default:
+        return 'Supervisión Administrativa';
     }
   }
 
   Widget _getScreen() {
     switch (_selectedIndex) {
-      case 0: return AdminDashboardContent(adminData: widget.adminData);
-      case 1: return const ValidacionReportesScreen();
-      case 2: return const GestionFuncionariosScreen();
-      case 3: return const EstadisticasScreen();
-      case 4: return const ConfiguracionScreen();
-      default: return AdminDashboardContent(adminData: widget.adminData);
+      case 0:
+        return AdminDashboardContent(
+          adminData: widget.adminData,
+          onNavigate: _selectIndex,
+        );
+      case 1:
+        return const ValidacionReportesScreen();
+      case 2:
+        return const GestionFuncionariosScreen();
+      case 3:
+        return const EstadisticasScreen();
+      case 4:
+        return const ConfiguracionScreen();
+      default:
+        return AdminDashboardContent(
+          adminData: widget.adminData,
+          onNavigate: _selectIndex,
+        );
     }
   }
 
   Future<void> _logout() async {
-    final adminAuthService = Provider.of<AdminAuthService>(context, listen: false);
+    final adminAuthService =
+        Provider.of<AdminAuthService>(context, listen: false);
+
     await adminAuthService.logoutAdmin();
-    if (mounted) {
-      Navigator.popUntil(context, (route) => route.isFirst);
-    }
+
+    if (!mounted) return;
+
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(
+        builder: (_) => const AdminLoginScreen(),
+      ),
+      (route) => false,
+    );
   }
 
   void _selectIndex(int index) => setState(() => _selectedIndex = index);
+
+  void _refreshCurrentScreen() {
+    if (_selectedIndex == 4) return;
+    setState(() {});
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -71,11 +103,20 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FB),
       appBar: AppBar(
-        title: Text(_getTitle(), style: const TextStyle(fontWeight: FontWeight.w800)),
+        title: Text(
+          _getTitle(),
+          style: const TextStyle(fontWeight: FontWeight.w800),
+        ),
         centerTitle: isMobile,
         backgroundColor: AppConfig.azulOscuro,
         elevation: 0,
         actions: [
+          if (_selectedIndex != 4)
+            IconButton(
+              icon: const Icon(Icons.refresh_rounded, color: Colors.white),
+              tooltip: 'Actualizar',
+              onPressed: _refreshCurrentScreen,
+            ),
           IconButton(
             icon: const Icon(Icons.logout_rounded, color: Colors.white),
             tooltip: 'Cerrar sesión',
@@ -95,6 +136,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         currentIndex: _selectedIndex,
         onSelect: _selectIndex,
         onLogout: _logout,
+        onRefresh: _refreshCurrentScreen,
       ),
       body: _getScreen(),
     );
@@ -103,8 +145,13 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
 class AdminDashboardContent extends StatefulWidget {
   final Map<String, dynamic> adminData;
+  final ValueChanged<int>? onNavigate;
 
-  const AdminDashboardContent({super.key, required this.adminData});
+  const AdminDashboardContent({
+    super.key,
+    required this.adminData,
+    this.onNavigate,
+  });
 
   @override
   State<AdminDashboardContent> createState() => _AdminDashboardContentState();
@@ -132,13 +179,15 @@ class _AdminDashboardContentState extends State<AdminDashboardContent> {
       final authService = Provider.of<AuthService>(context, listen: false);
       final pendientes = await authService.obtenerFuncionariosPendientesCount();
 
-      // Últimos 5 reportes publicados
       final publicados = todasDenuncias
           .where((d) => d['estado'] == 'resuelto_publicado')
           .toList();
+
       publicados.sort((a, b) {
-        final fa = DateTime.tryParse(a['actualizado_en']?.toString() ?? '') ?? DateTime(2000);
-        final fb = DateTime.tryParse(b['actualizado_en']?.toString() ?? '') ?? DateTime(2000);
+        final fa = DateTime.tryParse(a['actualizado_en']?.toString() ?? '') ??
+            DateTime(2000);
+        final fb = DateTime.tryParse(b['actualizado_en']?.toString() ?? '') ??
+            DateTime(2000);
         return fb.compareTo(fa);
       });
 
@@ -166,7 +215,7 @@ class _AdminDashboardContentState extends State<AdminDashboardContent> {
     if (fecha == null) return '—';
     try {
       final dt = DateTime.parse(fecha.toString()).toLocal();
-      return '${dt.day.toString().padLeft(2,'0')}/${dt.month.toString().padLeft(2,'0')}/${dt.year}';
+      return '${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}/${dt.year}';
     } catch (_) {
       return fecha.toString();
     }
@@ -188,21 +237,34 @@ class _AdminDashboardContentState extends State<AdminDashboardContent> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _buildHero(isMobile: isMobile, adminName: adminName, adminEmail: adminEmail),
+                _buildHero(
+                  isMobile: isMobile,
+                  adminName: adminName,
+                  adminEmail: adminEmail,
+                ),
                 SizedBox(height: isMobile ? 22 : 28),
-                _SectionHeader(
+                const _SectionHeader(
                   title: 'KPIs de supervisión',
                   subtitle: 'Elementos que requieren tu atención.',
                 ),
                 const SizedBox(height: 16),
                 _buildKPIs(isMobile),
                 SizedBox(height: isMobile ? 24 : 30),
+                const _SectionHeader(
+                  title: 'Accesos directos',
+                  subtitle: 'Navega rápidamente a cualquier sección.',
+                ),
+                const SizedBox(height: 16),
+                _buildAccesosDirectos(isMobile),
+                SizedBox(height: isMobile ? 24 : 30),
                 if (isMobile)
-                  Column(children: [
-                    _buildAlertasCard(),
-                    const SizedBox(height: 18),
-                    _buildActividadRecienteCard(),
-                  ])
+                  Column(
+                    children: [
+                      _buildAlertasCard(),
+                      const SizedBox(height: 18),
+                      _buildActividadRecienteCard(),
+                    ],
+                  )
                 else
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -247,7 +309,7 @@ class _AdminDashboardContentState extends State<AdminDashboardContent> {
         children: [
           Positioned(
             right: -18,
-            bottom: -24,
+            bottom: -8,
             child: Icon(
               Icons.admin_panel_settings_rounded,
               size: isMobile ? 105 : 150,
@@ -257,10 +319,13 @@ class _AdminDashboardContentState extends State<AdminDashboardContent> {
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const _HeroBadge(icon: Icons.security_rounded, text: 'Supervisor Administrativo'),
+              const _HeroBadge(
+                icon: Icons.security_rounded,
+                text: 'Supervisor Administrativo',
+              ),
               const SizedBox(height: 18),
               Text(
-                'Bienvenido, $adminName',
+                'Bienvenido, $adminName 👋',
                 style: TextStyle(
                   fontSize: isMobile ? 27 : 38,
                   height: 1.08,
@@ -272,16 +337,28 @@ class _AdminDashboardContentState extends State<AdminDashboardContent> {
               const SizedBox(height: 10),
               Text(
                 adminEmail,
-                style: TextStyle(fontSize: isMobile ? 13 : 15, color: Colors.white.withOpacity(0.82)),
+                style: TextStyle(
+                  fontSize: isMobile ? 13 : 15,
+                  color: Colors.white.withOpacity(0.82),
+                ),
               ),
               const SizedBox(height: 18),
               Wrap(
                 spacing: 10,
                 runSpacing: 10,
                 children: const [
-                  _HeroChip(icon: Icons.fact_check_rounded, text: 'Validación'),
-                  _HeroChip(icon: Icons.manage_accounts_rounded, text: 'Funcionarios'),
-                  _HeroChip(icon: Icons.bar_chart_rounded, text: 'Estadísticas'),
+                  _HeroChip(
+                    icon: Icons.fact_check_rounded,
+                    text: 'Validación',
+                  ),
+                  _HeroChip(
+                    icon: Icons.manage_accounts_rounded,
+                    text: 'Funcionarios',
+                  ),
+                  _HeroChip(
+                    icon: Icons.bar_chart_rounded,
+                    text: 'Estadísticas',
+                  ),
                 ],
               ),
             ],
@@ -293,10 +370,12 @@ class _AdminDashboardContentState extends State<AdminDashboardContent> {
 
   Widget _buildKPIs(bool isMobile) {
     if (_cargando) {
-      return const Center(child: Padding(
-        padding: EdgeInsets.all(24),
-        child: CircularProgressIndicator(),
-      ));
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.all(24),
+          child: CircularProgressIndicator(),
+        ),
+      );
     }
 
     final tasa = _totalReportes > 0
@@ -331,20 +410,99 @@ class _AdminDashboardContentState extends State<AdminDashboardContent> {
     ];
 
     if (isMobile) {
-      return Column(children: [
-        cards[0], const SizedBox(height: 12),
-        cards[1], const SizedBox(height: 12),
-        cards[2], const SizedBox(height: 12),
-        cards[3],
-      ]);
+      return Column(
+        children: [
+          cards[0],
+          const SizedBox(height: 12),
+          cards[1],
+          const SizedBox(height: 12),
+          cards[2],
+          const SizedBox(height: 12),
+          cards[3],
+        ],
+      );
     }
 
-    return Row(children: [
-      Expanded(child: cards[0]), const SizedBox(width: 16),
-      Expanded(child: cards[1]), const SizedBox(width: 16),
-      Expanded(child: cards[2]), const SizedBox(width: 16),
-      Expanded(child: cards[3]),
-    ]);
+    return Row(
+      children: [
+        Expanded(child: cards[0]),
+        const SizedBox(width: 16),
+        Expanded(child: cards[1]),
+        const SizedBox(width: 16),
+        Expanded(child: cards[2]),
+        const SizedBox(width: 16),
+        Expanded(child: cards[3]),
+      ],
+    );
+  }
+
+  Widget _buildAccesosDirectos(bool isMobile) {
+    final accesos = [
+      _AccesoDirectoData(
+        icon: Icons.fact_check_rounded,
+        title: 'Validación de Reportes',
+        subtitle: 'Aprueba o devuelve reportes',
+        color: AppConfig.rojo,
+        index: 1,
+        badge: _reportesPendientesValidacion > 0
+            ? '$_reportesPendientesValidacion'
+            : null,
+      ),
+      _AccesoDirectoData(
+        icon: Icons.manage_accounts_rounded,
+        title: 'Gestión de Funcionarios',
+        subtitle: 'Aprueba registros de personal',
+        color: AppConfig.azulClaro,
+        index: 2,
+        badge: _funcionariosPendientes > 0 ? '$_funcionariosPendientes' : null,
+      ),
+      _AccesoDirectoData(
+        icon: Icons.bar_chart_rounded,
+        title: 'Estadísticas',
+        subtitle: 'Métricas y análisis del sistema',
+        color: AppConfig.verde,
+        index: 3,
+      ),
+      _AccesoDirectoData(
+        icon: Icons.settings_rounded,
+        title: 'Configuración',
+        subtitle: 'Tipos de invasión y ajustes',
+        color: AppConfig.naranja,
+        index: 4,
+      ),
+    ];
+
+    if (isMobile) {
+      return Column(
+        children: accesos
+            .map(
+              (a) => Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: _AccesoDirectoCard(
+                  data: a,
+                  onTap: () => widget.onNavigate?.call(a.index),
+                ),
+              ),
+            )
+            .toList(),
+      );
+    }
+
+    return Row(
+      children: accesos
+          .map(
+            (a) => Expanded(
+              child: Padding(
+                padding: EdgeInsets.only(right: accesos.last == a ? 0 : 14),
+                child: _AccesoDirectoCard(
+                  data: a,
+                  onTap: () => widget.onNavigate?.call(a.index),
+                ),
+              ),
+            ),
+          )
+          .toList(),
+    );
   }
 
   Widget _buildAlertasCard() {
@@ -363,19 +521,23 @@ class _AdminDashboardContentState extends State<AdminDashboardContent> {
           else ...[
             if (_funcionariosPendientes > 0)
               _AlertItem(
-                title: '$_funcionariosPendientes funcionario${_funcionariosPendientes != 1 ? 's' : ''} esperando aprobación',
+                title:
+                    '$_funcionariosPendientes funcionario${_funcionariosPendientes != 1 ? 's' : ''} esperando aprobación',
                 icon: Icons.person_add_rounded,
                 color: AppConfig.naranja,
               ),
-            if (_funcionariosPendientes > 0 && _reportesPendientesValidacion > 0)
+            if (_funcionariosPendientes > 0 &&
+                _reportesPendientesValidacion > 0)
               const SizedBox(height: 10),
             if (_reportesPendientesValidacion > 0)
               _AlertItem(
-                title: '$_reportesPendientesValidacion reporte${_reportesPendientesValidacion != 1 ? 's' : ''} pendiente${_reportesPendientesValidacion != 1 ? 's' : ''} de validación',
+                title:
+                    '$_reportesPendientesValidacion reporte${_reportesPendientesValidacion != 1 ? 's' : ''} pendiente${_reportesPendientesValidacion != 1 ? 's' : ''} de validación',
                 icon: Icons.fact_check_rounded,
                 color: AppConfig.rojo,
               ),
-            if (_funcionariosPendientes == 0 && _reportesPendientesValidacion == 0)
+            if (_funcionariosPendientes == 0 &&
+                _reportesPendientesValidacion == 0)
               _AlertItem(
                 title: 'Todo al día. Sin acciones pendientes.',
                 icon: Icons.check_circle_rounded,
@@ -418,7 +580,11 @@ class _AdminDashboardContentState extends State<AdminDashboardContent> {
                     children: [
                       CircleAvatar(
                         backgroundColor: AppConfig.verde.withOpacity(0.1),
-                        child: const Icon(Icons.check_rounded, color: AppConfig.verde, size: 18),
+                        child: const Icon(
+                          Icons.check_rounded,
+                          color: AppConfig.verde,
+                          size: 18,
+                        ),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
@@ -435,14 +601,20 @@ class _AdminDashboardContentState extends State<AdminDashboardContent> {
                             const SizedBox(height: 2),
                             Text(
                               r['categoria']?.toString() ?? '—',
-                              style: TextStyle(fontSize: 12, color: AppConfig.grisOscuro),
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: AppConfig.grisOscuro,
+                              ),
                             ),
                           ],
                         ),
                       ),
                       Text(
                         _formatFecha(r['actualizado_en']),
-                        style: TextStyle(fontSize: 11, color: AppConfig.grisOscuro),
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: AppConfig.grisOscuro,
+                        ),
                       ),
                     ],
                   ),
@@ -455,7 +627,123 @@ class _AdminDashboardContentState extends State<AdminDashboardContent> {
   }
 }
 
-// ── Widgets compartidos ────────────────────────────────────────────────────
+class _AccesoDirectoData {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final Color color;
+  final int index;
+  final String? badge;
+
+  const _AccesoDirectoData({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.color,
+    required this.index,
+    this.badge,
+  });
+}
+
+class _AccesoDirectoCard extends StatelessWidget {
+  final _AccesoDirectoData data;
+  final VoidCallback onTap;
+
+  const _AccesoDirectoCard({required this.data, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: AppConfig.grisMedio),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.04),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: data.color.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(15),
+                  ),
+                  child: Icon(data.icon, color: data.color, size: 26),
+                ),
+                if (data.badge != null)
+                  Positioned(
+                    top: -6,
+                    right: -6,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: data.color,
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: Text(
+                        data.badge!,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(width: 13),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    data.title,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w900,
+                      color: AppConfig.azulOscuro,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    data.subtitle,
+                    style: TextStyle(
+                      fontSize: 11.5,
+                      color: AppConfig.grisOscuro,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(
+              Icons.arrow_forward_ios_rounded,
+              size: 14,
+              color: AppConfig.grisOscuro,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
 
 class _SectionHeader extends StatelessWidget {
   final String title;
@@ -468,11 +756,19 @@ class _SectionHeader extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(title, style: const TextStyle(
-          fontSize: 22, fontWeight: FontWeight.w900, color: AppConfig.azulOscuro,
-        )),
+        Text(
+          title,
+          style: const TextStyle(
+            fontSize: 22,
+            fontWeight: FontWeight.w900,
+            color: AppConfig.azulOscuro,
+          ),
+        ),
         const SizedBox(height: 4),
-        Text(subtitle, style: TextStyle(fontSize: 13.5, color: AppConfig.grisOscuro)),
+        Text(
+          subtitle,
+          style: TextStyle(fontSize: 13.5, color: AppConfig.grisOscuro),
+        ),
       ],
     );
   }
@@ -485,8 +781,10 @@ class _StatCard extends StatelessWidget {
   final Color color;
 
   const _StatCard({
-    required this.title, required this.value,
-    required this.icon, required this.color,
+    required this.title,
+    required this.value,
+    required this.icon,
+    required this.color,
   });
 
   @override
@@ -495,7 +793,8 @@ class _StatCard extends StatelessWidget {
       child: Row(
         children: [
           Container(
-            width: 54, height: 54,
+            width: 54,
+            height: 54,
             decoration: BoxDecoration(
               color: color.withOpacity(0.1),
               borderRadius: BorderRadius.circular(17),
@@ -507,13 +806,23 @@ class _StatCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(value, style: TextStyle(
-                  fontSize: 25, fontWeight: FontWeight.w900, color: color,
-                )),
+                Text(
+                  value,
+                  style: TextStyle(
+                    fontSize: 25,
+                    fontWeight: FontWeight.w900,
+                    color: color,
+                  ),
+                ),
                 const SizedBox(height: 2),
-                Text(title, style: TextStyle(
-                  fontSize: 12.5, color: AppConfig.grisOscuro, fontWeight: FontWeight.w600,
-                )),
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    color: AppConfig.grisOscuro,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
               ],
             ),
           ),
@@ -528,7 +837,11 @@ class _AlertItem extends StatelessWidget {
   final IconData icon;
   final Color color;
 
-  const _AlertItem({required this.title, required this.icon, required this.color});
+  const _AlertItem({
+    required this.title,
+    required this.icon,
+    required this.color,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -546,7 +859,10 @@ class _AlertItem extends StatelessWidget {
           ),
           const SizedBox(width: 12),
           Expanded(
-            child: Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
+            child: Text(
+              title,
+              style: const TextStyle(fontWeight: FontWeight.w700),
+            ),
           ),
         ],
       ),
@@ -568,7 +884,11 @@ class _SoftCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(24),
         border: Border.all(color: AppConfig.grisMedio),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.045), blurRadius: 14, offset: const Offset(0, 8)),
+          BoxShadow(
+            color: Colors.black.withOpacity(0.045),
+            blurRadius: 14,
+            offset: const Offset(0, 8),
+          ),
         ],
       ),
       child: child,
@@ -581,14 +901,19 @@ class _CardHeading extends StatelessWidget {
   final String title;
   final String subtitle;
 
-  const _CardHeading({required this.icon, required this.title, required this.subtitle});
+  const _CardHeading({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Row(
       children: [
         Container(
-          height: 46, width: 46,
+          height: 46,
+          width: 46,
           decoration: BoxDecoration(
             color: AppConfig.rojo.withOpacity(0.09),
             borderRadius: BorderRadius.circular(15),
@@ -600,11 +925,22 @@ class _CardHeading extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(title, style: const TextStyle(
-                fontSize: 18, fontWeight: FontWeight.w900, color: AppConfig.azulOscuro,
-              )),
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w900,
+                  color: AppConfig.azulOscuro,
+                ),
+              ),
               const SizedBox(height: 3),
-              Text(subtitle, style: TextStyle(fontSize: 12.5, color: AppConfig.grisOscuro)),
+              Text(
+                subtitle,
+                style: TextStyle(
+                  fontSize: 12.5,
+                  color: AppConfig.grisOscuro,
+                ),
+              ),
             ],
           ),
         ),
@@ -632,9 +968,14 @@ class _HeroBadge extends StatelessWidget {
         children: [
           Icon(icon, size: 16, color: Colors.white),
           const SizedBox(width: 7),
-          Text(text, style: const TextStyle(
-            color: Colors.white, fontSize: 12, fontWeight: FontWeight.w800,
-          )),
+          Text(
+            text,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 12,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
         ],
       ),
     );
@@ -661,9 +1002,14 @@ class _HeroChip extends StatelessWidget {
         children: [
           Icon(icon, size: 15, color: Colors.white),
           const SizedBox(width: 6),
-          Text(text, style: const TextStyle(
-            fontSize: 11.5, color: Colors.white, fontWeight: FontWeight.w700,
-          )),
+          Text(
+            text,
+            style: const TextStyle(
+              fontSize: 11.5,
+              color: Colors.white,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
         ],
       ),
     );

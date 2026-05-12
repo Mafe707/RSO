@@ -11,6 +11,7 @@ import 'services/ciudadano_auth_service.dart';
 
 import 'presentation/screens/rol_selection_screen.dart';
 import 'presentation/screens/funcionario/funcionario_home_screen.dart';
+import 'presentation/screens/administrador/dashboard_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -25,7 +26,9 @@ class RSOApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
-        ChangeNotifierProvider<AuthService>(create: (_) => AuthService()),
+        ChangeNotifierProvider<AuthService>(
+          create: (_) => AuthService(),
+        ),
         ChangeNotifierProvider<AdminAuthService>(
           create: (_) => AdminAuthService(),
         ),
@@ -40,15 +43,41 @@ class RSOApp extends StatelessWidget {
         title: 'RSO - Ruta Sin Obstáculos',
         theme: AppConfig.lightTheme,
         debugShowCheckedModeBanner: false,
-        home: Consumer<AuthService>(
-          builder: (context, auth, _) {
-            if (auth.isLoggedIn) {
-              return const FuncionarioHomeScreen();
-            }
-            return const RolSelectionScreen();
-          },
-        ),
+        home: const _SessionRouter(),
       ),
+    );
+  }
+}
+
+class _SessionRouter extends StatelessWidget {
+  const _SessionRouter();
+
+  @override
+  Widget build(BuildContext context) {
+    return Consumer2<AuthService, AdminAuthService>(
+      builder: (context, auth, adminAuth, _) {
+        final adminChecking = adminAuth.isCheckingSession;
+
+        if (adminChecking) {
+          return const Scaffold(
+            body: Center(
+              child: CircularProgressIndicator(),
+            ),
+          );
+        }
+
+        if (adminAuth.isAdminLoggedIn && adminAuth.adminData != null) {
+          return AdminDashboardScreen(
+            adminData: adminAuth.adminData!,
+          );
+        }
+
+        if (auth.isLoggedIn) {
+          return const FuncionarioHomeScreen();
+        }
+
+        return const RolSelectionScreen();
+      },
     );
   }
 }

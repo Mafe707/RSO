@@ -9,8 +9,10 @@ import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../config/app_config.dart';
+import '../../../core/supabase/supabase_config.dart';
 import '../../../services/ciudadano_auth_service.dart';
 import '../../../services/denuncia_service.dart';
 import 'ciudadano_bottom_nav.dart';
@@ -39,24 +41,18 @@ class _ReportarScreenState extends State<ReportarScreen> {
   bool _enviando = false;
   bool _reporteEnviado = false;
   String _codigoGenerado = '';
-
   LatLng? _ubicacionMapa;
   bool _esAnonima = true;
   bool _consultandoDireccion = false;
 
-  final List<String> _categorias = [
-    'Ocupación comercial',
-    'Invasión vehicular',
-    'Venta informal',
-    'Publicidad no autorizada',
-    'Otro',
-  ];
+  List<String> _categorias = [];
+  bool _cargandoCategorias = false;
+  final SupabaseClient _supabase = SupabaseConfig.client;
 
   @override
-  void dispose() {
-    _ubicacionController.dispose();
-    _descripcionController.dispose();
-    super.dispose();
+  void initState() {
+    super.initState();
+    _cargarCategorias();
   }
 
   Future<String> _obtenerDireccionDesdeNominatim(LatLng latlng) async {
@@ -74,17 +70,15 @@ class _ReportarScreenState extends State<ReportarScreen> {
       final response = await http.get(
         uri,
         headers: {
-          'User-Agent': 'com.rso.app/1.0 (ciudadano-reportes)',
+          'User-Agent': 'com.rso.app/1.0 ciudadano-reportes',
           'Accept': 'application/json',
         },
       );
 
-      if (response.statusCode != 200) {
-        return _fallbackDireccion(latlng);
-      }
+      if (response.statusCode != 200) return _fallbackDireccion(latlng);
 
       final data = jsonDecode(response.body) as Map<String, dynamic>;
-      final address = (data['address'] as Map<String, dynamic>?) ?? {};
+      final address = data['address'] as Map<String, dynamic>? ?? {};
 
       final barrio = _firstNotEmpty([
         address['neighbourhood'],
@@ -121,26 +115,16 @@ class _ReportarScreenState extends State<ReportarScreen> {
       final partes = <String>[];
 
       if (via != null && numero != null) {
-        partes.add('$via $numero');
+        partes.add('$via #$numero');
       } else if (via != null) {
         partes.add(via);
       }
 
-      if (barrio != null) {
-        partes.add(barrio);
-      }
+      if (barrio != null) partes.add(barrio);
+      if (ciudad != null) partes.add(ciudad);
+      if (estado != null) partes.add(estado);
 
-      if (ciudad != null) {
-        partes.add(ciudad);
-      }
-
-      if (estado != null) {
-        partes.add(estado);
-      }
-
-      if (partes.isNotEmpty) {
-        return partes.join(', ');
-      }
+      if (partes.isNotEmpty) return partes.join(', ');
 
       final displayName = data['display_name']?.toString().trim();
       if (displayName != null && displayName.isNotEmpty) {
@@ -156,16 +140,13 @@ class _ReportarScreenState extends State<ReportarScreen> {
   String? _firstNotEmpty(List<dynamic> values) {
     for (final value in values) {
       final text = value?.toString().trim();
-      if (text != null && text.isNotEmpty) {
-        return text;
-      }
+      if (text != null && text.isNotEmpty) return text;
     }
     return null;
   }
 
   String _fallbackDireccion(LatLng latlng) {
-    return 'Ubicación marcada en mapa (${latlng.latitude.toStringAsFixed(6)}, '
-        '${latlng.longitude.toStringAsFixed(6)})';
+    return 'Ubicación marcada en mapa (${latlng.latitude.toStringAsFixed(6)}, ${latlng.longitude.toStringAsFixed(6)})';
   }
 
   Future<void> _tomarFoto() async {
@@ -173,6 +154,7 @@ class _ReportarScreenState extends State<ReportarScreen> {
       _showError('Máximo $_maxImagenes imágenes por reporte');
       return;
     }
+
     try {
       final picker = ImagePicker();
       final picked = await picker.pickImage(
@@ -180,11 +162,13 @@ class _ReportarScreenState extends State<ReportarScreen> {
         imageQuality: 70,
       );
       if (picked == null) return;
+
       final bytes = await picked.readAsBytes();
       if (bytes.length > _maxSizeBytes) {
         _showError('La imagen no puede superar los 5MB');
         return;
       }
+
       setState(() => _imagenesBytes.add(bytes));
     } catch (e) {
       _showError('Error al tomar foto: ${e.toString()}');
@@ -196,6 +180,7 @@ class _ReportarScreenState extends State<ReportarScreen> {
       _showError('Máximo $_maxImagenes imágenes por reporte');
       return;
     }
+
     try {
       final picker = ImagePicker();
       final picked = await picker.pickImage(
@@ -203,11 +188,13 @@ class _ReportarScreenState extends State<ReportarScreen> {
         imageQuality: 70,
       );
       if (picked == null) return;
+
       final bytes = await picked.readAsBytes();
       if (bytes.length > _maxSizeBytes) {
         _showError('La imagen no puede superar los 5MB');
         return;
       }
+
       setState(() => _imagenesBytes.add(bytes));
     } catch (e) {
       _showError('Error al seleccionar imagen: ${e.toString()}');
@@ -223,6 +210,7 @@ class _ReportarScreenState extends State<ReportarScreen> {
       _showError('Máximo $_maxImagenes imágenes por reporte');
       return;
     }
+
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
@@ -252,8 +240,10 @@ class _ReportarScreenState extends State<ReportarScreen> {
               ),
               Row(
                 children: [
-                  const Icon(Icons.add_photo_alternate_rounded,
-                      color: AppConfig.azulOscuro),
+                  const Icon(
+                    Icons.add_photo_alternate_rounded,
+                    color: AppConfig.azulOscuro,
+                  ),
                   const SizedBox(width: 10),
                   Text(
                     'Agregar evidencia (${_imagenesBytes.length}/$_maxImagenes)',
@@ -278,8 +268,10 @@ class _ReportarScreenState extends State<ReportarScreen> {
                       color: AppConfig.azulOscuro.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(14),
                     ),
-                    child: const Icon(Icons.camera_alt_rounded,
-                        color: AppConfig.azulOscuro),
+                    child: const Icon(
+                      Icons.camera_alt_rounded,
+                      color: AppConfig.azulOscuro,
+                    ),
                   ),
                   title: const Text(
                     'Tomar foto ahora',
@@ -303,8 +295,10 @@ class _ReportarScreenState extends State<ReportarScreen> {
                     color: AppConfig.azulClaro.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(14),
                   ),
-                  child: const Icon(Icons.photo_library_rounded,
-                      color: AppConfig.azulClaro),
+                  child: const Icon(
+                    Icons.photo_library_rounded,
+                    color: AppConfig.azulClaro,
+                  ),
                 ),
                 title: const Text(
                   'Seleccionar desde galería',
@@ -328,7 +322,7 @@ class _ReportarScreenState extends State<ReportarScreen> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (ctx) => _MapPickerSheet(
+      builder: (ctx) => MapPickerSheet(
         initialLocation: _ubicacionMapa ?? const LatLng(1.2136, -77.2811),
         onLocationSelected: (latlng) async {
           setState(() {
@@ -337,7 +331,6 @@ class _ReportarScreenState extends State<ReportarScreen> {
           });
 
           final direccion = await _obtenerDireccionDesdeNominatim(latlng);
-
           if (!mounted) return;
 
           setState(() {
@@ -357,13 +350,14 @@ class _ReportarScreenState extends State<ReportarScreen> {
 
   Future<void> _enviarReporte() async {
     if (!_formKey.currentState!.validate()) return;
+
     if (_categoriaSeleccionada == null) {
       _showError('Seleccione un tipo de invasión');
       return;
     }
+
     if (!_validarUbicacion()) {
-      _showError(
-          'Indique la ubicación: escríbala en texto o márcala en el mapa');
+      _showError('Indique la ubicación: escríbala en texto o márcala en el mapa');
       return;
     }
 
@@ -374,14 +368,15 @@ class _ReportarScreenState extends State<ReportarScreen> {
           Provider.of<DenunciaService>(context, listen: false);
       final ciudadanoSvc =
           Provider.of<CiudadanoAuthService>(context, listen: false);
+
       final ciudadano = ciudadanoSvc.ciudadanoData;
 
-      double? lat = _ubicacionMapa?.latitude;
-      double? lng = _ubicacionMapa?.longitude;
+      final double? lat = _ubicacionMapa?.latitude;
+      final double? lng = _ubicacionMapa?.longitude;
 
       final ubicacionTexto = _ubicacionController.text.trim().isNotEmpty
           ? _ubicacionController.text.trim()
-          : 'Marcado en mapa: ${lat!.toStringAsFixed(5)}, ${lng!.toStringAsFixed(5)}';
+          : 'Marcado en mapa (${lat!.toStringAsFixed(5)}, ${lng!.toStringAsFixed(5)})';
 
       final resultado = await denunciaService.crearDenuncia(
         ubicacion: ubicacionTexto,
@@ -391,9 +386,7 @@ class _ReportarScreenState extends State<ReportarScreen> {
         descripcion: _descripcionController.text.trim(),
         imagenesBytes: _imagenesBytes.isEmpty ? null : _imagenesBytes,
         esAnonima: _esAnonima,
-        ciudadanoNombre: _esAnonima
-            ? null
-            : '${ciudadano?['nombre']} ${ciudadano?['apellido']}',
+        ciudadanoNombre: _esAnonima ? null : ciudadano?['nombre'],
         ciudadanoApellido: _esAnonima ? null : ciudadano?['apellido'],
         ciudadanoCorreo: _esAnonima ? null : ciudadano?['correo'],
         ciudadanoTelefono: _esAnonima ? null : ciudadano?['telefono'],
@@ -419,6 +412,41 @@ class _ReportarScreenState extends State<ReportarScreen> {
     }
   }
 
+  Future<void> _cargarCategorias() async {
+    setState(() => _cargandoCategorias = true);
+    try {
+      final res = await _supabase
+          .from('tipos_invasion')
+          .select('nombre')
+          .eq('activo', true)
+          .order('nombre', ascending: true);
+
+      if (!mounted) return;
+
+      final lista =
+          (res as List).map((e) => e['nombre'].toString()).toList();
+
+      setState(() {
+        _categorias = lista;
+        _cargandoCategorias = false;
+        if (_categoriaSeleccionada != null &&
+            !lista.contains(_categoriaSeleccionada)) {
+          _categoriaSeleccionada = null;
+        }
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _cargandoCategorias = false);
+    }
+  }
+
+  @override
+  void dispose() {
+    _ubicacionController.dispose();
+    _descripcionController.dispose();
+    super.dispose();
+  }
+
   void _volverAlHome() {
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute(builder: (_) => const CiudadanoHomeScreen()),
@@ -429,7 +457,10 @@ class _ReportarScreenState extends State<ReportarScreen> {
   void _showError(String message) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), backgroundColor: AppConfig.rojo),
+      SnackBar(
+        content: Text(message),
+        backgroundColor: AppConfig.rojo,
+      ),
     );
   }
 
@@ -468,20 +499,29 @@ class _ReportarScreenState extends State<ReportarScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FB),
       appBar: AppBar(
-        title: const Text('Reportar Invasión'),
+        title: const Text(
+          'Reportar Invasión',
+          style: TextStyle(fontWeight: FontWeight.w700),
+        ),
         backgroundColor: AppConfig.azulOscuro,
         elevation: 0,
+        toolbarHeight: 64,
+        centerTitle: false,
+        titleSpacing: 16,
         actions: [
           IconButton(
             tooltip: 'Cerrar sesión',
             icon: const Icon(Icons.logout_rounded, color: Colors.white),
             onPressed: () async {
-              final svc = Provider.of<CiudadanoAuthService>(context, listen: false);
+              final svc =
+                  Provider.of<CiudadanoAuthService>(context, listen: false);
               await svc.logout();
               if (context.mounted) {
                 Navigator.pushAndRemoveUntil(
                   context,
-                  MaterialPageRoute(builder: (_) => const CiudadanoLoginScreen()),
+                  MaterialPageRoute(
+                    builder: (_) => const CiudadanoLoginScreen(),
+                  ),
                   (route) => false,
                 );
               }
@@ -623,15 +663,15 @@ class _ReportarScreenState extends State<ReportarScreen> {
                 spacing: 10,
                 runSpacing: 8,
                 children: const [
-                  _HeroChip(
+                  HeroChip(
                     icon: Icons.location_on_rounded,
                     text: 'Ubicación obligatoria',
                   ),
-                  _HeroChip(
+                  HeroChip(
                     icon: Icons.photo_camera_rounded,
                     text: 'Foto opcional',
                   ),
-                  _HeroChip(
+                  HeroChip(
                     icon: Icons.visibility_off_rounded,
                     text: 'Puede ser anónima',
                   ),
@@ -645,25 +685,25 @@ class _ReportarScreenState extends State<ReportarScreen> {
   }
 
   Widget _buildTipsCard() {
-    return _SoftCard(
+    return SoftCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: const [
-          _PanelHeading(
+          PanelHeading(
             icon: Icons.lightbulb_outline_rounded,
             title: 'Consejos',
             subtitle: 'Para un reporte más efectivo.',
           ),
           SizedBox(height: 16),
-          _TipItem(
+          TipItem(
             icon: Icons.location_on_rounded,
             text: 'Indica la dirección exacta o márcala en el mapa.',
           ),
-          _TipItem(
+          TipItem(
             icon: Icons.photo_rounded,
             text: 'Las fotos ayudan a verificar la invasión más rápido.',
           ),
-          _TipItem(
+          TipItem(
             icon: Icons.description_rounded,
             text: 'Describe claramente el tipo de invasión observada.',
             isLast: true,
@@ -674,45 +714,100 @@ class _ReportarScreenState extends State<ReportarScreen> {
   }
 
   Widget _buildFormCard() {
-    return _SoftCard(
+    return SoftCard(
       child: Form(
         key: _formKey,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const _FormHeader(),
+            const FormHeader(),
             const SizedBox(height: 24),
-            const _PanelHeading(
+            const PanelHeading(
               icon: Icons.category_rounded,
               title: 'Tipo de invasión',
               subtitle: 'Selecciona la categoría del reporte.',
             ),
             const SizedBox(height: 14),
-            DropdownButtonFormField<String>(
-              value: _categoriaSeleccionada,
-              decoration: InputDecoration(
-                hintText: 'Elige una categoría',
-                prefixIcon: const Icon(Icons.list_rounded),
-                filled: true,
-                fillColor: const Color(0xFFF8FAFC),
-                border: OutlineInputBorder(
+
+            if (_cargandoCategorias)
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF8FAFC),
                   borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: AppConfig.grisMedio),
                 ),
+                child: const Row(
+                  children: [
+                    SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                    SizedBox(width: 12),
+                    Text('Cargando tipos de invasión...'),
+                  ],
+                ),
+              )
+            else if (_categorias.isEmpty)
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: AppConfig.naranja.withOpacity(0.07),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: AppConfig.naranja.withOpacity(0.3),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.warning_amber_rounded,
+                      color: AppConfig.naranja,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'No hay tipos de invasión disponibles. Contacta al administrador.',
+                        style: TextStyle(
+                          color: AppConfig.naranja,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            else
+              DropdownButtonFormField<String>(
+                value: _categoriaSeleccionada,
+                decoration: InputDecoration(
+                  hintText: 'Elige el tipo de invasión',
+                  prefixIcon: const Icon(Icons.report_problem_rounded),
+                  filled: true,
+                  fillColor: const Color(0xFFF8FAFC),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                ),
+                items: _categorias
+                    .map((c) => DropdownMenuItem(value: c, child: Text(c)))
+                    .toList(),
+                onChanged: (v) => setState(() => _categoriaSeleccionada = v),
+                validator: (v) =>
+                    v == null ? 'Seleccione un tipo de invasión' : null,
               ),
-              items: _categorias
-                  .map((c) => DropdownMenuItem(value: c, child: Text(c)))
-                  .toList(),
-              onChanged: (v) => setState(() => _categoriaSeleccionada = v),
-              validator: (v) =>
-                  v == null ? 'Seleccione una categoría' : null,
-            ),
+
             const SizedBox(height: 22),
-            const _PanelHeading(
+            const PanelHeading(
               icon: Icons.location_on_rounded,
-              title: 'Ubicación *',
+              title: 'Ubicación',
               subtitle: 'Escribe la dirección o márcala en el mapa interactivo.',
             ),
             const SizedBox(height: 14),
+
             if (_ubicacionMapa != null)
               Container(
                 margin: const EdgeInsets.only(bottom: 12),
@@ -726,15 +821,18 @@ class _ReportarScreenState extends State<ReportarScreen> {
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.place_rounded,
-                        color: AppConfig.azulClaro, size: 20),
+                    const Icon(
+                      Icons.place_rounded,
+                      color: AppConfig.azulClaro,
+                      size: 20,
+                    ),
                     const SizedBox(width: 10),
                     Expanded(
                       child: Text(
                         _consultandoDireccion
                             ? 'Consultando dirección del punto marcado...'
-                            : 'Marcado en mapa:\n${_ubicacionMapa!.latitude.toStringAsFixed(5)}, ${_ubicacionMapa!.longitude.toStringAsFixed(5)}',
-                        style: TextStyle(
+                            : 'Marcado en mapa (${_ubicacionMapa!.latitude.toStringAsFixed(5)}, ${_ubicacionMapa!.longitude.toStringAsFixed(5)})',
+                        style: const TextStyle(
                           fontSize: 13,
                           color: AppConfig.azulClaro,
                           height: 1.3,
@@ -755,6 +853,7 @@ class _ReportarScreenState extends State<ReportarScreen> {
                   ],
                 ),
               ),
+
             TextFormField(
               controller: _ubicacionController,
               decoration: InputDecoration(
@@ -778,7 +877,9 @@ class _ReportarScreenState extends State<ReportarScreen> {
                 ),
               ),
             ),
+
             const SizedBox(height: 10),
+
             SizedBox(
               width: double.infinity,
               child: OutlinedButton.icon(
@@ -799,13 +900,15 @@ class _ReportarScreenState extends State<ReportarScreen> {
                 ),
               ),
             ),
+
             const SizedBox(height: 22),
-            const _PanelHeading(
+            const PanelHeading(
               icon: Icons.description_rounded,
-              title: 'Descripción *',
+              title: 'Descripción',
               subtitle: 'Explica qué está ocurriendo.',
             ),
             const SizedBox(height: 14),
+
             TextFormField(
               controller: _descripcionController,
               maxLines: 4,
@@ -818,17 +921,18 @@ class _ReportarScreenState extends State<ReportarScreen> {
                   borderRadius: BorderRadius.circular(16),
                 ),
               ),
-              validator: (v) => (v == null || v.trim().length < 10)
-                  ? 'Mínimo 10 caracteres'
-                  : null,
+              validator: (v) =>
+                  v == null || v.trim().length < 10 ? 'Mínimo 10 caracteres' : null,
             ),
+
             const SizedBox(height: 22),
-            const _PanelHeading(
+            const PanelHeading(
               icon: Icons.photo_library_rounded,
               title: 'Evidencia fotográfica',
               subtitle: 'Opcional. Máximo 5 fotos, 5MB cada una.',
             ),
             const SizedBox(height: 14),
+
             if (_imagenesBytes.isNotEmpty)
               SizedBox(
                 height: 100,
@@ -870,14 +974,18 @@ class _ReportarScreenState extends State<ReportarScreen> {
                   ),
                 ),
               ),
+
             if (_imagenesBytes.isNotEmpty) const SizedBox(height: 10),
+
             SizedBox(
               width: double.infinity,
               child: OutlinedButton.icon(
                 onPressed: _mostrarOpcionesImagen,
                 icon: const Icon(Icons.add_photo_alternate_rounded),
                 label: Text(
-                  '${_imagenesBytes.isEmpty ? 'Agregar' : 'Agregar más'} fotos (${_imagenesBytes.length}/$_maxImagenes)',
+                  _imagenesBytes.isEmpty
+                      ? 'Agregar foto'
+                      : 'Agregar más fotos (${_imagenesBytes.length}/$_maxImagenes)',
                 ),
                 style: OutlinedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 14),
@@ -887,13 +995,15 @@ class _ReportarScreenState extends State<ReportarScreen> {
                 ),
               ),
             ),
+
             const SizedBox(height: 22),
-            const _PanelHeading(
+            const PanelHeading(
               icon: Icons.privacy_tip_rounded,
               title: 'Privacidad del reporte',
               subtitle: 'Elige si deseas identificarte o ser anónimo.',
             ),
             const SizedBox(height: 14),
+
             Container(
               decoration: BoxDecoration(
                 color: const Color(0xFFF8FAFC),
@@ -962,7 +1072,9 @@ class _ReportarScreenState extends State<ReportarScreen> {
                 ],
               ),
             ),
+
             const SizedBox(height: 28),
+
             SizedBox(
               width: double.infinity,
               height: 52,
@@ -1028,7 +1140,7 @@ class _ReportarScreenState extends State<ReportarScreen> {
               ),
               const SizedBox(height: 12),
               Text(
-                'Tu denuncia fue registrada exitosamente. Guarda el código de seguimiento — es la única forma de consultar el estado de tu reporte.',
+                'Tu denuncia fue registrada exitosamente. Guarda el código de seguimiento: es la única forma de consultar el estado de tu reporte.',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 15,
@@ -1098,8 +1210,9 @@ class _ReportarScreenState extends State<ReportarScreen> {
                 decoration: BoxDecoration(
                   color: AppConfig.naranja.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(18),
-                  border:
-                      Border.all(color: AppConfig.naranja.withOpacity(0.3)),
+                  border: Border.all(
+                    color: AppConfig.naranja.withOpacity(0.3),
+                  ),
                 ),
                 child: const Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -1112,7 +1225,7 @@ class _ReportarScreenState extends State<ReportarScreen> {
                     SizedBox(width: 10),
                     Expanded(
                       child: Text(
-                        '⚠️ Guarda este código OBLIGATORIAMENTE. Sin él no podrás consultar ni hacer seguimiento a tu denuncia. No se puede recuperar.',
+                        'Guarda este código OBLIGATORIAMENTE. Sin él no podrás consultar ni hacer seguimiento a tu denuncia. No se puede recuperar.',
                         style: TextStyle(
                           fontSize: 13,
                           height: 1.4,
@@ -1202,20 +1315,21 @@ class _ReportarScreenState extends State<ReportarScreen> {
   }
 }
 
-class _MapPickerSheet extends StatefulWidget {
+class MapPickerSheet extends StatefulWidget {
   final LatLng initialLocation;
   final void Function(LatLng) onLocationSelected;
 
-  const _MapPickerSheet({
+  const MapPickerSheet({
+    super.key,
     required this.initialLocation,
     required this.onLocationSelected,
   });
 
   @override
-  State<_MapPickerSheet> createState() => _MapPickerSheetState();
+  State<MapPickerSheet> createState() => _MapPickerSheetState();
 }
 
-class _MapPickerSheetState extends State<_MapPickerSheet> {
+class _MapPickerSheetState extends State<MapPickerSheet> {
   LatLng? _selected;
   late final MapController _mapController;
 
@@ -1292,9 +1406,7 @@ class _MapPickerSheetState extends State<_MapPickerSheet> {
               options: MapOptions(
                 initialCenter: widget.initialLocation,
                 initialZoom: 15,
-                onTap: (tapPos, latlng) {
-                  setState(() => _selected = latlng);
-                },
+                onTap: (_, latlng) => setState(() => _selected = latlng),
               ),
               children: [
                 TileLayer(
@@ -1342,7 +1454,8 @@ class _MapPickerSheetState extends State<_MapPickerSheet> {
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(14),
                   ),
-                  textStyle: const TextStyle(fontWeight: FontWeight.w800),
+                  textStyle:
+                      const TextStyle(fontWeight: FontWeight.w800),
                 ),
               ),
             ),
@@ -1353,8 +1466,8 @@ class _MapPickerSheetState extends State<_MapPickerSheet> {
   }
 }
 
-class _FormHeader extends StatelessWidget {
-  const _FormHeader();
+class FormHeader extends StatelessWidget {
+  const FormHeader({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -1367,8 +1480,10 @@ class _FormHeader extends StatelessWidget {
             color: AppConfig.azulOscuro.withOpacity(0.08),
             borderRadius: BorderRadius.circular(16),
           ),
-          child: const Icon(Icons.assignment_rounded,
-              color: AppConfig.azulOscuro),
+          child: const Icon(
+            Icons.assignment_rounded,
+            color: AppConfig.azulOscuro,
+          ),
         ),
         const SizedBox(width: 14),
         Expanded(
@@ -1386,7 +1501,10 @@ class _FormHeader extends StatelessWidget {
               const SizedBox(height: 3),
               Text(
                 'La ubicación, tipo y descripción son obligatorios.',
-                style: TextStyle(fontSize: 13, color: AppConfig.grisOscuro),
+                style: TextStyle(
+                  fontSize: 13,
+                  color: AppConfig.grisOscuro,
+                ),
               ),
             ],
           ),
@@ -1396,9 +1514,9 @@ class _FormHeader extends StatelessWidget {
   }
 }
 
-class _SoftCard extends StatelessWidget {
+class SoftCard extends StatelessWidget {
   final Widget child;
-  const _SoftCard({required this.child});
+  const SoftCard({super.key, required this.child});
 
   @override
   Widget build(BuildContext context) {
@@ -1422,12 +1540,13 @@ class _SoftCard extends StatelessWidget {
   }
 }
 
-class _PanelHeading extends StatelessWidget {
+class PanelHeading extends StatelessWidget {
   final IconData icon;
   final String title;
   final String subtitle;
 
-  const _PanelHeading({
+  const PanelHeading({
+    super.key,
     required this.icon,
     required this.title,
     required this.subtitle,
@@ -1475,12 +1594,13 @@ class _PanelHeading extends StatelessWidget {
   }
 }
 
-class _TipItem extends StatelessWidget {
+class TipItem extends StatelessWidget {
   final IconData icon;
   final String text;
   final bool isLast;
 
-  const _TipItem({
+  const TipItem({
+    super.key,
     required this.icon,
     required this.text,
     this.isLast = false,
@@ -1513,11 +1633,12 @@ class _TipItem extends StatelessWidget {
   }
 }
 
-class _HeroChip extends StatelessWidget {
+class HeroChip extends StatelessWidget {
   final IconData icon;
   final String text;
 
-  const _HeroChip({
+  const HeroChip({
+    super.key,
     required this.icon,
     required this.text,
   });

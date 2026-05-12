@@ -5,12 +5,14 @@ class AdminBottomNav extends StatelessWidget {
   final int currentIndex;
   final ValueChanged<int> onSelect;
   final VoidCallback onLogout;
+  final VoidCallback onRefresh;
 
   const AdminBottomNav({
     super.key,
     required this.currentIndex,
     required this.onSelect,
     required this.onLogout,
+    required this.onRefresh,
   });
 
   static Widget? maybe(
@@ -18,6 +20,7 @@ class AdminBottomNav extends StatelessWidget {
     required int currentIndex,
     required ValueChanged<int> onSelect,
     required VoidCallback onLogout,
+    required VoidCallback onRefresh,
   }) {
     final isMobile = MediaQuery.of(context).size.width < 780;
     if (!isMobile) return null;
@@ -25,6 +28,7 @@ class AdminBottomNav extends StatelessWidget {
       currentIndex: currentIndex,
       onSelect: onSelect,
       onLogout: onLogout,
+      onRefresh: onRefresh,
     );
   }
 
@@ -59,7 +63,10 @@ class AdminBottomNav extends StatelessWidget {
                 ),
                 const Row(
                   children: [
-                    Icon(Icons.admin_panel_settings_rounded, color: AppConfig.azulOscuro),
+                    Icon(
+                      Icons.admin_panel_settings_rounded,
+                      color: AppConfig.azulOscuro,
+                    ),
                     SizedBox(width: 10),
                     Text(
                       'Más opciones',
@@ -91,6 +98,18 @@ class AdminBottomNav extends StatelessWidget {
                   },
                 ),
                 const Divider(height: 20),
+
+                if (currentIndex != 4)
+                  _MoreItem(
+                    icon: Icons.refresh_rounded,
+                    title: 'Actualizar',
+                    color: AppConfig.azulClaro,
+                    onTap: () {
+                      Navigator.pop(context);
+                      onRefresh();
+                    },
+                  ),
+
                 _MoreItem(
                   icon: Icons.logout_rounded,
                   title: 'Cerrar sesión',
@@ -175,11 +194,16 @@ class _MoreItem extends StatelessWidget {
     return ListTile(
       selected: selected,
       selectedTileColor: itemColor.withOpacity(0.08),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+      ),
       leading: Icon(icon, color: itemColor),
       title: Text(
         title,
-        style: TextStyle(color: itemColor, fontWeight: FontWeight.w800),
+        style: TextStyle(
+          color: itemColor,
+          fontWeight: FontWeight.w800,
+        ),
       ),
       trailing: selected
           ? Icon(Icons.check_circle_rounded, color: itemColor)

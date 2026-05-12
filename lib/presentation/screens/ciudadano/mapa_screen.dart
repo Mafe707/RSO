@@ -108,9 +108,15 @@ class _MapaScreenState extends State<MapaScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FB),
       appBar: AppBar(
-        title: const Text('Mapa de Reportes'),
+        title: const Text(
+          'Mapa de Reportes',
+          style: TextStyle(fontWeight: FontWeight.w700),
+        ),
         backgroundColor: AppConfig.azulOscuro,
         elevation: 0,
+        toolbarHeight: 64,
+        centerTitle: false,
+        titleSpacing: 16,
         actions: [
           IconButton(
             tooltip: 'Cerrar sesión',

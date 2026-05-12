@@ -16,10 +16,10 @@ class _GestionFuncionariosScreenState
     extends State<GestionFuncionariosScreen> {
   final SupabaseClient _supabase = SupabaseConfig.client;
 
-  // '' = Todos
   String _filtroEstado = 'pendiente';
   String _buscarTexto = '';
   bool _cargando = true;
+  bool _recargando = false;
   List<Map<String, dynamic>> _funcionarios = [];
 
   @override
@@ -28,8 +28,12 @@ class _GestionFuncionariosScreenState
     _cargarFuncionarios();
   }
 
-  Future<void> _cargarFuncionarios() async {
-    setState(() => _cargando = true);
+  Future<void> _cargarFuncionarios({bool silencioso = false}) async {
+    if (silencioso) {
+      setState(() => _recargando = true);
+    } else {
+      setState(() => _cargando = true);
+    }
     try {
       final response = await _supabase
           .from('funcionarios')
@@ -39,10 +43,14 @@ class _GestionFuncionariosScreenState
       setState(() {
         _funcionarios = List<Map<String, dynamic>>.from(response);
         _cargando = false;
+        _recargando = false;
       });
     } catch (e) {
       if (!mounted) return;
-      setState(() => _cargando = false);
+      setState(() {
+        _cargando = false;
+        _recargando = false;
+      });
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text('Error al cargar funcionarios: $e'),
         backgroundColor: AppConfig.rojo,
@@ -80,7 +88,7 @@ class _GestionFuncionariosScreenState
         content: Text('${func['nombre']} aprobado correctamente'),
         backgroundColor: AppConfig.verde,
       ));
-      _cargarFuncionarios();
+      _cargarFuncionarios(silencioso: true);
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -103,7 +111,7 @@ class _GestionFuncionariosScreenState
         content: Text('${func['nombre']} rechazado'),
         backgroundColor: AppConfig.rojo,
       ));
-      _cargarFuncionarios();
+      _cargarFuncionarios(silencioso: true);
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -128,7 +136,7 @@ class _GestionFuncionariosScreenState
             : '${func['nombre']} desactivado'),
         backgroundColor: nuevoActivo ? AppConfig.verde : AppConfig.naranja,
       ));
-      _cargarFuncionarios();
+      _cargarFuncionarios(silencioso: true);
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -164,7 +172,6 @@ class _GestionFuncionariosScreenState
           builder: (ctx, setModalState) {
             int? reportesAsignados;
 
-            // Cargar reportes asignados
             Future.microtask(() async {
               final count = await _contarReportesAsignados(func['id'] as int);
               if (ctx.mounted) setModalState(() => reportesAsignados = count);
@@ -237,7 +244,6 @@ class _GestionFuncionariosScreenState
                           'Fecha registro',
                           _formatFecha(func['creado_en']),
                         ),
-                        // Reportes asignados actualmente
                         const SizedBox(height: 4),
                         Container(
                           padding: const EdgeInsets.all(12),
@@ -429,14 +435,48 @@ class _GestionFuncionariosScreenState
       child: Stack(
         children: [
           Positioned(
-            right: -10, bottom: -20,
+            right: -10, 
+            bottom: -8,
             child: Icon(Icons.manage_accounts_rounded,
               size: isMobile ? 80 : 110, color: Colors.white.withOpacity(0.08)),
           ),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const _HeroBadge(icon: Icons.manage_accounts_rounded, text: 'Gestión de Funcionarios'),
+              Row(
+                children: [
+                  const Expanded(
+                    child: _HeroBadge(icon: Icons.manage_accounts_rounded, text: 'Gestión de Funcionarios'),
+                  ),
+                  // ── BOTÓN RECARGAR ──
+                  GestureDetector(
+                    onTap: _recargando ? null : () => _cargarFuncionarios(silencioso: true),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.18),
+                        borderRadius: BorderRadius.circular(999),
+                        border: Border.all(color: Colors.white.withOpacity(0.28)),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          _recargando
+                              ? const SizedBox(
+                                  width: 14, height: 14,
+                                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                )
+                              : const Icon(Icons.refresh_rounded, size: 15, color: Colors.white),
+                          const SizedBox(width: 6),
+                          const Text('Actualizar', style: TextStyle(
+                            color: Colors.white, fontSize: 12, fontWeight: FontWeight.w800,
+                          )),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
               const SizedBox(height: 14),
               Text('Gestión de Funcionarios',
                 style: TextStyle(
@@ -477,45 +517,57 @@ class _GestionFuncionariosScreenState
       {'label': 'Rechazados', 'value': 'rechazado'},
     ];
 
+    // Buscador + chips en una sola fila compacta
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        TextField(
-          onChanged: (v) => setState(() => _buscarTexto = v),
-          decoration: InputDecoration(
-            hintText: 'Buscar por nombre, correo o cargo...',
-            prefixIcon: const Icon(Icons.search_rounded),
-            filled: true,
-            fillColor: Colors.white,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(16),
-              borderSide: BorderSide(color: AppConfig.grisMedio),
-            ),
-            contentPadding: const EdgeInsets.symmetric(vertical: 14),
-          ),
-        ),
-        const SizedBox(height: 12),
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Row(
-            children: filtros.map((f) {
-              final selected = _filtroEstado == f['value'];
-              return Padding(
-                padding: const EdgeInsets.only(right: 8),
-                child: FilterChip(
-                  label: Text(f['label']!),
-                  selected: selected,
-                  onSelected: (_) => setState(() => _filtroEstado = f['value']!),
-                  selectedColor: AppConfig.azulClaro.withOpacity(0.15),
-                  checkmarkColor: AppConfig.azulClaro,
-                  labelStyle: TextStyle(
-                    color: selected ? AppConfig.azulClaro : AppConfig.grisOscuro,
-                    fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
+        Row(
+          children: [
+            Expanded(
+              child: SizedBox(
+                height: 44,
+                child: TextField(
+                  onChanged: (v) => setState(() => _buscarTexto = v),
+                  decoration: InputDecoration(
+                    hintText: 'Buscar...',
+                    prefixIcon: const Icon(Icons.search_rounded, size: 20),
+                    filled: true,
+                    fillColor: Colors.white,
+                    contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 12),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: AppConfig.grisMedio),
+                    ),
+                    isDense: true,
                   ),
                 ),
-              );
-            }).toList(),
-          ),
+              ),
+            ),
+            const SizedBox(width: 10),
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: filtros.map((f) {
+                  final selected = _filtroEstado == f['value'];
+                  return Padding(
+                    padding: const EdgeInsets.only(right: 6),
+                    child: FilterChip(
+                      label: Text(f['label']!, style: const TextStyle(fontSize: 12)),
+                      selected: selected,
+                      onSelected: (_) => setState(() => _filtroEstado = f['value']!),
+                      selectedColor: AppConfig.azulClaro.withOpacity(0.15),
+                      checkmarkColor: AppConfig.azulClaro,
+                      visualDensity: VisualDensity.compact,
+                      labelStyle: TextStyle(
+                        color: selected ? AppConfig.azulClaro : AppConfig.grisOscuro,
+                        fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
+            ),
+          ],
         ),
       ],
     );

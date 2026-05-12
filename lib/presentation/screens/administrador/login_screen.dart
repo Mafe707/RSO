@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../../config/app_config.dart';
 import '../../../services/admin_auth_service.dart';
 import 'dashboard_screen.dart';
+import '../rol_selection_screen.dart';
 
 class AdminLoginScreen extends StatefulWidget {
   const AdminLoginScreen({super.key});
@@ -27,6 +28,15 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
 
   bool _isMobile(BuildContext context) {
     return MediaQuery.of(context).size.width < 780;
+  }
+
+  void _goToRoleSelection() {
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(
+        builder: (_) => const RolSelectionScreen(),
+      ),
+      (route) => false,
+    );
   }
 
   Future<void> _login() async {
@@ -70,13 +80,13 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
       return;
     }
 
-    Navigator.pushReplacement(
-      context,
+    Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute(
         builder: (_) => AdminDashboardScreen(
           adminData: adminData,
         ),
       ),
+      (route) => false,
     );
   }
 
@@ -96,51 +106,57 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
     final adminAuthService = Provider.of<AdminAuthService>(context);
     final isMobile = _isMobile(context);
 
-    return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FB),
-      body: Container(
-        width: double.infinity,
-        height: double.infinity,
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              AppConfig.azulOscuro,
-              AppConfig.azulClaro,
-            ],
+    return WillPopScope(
+      onWillPop: () async {
+        _goToRoleSelection();
+        return false;
+      },
+      child: Scaffold(
+        backgroundColor: const Color(0xFFF5F7FB),
+        body: Container(
+          width: double.infinity,
+          height: double.infinity,
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                AppConfig.azulOscuro,
+                AppConfig.azulClaro,
+              ],
+            ),
           ),
-        ),
-        child: SafeArea(
-          child: Center(
-            child: SingleChildScrollView(
-              padding: EdgeInsets.symmetric(
-                horizontal: isMobile ? 20 : 40,
-                vertical: isMobile ? 24 : 36,
-              ),
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 1120),
-                child: isMobile
-                    ? Column(
-                        children: [
-                          _buildHero(isMobile: true),
-                          const SizedBox(height: 24),
-                          _buildLoginCard(adminAuthService),
-                        ],
-                      )
-                    : Row(
-                        children: [
-                          Expanded(
-                            flex: 5,
-                            child: _buildHero(isMobile: false),
-                          ),
-                          const SizedBox(width: 42),
-                          Expanded(
-                            flex: 5,
-                            child: _buildLoginCard(adminAuthService),
-                          ),
-                        ],
-                      ),
+          child: SafeArea(
+            child: Center(
+              child: SingleChildScrollView(
+                padding: EdgeInsets.symmetric(
+                  horizontal: isMobile ? 20 : 40,
+                  vertical: isMobile ? 24 : 36,
+                ),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 1120),
+                  child: isMobile
+                      ? Column(
+                          children: [
+                            _buildHero(isMobile: true),
+                            const SizedBox(height: 24),
+                            _buildLoginCard(adminAuthService),
+                          ],
+                        )
+                      : Row(
+                          children: [
+                            Expanded(
+                              flex: 5,
+                              child: _buildHero(isMobile: false),
+                            ),
+                            const SizedBox(width: 42),
+                            Expanded(
+                              flex: 5,
+                              child: _buildLoginCard(adminAuthService),
+                            ),
+                          ],
+                        ),
+                ),
               ),
             ),
           ),
@@ -354,9 +370,7 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
           ),
           const SizedBox(height: 18),
           TextButton.icon(
-            onPressed: adminAuthService.isLoading
-                ? null
-                : () => Navigator.pop(context),
+            onPressed: adminAuthService.isLoading ? null : _goToRoleSelection,
             icon: const Icon(Icons.arrow_back_rounded),
             label: const Text('Volver a selección de roles'),
           ),

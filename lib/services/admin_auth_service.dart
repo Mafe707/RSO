@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -10,39 +12,72 @@ class AdminAuthService extends ChangeNotifier {
   Map<String, dynamic>? _adminData;
 
   bool _isLoading = false;
+  bool _isCheckingSession = true;
   String? _error;
+
+  StreamSubscription<AuthState>? _authSubscription;
 
   User? get currentAdminUser => _currentAdminUser;
   Map<String, dynamic>? get adminData => _adminData;
 
   bool get isLoading => _isLoading;
+  bool get isCheckingSession => _isCheckingSession;
   String? get error => _error;
 
   bool get isAdminLoggedIn => _currentAdminUser != null && _adminData != null;
 
   AdminAuthService() {
+    _init();
+  }
+
+  void _init() {
+    _authSubscription = _supabase.auth.onAuthStateChange.listen((data) async {
+      final event = data.event;
+
+      if (event == AuthChangeEvent.initialSession ||
+          event == AuthChangeEvent.signedIn ||
+          event == AuthChangeEvent.tokenRefreshed ||
+          event == AuthChangeEvent.userUpdated) {
+        await checkAdminSession(notify: true);
+        return;
+      }
+
+      if (event == AuthChangeEvent.signedOut ||
+          event == AuthChangeEvent.userDeleted) {
+        _currentAdminUser = null;
+        _adminData = null;
+        _error = null;
+        _isCheckingSession = false;
+        notifyListeners();
+      }
+    });
+
     checkAdminSession();
   }
 
-  Future<void> checkAdminSession() async {
+  Future<void> checkAdminSession({bool notify = true}) async {
     try {
+      _isCheckingSession = true;
+      if (notify) notifyListeners();
+
       final session = _supabase.auth.currentSession;
 
       if (session == null) {
         _currentAdminUser = null;
         _adminData = null;
-        notifyListeners();
+        _isCheckingSession = false;
+        if (notify) notifyListeners();
         return;
       }
 
       final user = session.user;
-
       final admin = await _buscarAdminPorUserId(user.id);
 
       if (admin == null) {
         _currentAdminUser = null;
         _adminData = null;
-        notifyListeners();
+        _isCheckingSession = false;
+        if (notify) notifyListeners();
         return;
       }
 
@@ -52,18 +87,22 @@ class AdminAuthService extends ChangeNotifier {
       if (!activo || (rol != 'admin' && rol != 'administrador')) {
         _currentAdminUser = null;
         _adminData = null;
-        notifyListeners();
+        _isCheckingSession = false;
+        if (notify) notifyListeners();
         return;
       }
 
       _currentAdminUser = user;
       _adminData = admin;
-      notifyListeners();
+      _error = null;
+      _isCheckingSession = false;
+      if (notify) notifyListeners();
     } catch (e) {
       debugPrint('Error verificando sesión admin: $e');
       _currentAdminUser = null;
       _adminData = null;
-      notifyListeners();
+      _isCheckingSession = false;
+      if (notify) notifyListeners();
     }
   }
 
@@ -114,7 +153,6 @@ class AdminAuthService extends ChangeNotifier {
       }
 
       final activo = admin['activo'] == true;
-
       if (!activo) {
         await _supabase.auth.signOut();
         _currentAdminUser = null;
@@ -123,7 +161,6 @@ class AdminAuthService extends ChangeNotifier {
       }
 
       final rol = admin['rol']?.toString().toLowerCase();
-
       if (rol != 'admin' && rol != 'administrador') {
         await _supabase.auth.signOut();
         _currentAdminUser = null;
@@ -133,6 +170,7 @@ class AdminAuthService extends ChangeNotifier {
 
       _currentAdminUser = user;
       _adminData = admin;
+      _error = null;
 
       notifyListeners();
       return true;
@@ -187,5 +225,11 @@ class AdminAuthService extends ChangeNotifier {
 
   void _clearError() {
     _error = null;
+  }
+
+  @override
+  void dispose() {
+    _authSubscription?.cancel();
+    super.dispose();
   }
 }

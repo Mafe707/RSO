@@ -58,44 +58,59 @@ class AdminDrawer extends StatelessWidget {
                       icon: Icons.dashboard_rounded,
                       title: 'Supervisión',
                       selected: currentIndex == 0,
-                      onTap: () { Navigator.pop(context); onSelect(0); },
+                      onTap: () {
+                        Navigator.pop(context);
+                        onSelect(0);
+                      },
                     ),
                     _DrawerItem(
                       icon: Icons.fact_check_rounded,
                       title: 'Validación de Reportes',
                       selected: currentIndex == 1,
-                      onTap: () { Navigator.pop(context); onSelect(1); },
+                      onTap: () {
+                        Navigator.pop(context);
+                        onSelect(1);
+                      },
                     ),
                     _DrawerItem(
                       icon: Icons.manage_accounts_rounded,
                       title: 'Gestión de Funcionarios',
                       selected: currentIndex == 2,
-                      onTap: () { Navigator.pop(context); onSelect(2); },
+                      onTap: () {
+                        Navigator.pop(context);
+                        onSelect(2);
+                      },
                     ),
                     _DrawerItem(
                       icon: Icons.bar_chart_rounded,
                       title: 'Estadísticas',
                       selected: currentIndex == 3,
-                      onTap: () { Navigator.pop(context); onSelect(3); },
+                      onTap: () {
+                        Navigator.pop(context);
+                        onSelect(3);
+                      },
                     ),
                     _DrawerItem(
                       icon: Icons.settings_rounded,
                       title: 'Configuración',
                       selected: currentIndex == 4,
-                      onTap: () { Navigator.pop(context); onSelect(4); },
+                      onTap: () {
+                        Navigator.pop(context);
+                        onSelect(4);
+                      },
+                    ),
+                    const Divider(color: AppConfig.azulClaro, height: 18),
+                    _DrawerItem(
+                      icon: Icons.logout_rounded,
+                      title: 'Cerrar sesión',
+                      selected: false,
+                      color: AppConfig.rojo,
+                      onTap: () {
+                        Navigator.pop(context);
+                        onLogout();
+                      },
                     ),
                   ],
-                ),
-              ),
-              const Divider(color: AppConfig.azulClaro, height: 1),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(8, 8, 8, 12),
-                child: _DrawerItem(
-                  icon: Icons.logout_rounded,
-                  title: 'Cerrar sesión',
-                  selected: false,
-                  color: AppConfig.rojo,
-                  onTap: () { Navigator.pop(context); onLogout(); },
                 ),
               ),
             ],
@@ -174,7 +189,8 @@ class _AdminHeader extends StatelessWidget {
                 ),
                 const SizedBox(height: 8),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                   decoration: BoxDecoration(
                     color: AppConfig.rojo.withOpacity(0.25),
                     borderRadius: BorderRadius.circular(999),

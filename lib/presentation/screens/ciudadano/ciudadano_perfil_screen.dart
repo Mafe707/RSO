@@ -31,10 +31,14 @@ class _CiudadanoPerfilScreenState extends State<CiudadanoPerfilScreen> {
   bool _obscureConfirm = true;
   bool _cambiarPassword = false;
 
+  int _totalReportes = 0;
+  bool _loadingStats = true;
+
   @override
   void initState() {
     super.initState();
     _cargarDatos();
+    _cargarStats();
   }
 
   void _cargarDatos() {
@@ -45,6 +49,27 @@ class _CiudadanoPerfilScreenState extends State<CiudadanoPerfilScreen> {
     _apellidoController.text = d['apellido'] ?? '';
     _telefonoController.text = d['telefono'] ?? '';
     _barrioController.text = d['barrio'] ?? '';
+  }
+
+  Future<void> _cargarStats() async {
+    try {
+      final svc = Provider.of<CiudadanoAuthService>(context, listen: false);
+      final ciudadanoId = svc.ciudadanoData?['id'];
+      if (ciudadanoId == null) return;
+
+      final supabase = SupabaseConfig.client;
+      final response = await supabase
+          .from('denuncias')
+          .select('id')
+          .eq('ciudadano_id', ciudadanoId);
+
+      setState(() {
+        _totalReportes = (response as List).length;
+        _loadingStats = false;
+      });
+    } catch (e) {
+      setState(() => _loadingStats = false);
+    }
   }
 
   @override
@@ -123,6 +148,18 @@ class _CiudadanoPerfilScreenState extends State<CiudadanoPerfilScreen> {
     }
   }
 
+  Future<void> _cerrarSesion() async {
+    final svc = Provider.of<CiudadanoAuthService>(context, listen: false);
+    await svc.logout();
+    if (mounted) {
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (_) => const CiudadanoLoginScreen()),
+        (route) => false,
+      );
+    }
+  }
+
   void _showError(String msg) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
@@ -133,11 +170,23 @@ class _CiudadanoPerfilScreenState extends State<CiudadanoPerfilScreen> {
   bool _isMobile(BuildContext context) =>
       MediaQuery.of(context).size.width < 700;
 
+  String _getInitial(String name) {
+    final clean = name.trim();
+    if (clean.isEmpty) return 'C';
+    return clean[0].toUpperCase();
+  }
+
   @override
   Widget build(BuildContext context) {
     final svc = Provider.of<CiudadanoAuthService>(context);
     final d = svc.ciudadanoData;
     final isMobile = _isMobile(context);
+
+    final nombre = d?['nombre']?.toString() ?? 'Ciudadano';
+    final apellido = d?['apellido']?.toString() ?? '';
+    final correo = d?['correo']?.toString() ?? '';
+    final telefono = d?['telefono']?.toString() ?? '';
+    final barrio = d?['barrio']?.toString() ?? '';
 
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FB),
@@ -148,6 +197,7 @@ class _CiudadanoPerfilScreenState extends State<CiudadanoPerfilScreen> {
         ),
         backgroundColor: AppConfig.azulOscuro,
         elevation: 0,
+        centerTitle: false,
         actions: [
           if (!_editando)
             Padding(
@@ -196,71 +246,91 @@ class _CiudadanoPerfilScreenState extends State<CiudadanoPerfilScreen> {
           IconButton(
             tooltip: 'Cerrar sesión',
             icon: const Icon(Icons.logout_rounded, color: Colors.white),
-            onPressed: () async {
-              final svc = Provider.of<CiudadanoAuthService>(context, listen: false);
-              await svc.logout();
-              if (context.mounted) {
-                Navigator.pushAndRemoveUntil(
-                  context,
-                  MaterialPageRoute(builder: (_) => const CiudadanoLoginScreen()),
-                  (route) => false,
-                );
-              }
-            },
+            onPressed: _cerrarSesion,
           ),
         ],
       ),
       drawer: CiudadanoDrawer.maybe(context, currentIndex: 5),
       bottomNavigationBar: CiudadanoBottomNav.maybe(context, currentIndex: 5),
-      body: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 900),
-          child: SingleChildScrollView(
-            padding: EdgeInsets.all(isMobile ? 16 : 32),
-            child: isMobile ? _buildMobileLayout(d, svc) : _buildWebLayout(d, svc),
+      body: SafeArea(
+        top: false,
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 1180),
+            child: SingleChildScrollView(
+              padding: EdgeInsets.all(isMobile ? 16 : 28),
+              child: isMobile
+                  ? _buildMobileLayout(nombre, apellido, correo, telefono, barrio, d)
+                  : _buildWebLayout(nombre, apellido, correo, telefono, barrio, d),
+            ),
           ),
         ),
       ),
     );
   }
 
-  Widget _buildMobileLayout(Map<String, dynamic>? d, CiudadanoAuthService svc) {
+  Widget _buildMobileLayout(String nombre, String apellido, String correo,
+      String telefono, String barrio, Map<String, dynamic>? d) {
     return Column(
       children: [
-        _buildHero(d, isMobile: true),
-        const SizedBox(height: 20),
-        _buildFormCard(d),
+        _buildHero(isMobile: true, nombre: nombre, apellido: apellido, correo: correo, barrio: barrio),
+        const SizedBox(height: 18),
+        _buildInfoCard(nombre, apellido, correo, telefono, barrio, d),
+        const SizedBox(height: 18),
+        _buildActivityCard(),
+        const SizedBox(height: 18),
+        _buildSecurityCard(),
       ],
     );
   }
 
-  Widget _buildWebLayout(Map<String, dynamic>? d, CiudadanoAuthService svc) {
+  Widget _buildWebLayout(String nombre, String apellido, String correo,
+      String telefono, String barrio, Map<String, dynamic>? d) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Expanded(flex: 4, child: _buildHero(d, isMobile: false)),
+        Expanded(
+          flex: 4,
+          child: Column(
+            children: [
+              _buildHero(isMobile: false, nombre: nombre, apellido: apellido, correo: correo, barrio: barrio),
+              const SizedBox(height: 20),
+              _buildSecurityCard(),
+            ],
+          ),
+        ),
         const SizedBox(width: 24),
-        Expanded(flex: 6, child: _buildFormCard(d)),
+        Expanded(
+          flex: 6,
+          child: Column(
+            children: [
+              _buildInfoCard(nombre, apellido, correo, telefono, barrio, d),
+              const SizedBox(height: 20),
+              _buildActivityCard(),
+            ],
+          ),
+        ),
       ],
     );
   }
 
-  Widget _buildHero(Map<String, dynamic>? d, {required bool isMobile}) {
-    final nombre = d?['nombre'] ?? '';
-    final apellido = d?['apellido'] ?? '';
-    final correo = d?['correo'] ?? '';
-    final barrio = d?['barrio'] ?? '';
-
+  Widget _buildHero({
+    required bool isMobile,
+    required String nombre,
+    required String apellido,
+    required String correo,
+    required String barrio,
+  }) {
     return Container(
       width: double.infinity,
       padding: EdgeInsets.all(isMobile ? 24 : 30),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
+          colors: [AppConfig.azulOscuro, AppConfig.azulClaro],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [AppConfig.azulOscuro, AppConfig.azulClaro],
         ),
-        borderRadius: BorderRadius.circular(isMobile ? 24 : 28),
+        borderRadius: BorderRadius.circular(isMobile ? 24 : 30),
         boxShadow: [
           BoxShadow(
             color: AppConfig.azulOscuro.withOpacity(0.18),
@@ -273,106 +343,77 @@ class _CiudadanoPerfilScreenState extends State<CiudadanoPerfilScreen> {
         children: [
           Positioned(
             right: -12,
-            bottom: 8,
+            bottom: -22,
             child: Icon(
-              Icons.account_circle_rounded,
-              size: isMobile ? 100 : 132,
-              color: Colors.white.withOpacity(0.07),
+              Icons.person_rounded,
+              size: isMobile ? 90 : 130,
+              color: Colors.white.withOpacity(0.08),
             ),
           ),
           Column(
-            crossAxisAlignment:
-                isMobile ? CrossAxisAlignment.center : CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                width: 80,
-                height: 80,
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: Colors.white.withOpacity(0.4),
-                    width: 2,
-                  ),
-                ),
-                child: Center(
-                  child: Text(
-                    nombre.isNotEmpty ? nombre[0].toUpperCase() : '?',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 36,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                ),
+              _HeroBadge(
+                icon: Icons.verified_user_rounded,
+                text: 'Ciudadano registrado',
               ),
-              const SizedBox(height: 16),
-              Text(
-                '$nombre $apellido',
-                textAlign: isMobile ? TextAlign.center : TextAlign.left,
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: isMobile ? 22 : 26,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                correo,
-                textAlign: isMobile ? TextAlign.center : TextAlign.left,
-                style: TextStyle(
-                  color: Colors.white.withOpacity(0.82),
-                  fontSize: 13.5,
-                ),
-              ),
-              if (barrio.isNotEmpty) ...[
-                const SizedBox(height: 8),
-                Row(
-                  mainAxisAlignment:
-                      isMobile ? MainAxisAlignment.center : MainAxisAlignment.start,
-                  children: [
-                    Icon(
-                      Icons.location_city_rounded,
-                      color: Colors.white.withOpacity(0.7),
-                      size: 15,
-                    ),
-                    const SizedBox(width: 5),
-                    Text(
-                      barrio,
+              const SizedBox(height: 22),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  CircleAvatar(
+                    radius: isMobile ? 34 : 40,
+                    backgroundColor: Colors.white,
+                    child: Text(
+                      _getInitial(nombre),
                       style: TextStyle(
-                        color: Colors.white.withOpacity(0.8),
-                        fontSize: 13,
+                        fontSize: isMobile ? 28 : 34,
+                        fontWeight: FontWeight.w900,
+                        color: AppConfig.azulOscuro,
                       ),
                     ),
-                  ],
-                ),
-              ],
-              const SizedBox(height: 16),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.16),
-                  borderRadius: BorderRadius.circular(999),
-                ),
-                child: const Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.verified_user_rounded,
-                      size: 14,
-                      color: Colors.white,
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '$nombre $apellido',
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: isMobile ? 25 : 34,
+                            height: 1.05,
+                            fontWeight: FontWeight.w900,
+                            color: Colors.white,
+                            letterSpacing: -0.5,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          correo,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: Colors.white.withOpacity(0.82),
+                            fontSize: isMobile ? 12.5 : 14,
+                          ),
+                        ),
+                      ],
                     ),
-                    SizedBox(width: 6),
-                    Text(
-                      'Ciudadano registrado',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ],
-                ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 18),
+              Wrap(
+                spacing: 10,
+                runSpacing: 10,
+                children: [
+                  const _HeroChip(icon: Icons.person_pin_rounded, text: 'Portal Ciudadano'),
+                  if (barrio.isNotEmpty)
+                    _HeroChip(icon: Icons.location_city_rounded, text: barrio),
+                ],
               ),
             ],
           ),
@@ -381,76 +422,30 @@ class _CiudadanoPerfilScreenState extends State<CiudadanoPerfilScreen> {
     );
   }
 
-  Widget _buildFormCard(Map<String, dynamic>? d) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(28),
-        border: Border.all(color: AppConfig.grisMedio),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 14,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
+  Widget _buildInfoCard(String nombre, String apellido, String correo,
+      String telefono, String barrio, Map<String, dynamic>? d) {
+    return _SoftCard(
       child: Form(
         key: _formKey,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                Container(
-                  height: 50,
-                  width: 50,
-                  decoration: BoxDecoration(
-                    color: AppConfig.azulOscuro.withOpacity(0.08),
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: const Icon(
-                    Icons.manage_accounts_rounded,
-                    color: AppConfig.azulOscuro,
-                  ),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Información personal',
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w900,
-                          color: AppConfig.azulOscuro,
-                        ),
-                      ),
-                      Text(
-                        _editando
-                            ? 'Modifica tus datos y guarda los cambios.'
-                            : 'Toca "Editar" para modificar tu información.',
-                        style: TextStyle(
-                          fontSize: 12.5,
-                          color: AppConfig.grisOscuro,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
+            _CardHeading(
+              icon: Icons.manage_accounts_rounded,
+              title: 'Información personal',
+              subtitle: _editando
+                  ? 'Modifica tus datos y guarda los cambios.'
+                  : 'Toca "Editar" para modificar tu información.',
             ),
-            const SizedBox(height: 22),
+            const SizedBox(height: 20),
             Row(
               children: [
                 Expanded(
                   child: _buildField(
                     controller: _nombreController,
                     label: 'Nombre *',
-                    icon: Icons.person_outline_rounded,
+                    icon: Icons.person_rounded,
+                    color: AppConfig.azulClaro,
                     enabled: _editando,
                     validator: (v) =>
                         (v == null || v.trim().isEmpty) ? 'Requerido' : null,
@@ -461,7 +456,8 @@ class _CiudadanoPerfilScreenState extends State<CiudadanoPerfilScreen> {
                   child: _buildField(
                     controller: _apellidoController,
                     label: 'Apellido *',
-                    icon: Icons.person_outline_rounded,
+                    icon: Icons.person_rounded,
+                    color: AppConfig.azulClaro,
                     enabled: _editando,
                     validator: (v) =>
                         (v == null || v.trim().isEmpty) ? 'Requerido' : null,
@@ -474,6 +470,7 @@ class _CiudadanoPerfilScreenState extends State<CiudadanoPerfilScreen> {
               controller: TextEditingController(text: d?['correo'] ?? ''),
               label: 'Correo electrónico',
               icon: Icons.email_rounded,
+              color: AppConfig.rojo,
               enabled: false,
             ),
             const SizedBox(height: 14),
@@ -484,6 +481,7 @@ class _CiudadanoPerfilScreenState extends State<CiudadanoPerfilScreen> {
                     controller: _telefonoController,
                     label: 'Teléfono',
                     icon: Icons.phone_rounded,
+                    color: AppConfig.verde,
                     enabled: _editando,
                     keyboardType: TextInputType.phone,
                   ),
@@ -494,6 +492,7 @@ class _CiudadanoPerfilScreenState extends State<CiudadanoPerfilScreen> {
                     controller: _barrioController,
                     label: 'Barrio',
                     icon: Icons.location_city_rounded,
+                    color: AppConfig.naranja,
                     enabled: _editando,
                   ),
                 ),
@@ -634,31 +633,354 @@ class _CiudadanoPerfilScreenState extends State<CiudadanoPerfilScreen> {
     );
   }
 
+  Widget _buildActivityCard() {
+    return _SoftCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const _CardHeading(
+            icon: Icons.timeline_rounded,
+            title: 'Resumen de actividad',
+            subtitle: 'Tus reportes registrados en el sistema.',
+          ),
+          const SizedBox(height: 18),
+          if (_loadingStats)
+            const Center(child: CircularProgressIndicator())
+          else
+            _MiniStatRow(
+              label: 'Reportes enviados',
+              value: '$_totalReportes',
+              icon: Icons.assignment_rounded,
+              color: AppConfig.azulClaro,
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSecurityCard() {
+    return _SoftCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const _CardHeading(
+            icon: Icons.security_rounded,
+            title: 'Sesión y seguridad',
+            subtitle: 'Control rápido de acceso a tu cuenta.',
+          ),
+          const SizedBox(height: 18),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: AppConfig.verde.withOpacity(0.08),
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: AppConfig.verde.withOpacity(0.18)),
+            ),
+            child: Row(
+              children: [
+                CircleAvatar(
+                  backgroundColor: AppConfig.verde.withOpacity(0.12),
+                  child: const Icon(
+                    Icons.verified_rounded,
+                    color: AppConfig.verde,
+                  ),
+                ),
+                const SizedBox(width: 13),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Sesión activa',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w900,
+                          color: AppConfig.azulOscuro,
+                        ),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        'Tu sesión está activa.',
+                        style: TextStyle(
+                          fontSize: 12.5,
+                          color: AppConfig.grisOscuro,
+                          height: 1.3,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          SizedBox(
+            width: double.infinity,
+            height: 50,
+            child: ElevatedButton.icon(
+              onPressed: _cerrarSesion,
+              icon: const Icon(Icons.logout_rounded),
+              label: const Text('Cerrar sesión'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppConfig.rojo,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                textStyle: const TextStyle(
+                  fontWeight: FontWeight.w800,
+                  fontSize: 15,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildField({
     required TextEditingController controller,
     required String label,
     required IconData icon,
+    required Color color,
     bool enabled = true,
     TextInputType? keyboardType,
     String? Function(String?)? validator,
   }) {
-    return TextFormField(
-      controller: controller,
-      enabled: enabled,
-      keyboardType: keyboardType,
-      validator: validator,
-      decoration: InputDecoration(
-        labelText: label,
-        prefixIcon: Icon(icon),
-        filled: true,
-        fillColor: enabled ? const Color(0xFFF8FAFC) : const Color(0xFFEEF2F6),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
+    return Container(
+      decoration: BoxDecoration(
+        color: enabled ? const Color(0xFFF8FAFC) : const Color(0xFFEEF2F6),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppConfig.grisMedio),
+      ),
+      child: TextFormField(
+        controller: controller,
+        enabled: enabled,
+        keyboardType: keyboardType,
+        validator: validator,
+        decoration: InputDecoration(
+          labelText: label,
+          prefixIcon: CircleAvatar(
+            backgroundColor: color.withOpacity(0.1),
+            radius: 18,
+            child: Icon(icon, color: color, size: 18),
+          ),
+          filled: false,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide: BorderSide.none,
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide: BorderSide.none,
+          ),
+          disabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide: BorderSide.none,
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide: BorderSide(color: color, width: 1.5),
+          ),
         ),
-        disabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide(color: AppConfig.grisMedio),
+      ),
+    );
+  }
+}
+
+// ── Widgets compartidos ──────────────────────────────────────────────────────
+
+class _SoftCard extends StatelessWidget {
+  final Widget child;
+  const _SoftCard({required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: AppConfig.grisMedio),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.045),
+            blurRadius: 14,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: child,
+    );
+  }
+}
+
+class _CardHeading extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+
+  const _CardHeading({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Container(
+          height: 46,
+          width: 46,
+          decoration: BoxDecoration(
+            color: AppConfig.azulOscuro.withOpacity(0.08),
+            borderRadius: BorderRadius.circular(15),
+          ),
+          child: Icon(icon, color: AppConfig.azulOscuro),
         ),
+        const SizedBox(width: 13),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w900,
+                  color: AppConfig.azulOscuro,
+                ),
+              ),
+              const SizedBox(height: 3),
+              Text(
+                subtitle,
+                style: TextStyle(
+                  fontSize: 12.5,
+                  color: AppConfig.grisOscuro,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _MiniStatRow extends StatelessWidget {
+  final String label;
+  final String value;
+  final IconData icon;
+  final Color color;
+
+  const _MiniStatRow({
+    required this.label,
+    required this.value,
+    required this.icon,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: Row(
+        children: [
+          CircleAvatar(
+            backgroundColor: color.withOpacity(0.12),
+            child: Icon(icon, color: color, size: 20),
+          ),
+          const SizedBox(width: 13),
+          Expanded(
+            child: Text(
+              label,
+              style: const TextStyle(
+                fontWeight: FontWeight.w800,
+                color: AppConfig.azulOscuro,
+              ),
+            ),
+          ),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w900,
+              color: color,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _HeroBadge extends StatelessWidget {
+  final IconData icon;
+  final String text;
+
+  const _HeroBadge({required this.icon, required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.16),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 16, color: Colors.white),
+          const SizedBox(width: 7),
+          Text(
+            text,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 12,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _HeroChip extends StatelessWidget {
+  final IconData icon;
+  final String text;
+
+  const _HeroChip({required this.icon, required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.14),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: Colors.white.withOpacity(0.18)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 15, color: Colors.white),
+          const SizedBox(width: 6),
+          Text(
+            text,
+            style: const TextStyle(
+              fontSize: 11.5,
+              color: Colors.white,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
       ),
     );
   }

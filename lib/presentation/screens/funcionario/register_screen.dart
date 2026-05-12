@@ -190,9 +190,15 @@ class _FuncionarioRegisterScreenState extends State<FuncionarioRegisterScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FB),
       appBar: AppBar(
-        title: const Text('Registro de Funcionario'),
+        title: const Text(
+          'Registro de Funcionario',
+          style: TextStyle(fontWeight: FontWeight.w700),
+        ),
         backgroundColor: AppConfig.azulOscuro,
         elevation: 0,
+        toolbarHeight: 64,
+        centerTitle: false,
+        titleSpacing: 16,
       ),
       body: Stack(
         children: [

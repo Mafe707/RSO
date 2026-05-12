@@ -17,7 +17,7 @@ class ConsultarScreen extends StatefulWidget {
 
 class _ConsultarScreenState extends State<ConsultarScreen>
     with SingleTickerProviderStateMixin {
-  final _codigoController = TextEditingController();
+  final TextEditingController _codigoController = TextEditingController();
   late TabController _tabController;
 
   bool _consultando = false;
@@ -36,9 +36,7 @@ class _ConsultarScreenState extends State<ConsultarScreen>
       if (_tabController.index == 1 && !_cargadoMios) {
         _cargarMisReportes();
       }
-      if (mounted) {
-        setState(() {});
-      }
+      if (mounted) setState(() {});
     });
   }
 
@@ -71,6 +69,7 @@ class _ConsultarScreenState extends State<ConsultarScreen>
       final svc = Provider.of<DenunciaService>(context, listen: false);
       final resultado = await svc.obtenerDenunciaPorCodigo(codigo);
       if (!mounted) return;
+
       setState(() {
         _denunciaEncontrada = resultado;
         _consultando = false;
@@ -80,7 +79,7 @@ class _ConsultarScreenState extends State<ConsultarScreen>
       setState(() => _consultando = false);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Error al consultar: ${e.toString()}'),
+          content: Text('Error al consultar: $e'),
           backgroundColor: AppConfig.rojo,
         ),
       );
@@ -99,11 +98,14 @@ class _ConsultarScreenState extends State<ConsultarScreen>
       final svc = Provider.of<DenunciaService>(context, listen: false);
       final todos = await svc.obtenerTodasDenuncias();
       if (!mounted) return;
+
       setState(() {
         _misReportes = todos
             .where((d) =>
                 d['ciudadano_correo'] != null &&
-                d['ciudadano_correo'].toString().toLowerCase() ==
+                d['ciudadano_correo']
+                    .toString()
+                    .toLowerCase() ==
                     correo.toString().toLowerCase())
             .toList();
         _cargandoMios = false;
@@ -124,6 +126,8 @@ class _ConsultarScreenState extends State<ConsultarScreen>
         return 'En revisión';
       case 'resuelta':
         return 'Resuelta';
+      case 'resuelto_publicado':
+        return 'Resuelto';
       case 'rechazada':
         return 'Rechazada';
       case 'resuelto_pendiente_validacion':
@@ -141,6 +145,8 @@ class _ConsultarScreenState extends State<ConsultarScreen>
       case 'revision':
         return const Color(0xFFCCE5FF);
       case 'resuelta':
+        return const Color(0xFFD4EDDA);
+      case 'resuelto_publicado':
         return const Color(0xFFD4EDDA);
       case 'rechazada':
         return const Color(0xFFF8D7DA);
@@ -160,6 +166,8 @@ class _ConsultarScreenState extends State<ConsultarScreen>
         return const Color(0xFF004085);
       case 'resuelta':
         return const Color(0xFF155724);
+      case 'resuelto_publicado':
+        return const Color(0xFF155724);
       case 'rechazada':
         return const Color(0xFF721C24);
       case 'resuelto_pendiente_validacion':
@@ -170,7 +178,7 @@ class _ConsultarScreenState extends State<ConsultarScreen>
   }
 
   String _formatFecha(dynamic valor) {
-    if (valor == null) return '—';
+    if (valor == null) return '-';
     try {
       final dt = DateTime.parse(valor.toString()).toLocal();
       final d = dt.day.toString().padLeft(2, '0');
@@ -186,25 +194,60 @@ class _ConsultarScreenState extends State<ConsultarScreen>
 
   List<String> _extraerImagenes(Map<String, dynamic> denuncia) {
     final urls = <String>[];
+
     final imagenPrincipal = denuncia['imagen_url'];
     if (imagenPrincipal != null &&
         imagenPrincipal.toString().trim().isNotEmpty) {
       urls.add(imagenPrincipal.toString().trim());
     }
+
     final evidencias = denuncia['evidencias'];
     if (evidencias is List) {
       for (final e in evidencias) {
         if (e is Map) {
           final url = e['archivo_url']?.toString().trim() ?? '';
-          if (url.isNotEmpty && !urls.contains(url)) urls.add(url);
+          if (url.isNotEmpty && !urls.contains(url)) {
+            urls.add(url);
+          }
         }
       }
     }
+
     return urls;
   }
 
   bool _isMobile(BuildContext context) =>
       MediaQuery.of(context).size.width < 700;
+
+  void _abrirImagenCompleta(
+      BuildContext context, List<String> imagenes, int indiceInicial) {
+    showDialog(
+      context: context,
+      barrierColor: Colors.black87,
+      builder: (_) => ImagenViewerDialog(
+        imagenes: imagenes,
+        indiceInicial: indiceInicial,
+      ),
+    );
+  }
+
+  void _abrirDetalleReporte(BuildContext context, Map<String, dynamic> denuncia) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => DetalleReporteSheet(
+        denuncia: denuncia,
+        formatFecha: _formatFecha,
+        getEstadoText: _getEstadoText,
+        getEstadoColor: _getEstadoColor,
+        getEstadoTextColor: _getEstadoTextColor,
+        extraerImagenes: _extraerImagenes,
+        abrirImagenCompleta: (imagenes, indice) =>
+            _abrirImagenCompleta(context, imagenes, indice),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -213,23 +256,29 @@ class _ConsultarScreenState extends State<ConsultarScreen>
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FB),
       appBar: AppBar(
-        title: const Text('Consultar Estado'),
+        title: const Text(
+          'Consultar Estado',
+          style: TextStyle(fontWeight: FontWeight.w700),
+        ),
         backgroundColor: AppConfig.azulOscuro,
         elevation: 0,
         toolbarHeight: 64,
-        centerTitle: true,
-        titleSpacing: 0,
+        centerTitle: false,
+        titleSpacing: 16,
         actions: [
           IconButton(
             tooltip: 'Cerrar sesión',
             icon: const Icon(Icons.logout_rounded, color: Colors.white),
             onPressed: () async {
-              final svc = Provider.of<CiudadanoAuthService>(context, listen: false);
+              final svc =
+                  Provider.of<CiudadanoAuthService>(context, listen: false);
               await svc.logout();
               if (context.mounted) {
                 Navigator.pushAndRemoveUntil(
                   context,
-                  MaterialPageRoute(builder: (_) => const CiudadanoLoginScreen()),
+                  MaterialPageRoute(
+                    builder: (_) => const CiudadanoLoginScreen(),
+                  ),
                   (route) => false,
                 );
               }
@@ -255,9 +304,7 @@ class _ConsultarScreenState extends State<ConsultarScreen>
               indicator: BoxDecoration(
                 color: const Color(0xFF3B628D),
                 borderRadius: BorderRadius.circular(22),
-                border: Border.all(
-                  color: Colors.white.withOpacity(0.20),
-                ),
+                border: Border.all(color: Colors.white.withOpacity(0.20)),
               ),
               indicatorSize: TabBarIndicatorSize.tab,
               dividerColor: Colors.transparent,
@@ -266,11 +313,11 @@ class _ConsultarScreenState extends State<ConsultarScreen>
               splashBorderRadius: BorderRadius.circular(22),
               labelStyle: const TextStyle(
                 fontWeight: FontWeight.w700,
-                fontSize: 14,
+                fontSize: 18,
               ),
               unselectedLabelStyle: const TextStyle(
                 fontWeight: FontWeight.w700,
-                fontSize: 14,
+                fontSize: 18,
               ),
               padding: EdgeInsets.zero,
               labelPadding: const EdgeInsets.symmetric(horizontal: 6),
@@ -309,8 +356,9 @@ class _ConsultarScreenState extends State<ConsultarScreen>
                     constraints: const BoxConstraints(maxWidth: 1100),
                     child: SingleChildScrollView(
                       padding: EdgeInsets.all(isMobile ? 16 : 32),
-                      child:
-                          isMobile ? _buildMobileLayout() : _buildWebLayout(),
+                      child: isMobile
+                          ? _buildMobileLayout()
+                          : _buildWebLayout(),
                     ),
                   ),
                 ),
@@ -450,11 +498,11 @@ class _ConsultarScreenState extends State<ConsultarScreen>
   }
 
   Widget _buildSearchCard() {
-    return _SoftCard(
+    return SoftCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const _CardHeading(
+          const CardHeading(
             icon: Icons.search_rounded,
             title: 'Buscar por código',
             subtitle: 'Ingresa el código que recibiste al reportar.',
@@ -469,8 +517,9 @@ class _ConsultarScreenState extends State<ConsultarScreen>
               prefixIcon: const Icon(Icons.confirmation_number_rounded),
               filled: true,
               fillColor: const Color(0xFFF8FAFC),
-              border:
-                  OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
             ),
             onSubmitted: (_) => _consultar(),
           ),
@@ -510,16 +559,18 @@ class _ConsultarScreenState extends State<ConsultarScreen>
 
   Widget _buildResultSection() {
     if (!_buscado) return const SizedBox.shrink();
+
     if (_consultando) {
       return const Padding(
         padding: EdgeInsets.all(32),
         child: Center(child: CircularProgressIndicator()),
       );
     }
+
     if (_denunciaEncontrada == null) {
       return Padding(
         padding: const EdgeInsets.only(top: 18),
-        child: _SoftCard(
+        child: SoftCard(
           child: Column(
             children: [
               Icon(
@@ -529,7 +580,7 @@ class _ConsultarScreenState extends State<ConsultarScreen>
               ),
               const SizedBox(height: 14),
               const Text(
-                'No se encontró ninguna denuncia con ese código',
+                'No se encontró ninguna denuncia con ese código.',
                 textAlign: TextAlign.center,
                 style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
               ),
@@ -537,13 +588,17 @@ class _ConsultarScreenState extends State<ConsultarScreen>
               Text(
                 'Verifica que el código sea exactamente como fue generado.',
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 13, color: AppConfig.grisOscuro),
+                style: TextStyle(
+                  fontSize: 13,
+                  color: AppConfig.grisOscuro,
+                ),
               ),
             ],
           ),
         ),
       );
     }
+
     return Padding(
       padding: const EdgeInsets.only(top: 18),
       child: _buildDenunciaCard(_denunciaEncontrada!),
@@ -555,21 +610,21 @@ class _ConsultarScreenState extends State<ConsultarScreen>
     final imagenes = _extraerImagenes(d);
     final respuesta = d['respuesta_oficial']?.toString();
 
-    return _SoftCard(
+    return SoftCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const _CardHeading(
+          const CardHeading(
             icon: Icons.assignment_rounded,
             title: 'Detalle de la denuncia',
             subtitle: 'Información completa del reporte.',
           ),
           const SizedBox(height: 18),
-          _buildDetailRow('Código', d['codigo_unico']?.toString() ?? '—'),
+          _buildDetailRow('Código', d['codigo_unico']?.toString() ?? ''),
           _buildEstadoRow(estado),
-          _buildDetailRow('Categoría', d['categoria']?.toString() ?? '—'),
-          _buildDetailRow('Ubicación', d['ubicacion']?.toString() ?? '—'),
-          _buildDetailRow('Descripción', d['descripcion']?.toString() ?? '—'),
+          _buildDetailRow('Categoría', d['categoria']?.toString() ?? ''),
+          _buildDetailRow('Ubicación', d['ubicacion']?.toString() ?? ''),
+          _buildDetailRow('Descripción', d['descripcion']?.toString() ?? ''),
           _buildDetailRow('Fecha', _formatFecha(d['creado_en'])),
           if (imagenes.isNotEmpty) ...[
             const Divider(height: 24),
@@ -584,23 +639,49 @@ class _ConsultarScreenState extends State<ConsultarScreen>
                 scrollDirection: Axis.horizontal,
                 itemCount: imagenes.length,
                 separatorBuilder: (_, __) => const SizedBox(width: 8),
-                itemBuilder: (_, i) => ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: Image.network(
-                    imagenes[i],
-                    width: 110,
-                    height: 110,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => Container(
-                      width: 110,
-                      height: 110,
-                      color: AppConfig.grisClaro,
-                      child: const Icon(
-                        Icons.broken_image_rounded,
-                        size: 42,
-                        color: Colors.grey,
+                itemBuilder: (_, i) => GestureDetector(
+                  onTap: () => _abrirImagenCompleta(context, imagenes, i),
+                  child: Stack(
+                    children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: Image.network(
+                          imagenes[i],
+                          width: 110,
+                          height: 110,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => Container(
+                            width: 110,
+                            height: 110,
+                            decoration: BoxDecoration(
+                              color: AppConfig.grisClaro,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: const Icon(
+                              Icons.broken_image_rounded,
+                              size: 42,
+                              color: Colors.grey,
+                            ),
+                          ),
+                        ),
                       ),
-                    ),
+                      Positioned(
+                        bottom: 6,
+                        right: 6,
+                        child: Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: BoxDecoration(
+                            color: Colors.black54,
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: const Icon(
+                            Icons.zoom_in_rounded,
+                            color: Colors.white,
+                            size: 16,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
@@ -637,15 +718,15 @@ class _ConsultarScreenState extends State<ConsultarScreen>
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        (respuesta != null && respuesta.isNotEmpty)
+                        respuesta != null && respuesta.isNotEmpty
                             ? respuesta
                             : 'Aún no hay respuesta oficial para este reporte.',
                         style: TextStyle(
-                          fontStyle: (respuesta != null && respuesta.isNotEmpty)
-                              ? FontStyle.italic
-                              : FontStyle.normal,
+                          fontStyle: respuesta != null && respuesta.isNotEmpty
+                              ? FontStyle.normal
+                              : FontStyle.italic,
                           height: 1.35,
-                          color: (respuesta != null && respuesta.isNotEmpty)
+                          color: respuesta != null && respuesta.isNotEmpty
                               ? Colors.black87
                               : AppConfig.grisOscuro,
                         ),
@@ -671,6 +752,7 @@ class _ConsultarScreenState extends State<ConsultarScreen>
 
   Widget _buildMisReportesTab(bool isMobile) {
     Provider.of<CiudadanoAuthService>(context);
+
     return Center(
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 900),
@@ -795,7 +877,7 @@ class _ConsultarScreenState extends State<ConsultarScreen>
                   ),
                 )
               else if (!_cargadoMios)
-                _SoftCard(
+                SoftCard(
                   child: Column(
                     children: [
                       const Icon(
@@ -837,7 +919,7 @@ class _ConsultarScreenState extends State<ConsultarScreen>
                   ),
                 )
               else if (_misReportes.isEmpty)
-                _SoftCard(
+                SoftCard(
                   child: Column(
                     children: [
                       Icon(
@@ -856,7 +938,7 @@ class _ConsultarScreenState extends State<ConsultarScreen>
                       ),
                       const SizedBox(height: 6),
                       Text(
-                        'Al hacer un reporte, elige "Compartir mis datos" para que aparezca aquí.',
+                        'Al hacer un reporte, elige Compartir mis datos para que aparezca aquí.',
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           fontSize: 13,
@@ -883,129 +965,145 @@ class _ConsultarScreenState extends State<ConsultarScreen>
 
   Widget _buildMiniReporteCard(Map<String, dynamic> d) {
     final estado = d['estado']?.toString() ?? 'pendiente';
-    return _SoftCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Column(
+    final esPendiente = estado == 'pendiente';
+
+    return GestureDetector(
+      onTap: () => _abrirDetalleReporte(context, d),
+      child: SoftCard(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        d['codigo_unico']?.toString() ?? '',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w900,
+                          fontSize: 16,
+                          color: esPendiente
+                              ? const Color(0xFF721C24)
+                              : AppConfig.azulOscuro,
+                          letterSpacing: 1,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        d['categoria']?.toString() ?? '',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: AppConfig.grisOscuro,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: _getEstadoColor(estado),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Text(
+                    _getEstadoText(estado),
+                    style: TextStyle(
+                      color: _getEstadoTextColor(estado),
+                      fontWeight: FontWeight.w700,
+                      fontSize: 12,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                const Icon(
+                  Icons.location_on_rounded,
+                  size: 14,
+                  color: AppConfig.azulClaro,
+                ),
+                const SizedBox(width: 5),
+                Expanded(
+                  child: Text(
+                    d['ubicacion']?.toString() ?? '',
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      color: AppConfig.grisOscuro,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Row(
+              children: [
+                const Icon(
+                  Icons.access_time_rounded,
+                  size: 14,
+                  color: AppConfig.azulClaro,
+                ),
+                const SizedBox(width: 5),
+                Text(
+                  _formatFecha(d['creado_en']),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: AppConfig.grisOscuro,
+                  ),
+                ),
+                const Spacer(),
+                const Text(
+                  'Ver detalle',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: AppConfig.azulOscuro,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+            if (d['respuesta_oficial'] != null &&
+                d['respuesta_oficial'].toString().isNotEmpty) ...[
+              const SizedBox(height: 10),
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: AppConfig.verde.withOpacity(0.07),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: AppConfig.verde.withOpacity(0.25),
+                  ),
+                ),
+                child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      d['codigo_unico']?.toString() ?? '—',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w900,
-                        fontSize: 16,
-                        color: AppConfig.azulOscuro,
-                        letterSpacing: 1,
-                      ),
+                    const Icon(
+                      Icons.chat_bubble_outline_rounded,
+                      size: 15,
+                      color: AppConfig.verde,
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      d['categoria']?.toString() ?? '—',
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: AppConfig.grisOscuro,
+                    const SizedBox(width: 7),
+                    Expanded(
+                      child: Text(
+                        d['respuesta_oficial'].toString(),
+                        style: const TextStyle(
+                          fontSize: 12.5,
+                          fontStyle: FontStyle.italic,
+                        ),
                       ),
                     ),
                   ],
                 ),
               ),
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: _getEstadoColor(estado),
-                  borderRadius: BorderRadius.circular(999),
-                ),
-                child: Text(
-                  _getEstadoText(estado),
-                  style: TextStyle(
-                    color: _getEstadoTextColor(estado),
-                    fontWeight: FontWeight.w700,
-                    fontSize: 12,
-                  ),
-                ),
-              ),
             ],
-          ),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              const Icon(
-                Icons.location_on_rounded,
-                size: 14,
-                color: AppConfig.azulClaro,
-              ),
-              const SizedBox(width: 5),
-              Expanded(
-                child: Text(
-                  d['ubicacion']?.toString() ?? '—',
-                  style: TextStyle(
-                    fontSize: 12.5,
-                    color: AppConfig.grisOscuro,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 4),
-          Row(
-            children: [
-              const Icon(
-                Icons.access_time_rounded,
-                size: 14,
-                color: AppConfig.azulClaro,
-              ),
-              const SizedBox(width: 5),
-              Text(
-                _formatFecha(d['creado_en']),
-                style: TextStyle(
-                  fontSize: 12,
-                  color: AppConfig.grisOscuro,
-                ),
-              ),
-            ],
-          ),
-          if (d['respuesta_oficial'] != null &&
-              d['respuesta_oficial'].toString().isNotEmpty) ...[
-            const SizedBox(height: 10),
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: AppConfig.verde.withOpacity(0.07),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: AppConfig.verde.withOpacity(0.25),
-                ),
-              ),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Icon(
-                    Icons.chat_bubble_outline_rounded,
-                    size: 15,
-                    color: AppConfig.verde,
-                  ),
-                  const SizedBox(width: 7),
-                  Expanded(
-                    child: Text(
-                      d['respuesta_oficial'].toString(),
-                      style: const TextStyle(
-                        fontSize: 12.5,
-                        fontStyle: FontStyle.italic,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
           ],
-        ],
+        ),
       ),
     );
   }
@@ -1019,7 +1117,7 @@ class _ConsultarScreenState extends State<ConsultarScreen>
           SizedBox(
             width: 112,
             child: Text(
-              '$label:',
+              label,
               style: const TextStyle(
                 fontWeight: FontWeight.w700,
                 fontSize: 13.5,
@@ -1051,7 +1149,7 @@ class _ConsultarScreenState extends State<ConsultarScreen>
           const SizedBox(
             width: 112,
             child: Text(
-              'Estado:',
+              'Estado',
               style: TextStyle(
                 fontWeight: FontWeight.w700,
                 fontSize: 13.5,
@@ -1085,27 +1183,27 @@ class _ConsultarScreenState extends State<ConsultarScreen>
   }
 
   Widget _buildTipsCard() {
-    return _SoftCard(
+    return SoftCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const _CardHeading(
+        children: const [
+          CardHeading(
             icon: Icons.lightbulb_outline_rounded,
             title: 'Recomendaciones',
             subtitle: 'Ten en cuenta antes de consultar.',
           ),
-          const SizedBox(height: 18),
-          const _TipItem(
+          SizedBox(height: 18),
+          TipItem(
             icon: Icons.check_circle_outline_rounded,
             text: 'Copia el código exactamente como fue generado.',
           ),
-          const _TipItem(
+          TipItem(
             icon: Icons.schedule_rounded,
             text: 'La actualización del estado puede tomar un tiempo.',
           ),
-          const _TipItem(
+          TipItem(
             icon: Icons.assignment_turned_in_rounded,
-            text: 'Si compartiste tus datos, revisa la pestaña "Mis reportes".',
+            text: 'Si compartiste tus datos, revisa la pestaña Mis reportes.',
           ),
         ],
       ),
@@ -1113,9 +1211,545 @@ class _ConsultarScreenState extends State<ConsultarScreen>
   }
 }
 
-class _SoftCard extends StatelessWidget {
+class ImagenViewerDialog extends StatefulWidget {
+  final List<String> imagenes;
+  final int indiceInicial;
+
+  const ImagenViewerDialog({
+    super.key,
+    required this.imagenes,
+    required this.indiceInicial,
+  });
+
+  @override
+  State<ImagenViewerDialog> createState() => _ImagenViewerDialogState();
+}
+
+class _ImagenViewerDialogState extends State<ImagenViewerDialog> {
+  late int _indiceActual;
+  late PageController _pageController;
+
+  @override
+  void initState() {
+    super.initState();
+    _indiceActual = widget.indiceInicial;
+    _pageController = PageController(initialPage: widget.indiceInicial);
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      insetPadding: EdgeInsets.zero,
+      child: Stack(
+        children: [
+          GestureDetector(
+            onTap: () => Navigator.of(context).pop(),
+            child: Container(color: Colors.black87),
+          ),
+          PageView.builder(
+            controller: _pageController,
+            itemCount: widget.imagenes.length,
+            onPageChanged: (i) => setState(() => _indiceActual = i),
+            itemBuilder: (_, i) => Center(
+              child: InteractiveViewer(
+                minScale: 0.5,
+                maxScale: 4.0,
+                child: Image.network(
+                  widget.imagenes[i],
+                  fit: BoxFit.contain,
+                  errorBuilder: (_, __, ___) => const Icon(
+                    Icons.broken_image_rounded,
+                    color: Colors.white54,
+                    size: 64,
+                  ),
+                ),
+              ),
+            ),
+          ),
+          Positioned(
+            top: 40,
+            right: 16,
+            child: GestureDetector(
+              onTap: () => Navigator.of(context).pop(),
+              child: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.black54,
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: const Icon(
+                  Icons.close_rounded,
+                  color: Colors.white,
+                  size: 24,
+                ),
+              ),
+            ),
+          ),
+          if (widget.imagenes.length > 1)
+            Positioned(
+              bottom: 32,
+              left: 0,
+              right: 0,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: List.generate(
+                  widget.imagenes.length,
+                  (i) => AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    margin: const EdgeInsets.symmetric(horizontal: 4),
+                    width: i == _indiceActual ? 20 : 8,
+                    height: 8,
+                    decoration: BoxDecoration(
+                      color:
+                          i == _indiceActual ? Colors.white : Colors.white38,
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          if (_indiceActual > 0)
+            Positioned(
+              left: 8,
+              top: 0,
+              bottom: 0,
+              child: Center(
+                child: GestureDetector(
+                  onTap: () => _pageController.previousPage(
+                    duration: const Duration(milliseconds: 250),
+                    curve: Curves.easeInOut,
+                  ),
+                  child: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.black45,
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: const Icon(
+                      Icons.chevron_left_rounded,
+                      color: Colors.white,
+                      size: 32,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          if (_indiceActual < widget.imagenes.length - 1)
+            Positioned(
+              right: 8,
+              top: 0,
+              bottom: 0,
+              child: Center(
+                child: GestureDetector(
+                  onTap: () => _pageController.nextPage(
+                    duration: const Duration(milliseconds: 250),
+                    curve: Curves.easeInOut,
+                  ),
+                  child: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.black45,
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: const Icon(
+                      Icons.chevron_right_rounded,
+                      color: Colors.white,
+                      size: 32,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class DetalleReporteSheet extends StatelessWidget {
+  final Map<String, dynamic> denuncia;
+  final String Function(dynamic) formatFecha;
+  final String Function(String) getEstadoText;
+  final Color Function(String) getEstadoColor;
+  final Color Function(String) getEstadoTextColor;
+  final List<String> Function(Map<String, dynamic>) extraerImagenes;
+  final void Function(List<String>, int) abrirImagenCompleta;
+
+  const DetalleReporteSheet({
+    super.key,
+    required this.denuncia,
+    required this.formatFecha,
+    required this.getEstadoText,
+    required this.getEstadoColor,
+    required this.getEstadoTextColor,
+    required this.extraerImagenes,
+    required this.abrirImagenCompleta,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final d = denuncia;
+    final estado = d['estado']?.toString() ?? 'pendiente';
+    final imagenes = extraerImagenes(d);
+    final respuesta = d['respuesta_oficial']?.toString();
+
+    return DraggableScrollableSheet(
+      initialChildSize: 0.92,
+      minChildSize: 0.5,
+      maxChildSize: 1.0,
+      builder: (_, scrollController) => Container(
+        decoration: const BoxDecoration(
+          color: Color(0xFFF5F7FB),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        ),
+        child: Column(
+          children: [
+            Container(
+              margin: const EdgeInsets.only(top: 12, bottom: 4),
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(999),
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.fromLTRB(20, 8, 12, 12),
+              child: Row(
+                children: [
+                  const Icon(Icons.assignment_rounded,
+                      color: AppConfig.azulOscuro),
+                  const SizedBox(width: 10),
+                  const Expanded(
+                    child: Text(
+                      'Detalle del reporte',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                        color: AppConfig.azulOscuro,
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    icon: const Icon(Icons.close_rounded),
+                  ),
+                ],
+              ),
+            ),
+            const Divider(height: 1),
+            Expanded(
+              child: SingleChildScrollView(
+                controller: scrollController,
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: const Color(0xFFE2E8F0)),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.04),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        children: [
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  d['codigo_unico']?.toString() ?? '',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w900,
+                                    fontSize: 18,
+                                    color: AppConfig.azulOscuro,
+                                    letterSpacing: 1,
+                                  ),
+                                ),
+                              ),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 14,
+                                  vertical: 7,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: getEstadoColor(estado),
+                                  borderRadius: BorderRadius.circular(999),
+                                ),
+                                child: Text(
+                                  getEstadoText(estado),
+                                  style: TextStyle(
+                                    color: getEstadoTextColor(estado),
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: const Color(0xFFE2E8F0)),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.04),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _sheetRow('Categoría', d['categoria']?.toString() ?? ''),
+                          _sheetRow('Ubicación', d['ubicacion']?.toString() ?? ''),
+                          _sheetRow('Descripción', d['descripcion']?.toString() ?? ''),
+                          _sheetRow('Fecha', formatFecha(d['creado_en'])),
+                          _sheetRow(
+                            'Última actualización',
+                            formatFecha(d['actualizado_en']),
+                          ),
+                          if (d['ciudadano_nombre'] != null) ...[
+                            const Divider(height: 24),
+                            const Text(
+                              'Datos del ciudadano',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w800,
+                                fontSize: 14,
+                                color: AppConfig.azulOscuro,
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+                            _sheetRow(
+                              'Nombre',
+                              '${d['ciudadano_nombre'] ?? ''} ${d['ciudadano_apellido'] ?? ''}'
+                                  .trim(),
+                            ),
+                            if (d['ciudadano_correo'] != null)
+                              _sheetRow(
+                                  'Correo', d['ciudadano_correo'].toString()),
+                            if (d['ciudadano_telefono'] != null)
+                              _sheetRow(
+                                  'Teléfono', d['ciudadano_telefono'].toString()),
+                          ],
+                        ],
+                      ),
+                    ),
+                    if (imagenes.isNotEmpty) ...[
+                      const SizedBox(height: 16),
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: const Color(0xFFE2E8F0)),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.04),
+                              blurRadius: 10,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Evidencias',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w800,
+                                fontSize: 15,
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            SizedBox(
+                              height: 120,
+                              child: ListView.separated(
+                                scrollDirection: Axis.horizontal,
+                                itemCount: imagenes.length,
+                                separatorBuilder: (_, __) =>
+                                    const SizedBox(width: 8),
+                                itemBuilder: (_, i) => GestureDetector(
+                                  onTap: () => abrirImagenCompleta(imagenes, i),
+                                  child: Stack(
+                                    children: [
+                                      ClipRRect(
+                                        borderRadius: BorderRadius.circular(12),
+                                        child: Image.network(
+                                          imagenes[i],
+                                          width: 120,
+                                          height: 120,
+                                          fit: BoxFit.cover,
+                                          errorBuilder: (_, __, ___) =>
+                                              Container(
+                                            width: 120,
+                                            height: 120,
+                                            decoration: BoxDecoration(
+                                              color: AppConfig.grisClaro,
+                                              borderRadius:
+                                                  BorderRadius.circular(12),
+                                            ),
+                                            child: const Icon(
+                                              Icons.broken_image_rounded,
+                                              size: 42,
+                                              color: Colors.grey,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                      Positioned(
+                                        bottom: 6,
+                                        right: 6,
+                                        child: Container(
+                                          padding: const EdgeInsets.all(4),
+                                          decoration: BoxDecoration(
+                                            color: Colors.black54,
+                                            borderRadius:
+                                                BorderRadius.circular(6),
+                                          ),
+                                          child: const Icon(
+                                            Icons.zoom_in_rounded,
+                                            color: Colors.white,
+                                            size: 16,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 16),
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: const Color(0xFFE2E8F0)),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.04),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Respuesta oficial',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w800,
+                              fontSize: 15,
+                              color: AppConfig.azulOscuro,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Icon(
+                                Icons.chat_bubble_outline_rounded,
+                                size: 19,
+                                color: AppConfig.azulClaro,
+                              ),
+                              const SizedBox(width: 9),
+                              Expanded(
+                                child: Text(
+                                  respuesta != null && respuesta.isNotEmpty
+                                      ? respuesta
+                                      : 'Aún no hay respuesta oficial para este reporte.',
+                                  style: TextStyle(
+                                    fontStyle:
+                                        respuesta != null && respuesta.isNotEmpty
+                                            ? FontStyle.normal
+                                            : FontStyle.italic,
+                                    height: 1.35,
+                                    color: respuesta != null &&
+                                            respuesta.isNotEmpty
+                                        ? Colors.black87
+                                        : AppConfig.grisOscuro,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 32),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _sheetRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 130,
+            child: Text(
+              label,
+              style: const TextStyle(
+                fontWeight: FontWeight.w700,
+                fontSize: 13.5,
+                color: Colors.black87,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: TextStyle(
+                fontSize: 13.5,
+                height: 1.35,
+                color: AppConfig.grisOscuro,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class SoftCard extends StatelessWidget {
   final Widget child;
-  const _SoftCard({required this.child});
+  const SoftCard({super.key, required this.child});
 
   @override
   Widget build(BuildContext context) {
@@ -1139,12 +1773,13 @@ class _SoftCard extends StatelessWidget {
   }
 }
 
-class _CardHeading extends StatelessWidget {
+class CardHeading extends StatelessWidget {
   final IconData icon;
   final String title;
   final String subtitle;
 
-  const _CardHeading({
+  const CardHeading({
+    super.key,
     required this.icon,
     required this.title,
     required this.subtitle,
@@ -1192,11 +1827,15 @@ class _CardHeading extends StatelessWidget {
   }
 }
 
-class _TipItem extends StatelessWidget {
+class TipItem extends StatelessWidget {
   final IconData icon;
   final String text;
 
-  const _TipItem({required this.icon, required this.text});
+  const TipItem({
+    super.key,
+    required this.icon,
+    required this.text,
+  });
 
   @override
   Widget build(BuildContext context) {

@@ -8,14 +8,15 @@ class ValidacionReportesScreen extends StatefulWidget {
   const ValidacionReportesScreen({super.key});
 
   @override
-  State<ValidacionReportesScreen> createState() => _ValidacionReportesScreenState();
+  State<ValidacionReportesScreen> createState() =>
+      _ValidacionReportesScreenState();
 }
 
 class _ValidacionReportesScreenState extends State<ValidacionReportesScreen> {
-  // '' significa "Todos"
   String _filtroEstado = 'resuelto_pendiente_validacion';
   String _buscarTexto = '';
   bool _cargando = true;
+  bool _recargando = false;
   List<Map<String, dynamic>> _reportes = [];
 
   @override
@@ -24,14 +25,19 @@ class _ValidacionReportesScreenState extends State<ValidacionReportesScreen> {
     _cargarReportes();
   }
 
-  Future<void> _cargarReportes() async {
-    setState(() => _cargando = true);
+  Future<void> _cargarReportes({bool silencioso = false}) async {
+    if (silencioso) {
+      setState(() => _recargando = true);
+    } else {
+      setState(() => _cargando = true);
+    }
     final service = Provider.of<DenunciaService>(context, listen: false);
     final todos = await service.obtenerTodasDenuncias();
     if (!mounted) return;
     setState(() {
       _reportes = todos;
       _cargando = false;
+      _recargando = false;
     });
   }
 
@@ -53,38 +59,54 @@ class _ValidacionReportesScreenState extends State<ValidacionReportesScreen> {
 
   Color _getEstadoColor(String estado) {
     switch (estado) {
-      case 'pendiente': return AppConfig.naranja;
-      case 'en_revision': return AppConfig.azulClaro;
-      case 'resuelto_pendiente_validacion': return AppConfig.rojo;
-      case 'devuelto': return const Color(0xFF9C27B0);
-      case 'resuelto_publicado': return AppConfig.verde;
-      default: return AppConfig.grisOscuro;
+      case 'pendiente':
+        return AppConfig.naranja;
+      case 'en_revision':
+        return AppConfig.azulClaro;
+      case 'resuelto_pendiente_validacion':
+        return AppConfig.rojo;
+      case 'devuelto':
+        return const Color(0xFF9C27B0);
+      case 'resuelto_publicado':
+        return AppConfig.verde;
+      default:
+        return AppConfig.grisOscuro;
     }
   }
 
   String _getEstadoText(String estado) {
     switch (estado) {
-      case 'pendiente': return 'Pendiente';
-      case 'en_revision': return 'En revisión';
-      case 'resuelto_pendiente_validacion': return 'Pend. validación';
-      case 'devuelto': return 'Devuelto';
-      case 'resuelto_publicado': return 'Resuelto ✓';
-      default: return estado;
+      case 'pendiente':
+        return 'Pendiente';
+      case 'en_revision':
+        return 'En revisión';
+      case 'resuelto_pendiente_validacion':
+        return 'Pend. validación';
+      case 'devuelto':
+        return 'Devuelto';
+      case 'resuelto_publicado':
+        return 'Resuelto ✓';
+      default:
+        return estado;
     }
   }
 
   Future<void> _aprobarReporte(Map<String, dynamic> reporte) async {
     final service = Provider.of<DenunciaService>(context, listen: false);
-    final ok = await service.actualizarEstado(reporte['id'] as int, 'resuelto_publicado');
+    final ok = await service.actualizarEstado(
+      reporte['id'] as int,
+      'resuelto_publicado',
+    );
     if (!mounted) return;
     if (ok) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Reporte ${reporte['codigo_unico']} publicado correctamente'),
+          content:
+              Text('Reporte ${reporte['codigo_unico']} publicado correctamente'),
           backgroundColor: AppConfig.verde,
         ),
       );
-      _cargarReportes();
+      _cargarReportes(silencioso: true);
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -95,7 +117,8 @@ class _ValidacionReportesScreenState extends State<ValidacionReportesScreen> {
     }
   }
 
-  Future<void> _devolverReporte(Map<String, dynamic> reporte, String motivo) async {
+  Future<void> _devolverReporte(
+      Map<String, dynamic> reporte, String motivo) async {
     try {
       final service = Provider.of<DenunciaService>(context, listen: false);
       await service.actualizarEstadoConRespuesta(
@@ -106,11 +129,12 @@ class _ValidacionReportesScreenState extends State<ValidacionReportesScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Reporte ${reporte['codigo_unico']} devuelto al funcionario'),
+          content:
+              Text('Reporte ${reporte['codigo_unico']} devuelto al funcionario'),
           backgroundColor: const Color(0xFF9C27B0),
         ),
       );
-      _cargarReportes();
+      _cargarReportes(silencioso: true);
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -133,7 +157,8 @@ class _ValidacionReportesScreenState extends State<ValidacionReportesScreen> {
       isScrollControlled: true,
       builder: (ctx) {
         return Padding(
-          padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
+          padding:
+              EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
           child: Container(
             margin: const EdgeInsets.all(12),
             padding: const EdgeInsets.all(22),
@@ -153,7 +178,8 @@ class _ValidacionReportesScreenState extends State<ValidacionReportesScreen> {
                   children: [
                     Center(
                       child: Container(
-                        width: 46, height: 5,
+                        width: 46,
+                        height: 5,
                         margin: const EdgeInsets.only(bottom: 18),
                         decoration: BoxDecoration(
                           color: AppConfig.grisMedio,
@@ -165,8 +191,12 @@ class _ValidacionReportesScreenState extends State<ValidacionReportesScreen> {
                       children: [
                         CircleAvatar(
                           radius: 28,
-                          backgroundColor: _getEstadoColor(estado).withOpacity(0.12),
-                          child: Icon(Icons.fact_check_rounded, color: _getEstadoColor(estado)),
+                          backgroundColor:
+                              _getEstadoColor(estado).withOpacity(0.12),
+                          child: Icon(
+                            Icons.fact_check_rounded,
+                            color: _getEstadoColor(estado),
+                          ),
                         ),
                         const SizedBox(width: 14),
                         Expanded(
@@ -176,13 +206,18 @@ class _ValidacionReportesScreenState extends State<ValidacionReportesScreen> {
                               Text(
                                 reporte['codigo_unico'] ?? '—',
                                 style: const TextStyle(
-                                  fontSize: 20, fontWeight: FontWeight.w900, color: AppConfig.azulOscuro,
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.w900,
+                                  color: AppConfig.azulOscuro,
                                 ),
                               ),
                               const SizedBox(height: 4),
                               Text(
                                 reporte['ubicacion'] ?? '—',
-                                style: TextStyle(color: AppConfig.grisOscuro, fontSize: 13),
+                                style: TextStyle(
+                                  color: AppConfig.grisOscuro,
+                                  fontSize: 13,
+                                ),
                               ),
                             ],
                           ),
@@ -196,14 +231,18 @@ class _ValidacionReportesScreenState extends State<ValidacionReportesScreen> {
                     _buildInfoRow('Fecha', _formatFecha(reporte['creado_en'])),
                     if (reporte['respuesta_oficial'] != null &&
                         reporte['respuesta_oficial'].toString().isNotEmpty)
-                      _buildInfoRow('Respuesta funcionario', reporte['respuesta_oficial']),
-
+                      _buildInfoRow(
+                        'Respuesta funcionario',
+                        reporte['respuesta_oficial'],
+                      ),
                     if (esPendienteValidacion) ...[
                       const SizedBox(height: 20),
                       const Text(
                         'Motivo de devolución (opcional)',
                         style: TextStyle(
-                          fontWeight: FontWeight.w900, color: AppConfig.azulOscuro, fontSize: 15,
+                          fontWeight: FontWeight.w900,
+                          color: AppConfig.azulOscuro,
+                          fontSize: 15,
                         ),
                       ),
                       const SizedBox(height: 10),
@@ -211,10 +250,13 @@ class _ValidacionReportesScreenState extends State<ValidacionReportesScreen> {
                         controller: motivoController,
                         maxLines: 3,
                         decoration: InputDecoration(
-                          hintText: 'Explica por qué se devuelve al funcionario...',
+                          hintText:
+                              'Explica por qué se devuelve al funcionario...',
                           filled: true,
                           fillColor: const Color(0xFFF8FAFC),
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
                         ),
                       ),
                       const SizedBox(height: 18),
@@ -230,7 +272,9 @@ class _ValidacionReportesScreenState extends State<ValidacionReportesScreen> {
                           style: ElevatedButton.styleFrom(
                             backgroundColor: AppConfig.verde,
                             padding: const EdgeInsets.symmetric(vertical: 14),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
                           ),
                         );
                         final devolverBtn = ElevatedButton.icon(
@@ -244,24 +288,29 @@ class _ValidacionReportesScreenState extends State<ValidacionReportesScreen> {
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFF9C27B0),
                             padding: const EdgeInsets.symmetric(vertical: 14),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
                           ),
                         );
                         if (isNarrow) {
-                          return Column(children: [
-                            SizedBox(width: double.infinity, child: aprobarBtn),
-                            const SizedBox(height: 10),
-                            SizedBox(width: double.infinity, child: devolverBtn),
-                          ]);
+                          return Column(
+                            children: [
+                              SizedBox(width: double.infinity, child: aprobarBtn),
+                              const SizedBox(height: 10),
+                              SizedBox(width: double.infinity, child: devolverBtn),
+                            ],
+                          );
                         }
-                        return Row(children: [
-                          Expanded(child: aprobarBtn),
-                          const SizedBox(width: 12),
-                          Expanded(child: devolverBtn),
-                        ]);
+                        return Row(
+                          children: [
+                            Expanded(child: aprobarBtn),
+                            const SizedBox(width: 12),
+                            Expanded(child: devolverBtn),
+                          ],
+                        );
                       }),
                     ] else ...[
-                      // Modo solo lectura para otros estados
                       const SizedBox(height: 16),
                       Container(
                         padding: const EdgeInsets.all(14),
@@ -271,7 +320,11 @@ class _ValidacionReportesScreenState extends State<ValidacionReportesScreen> {
                         ),
                         child: Row(
                           children: [
-                            Icon(Icons.info_rounded, color: _getEstadoColor(estado), size: 20),
+                            Icon(
+                              Icons.info_rounded,
+                              color: _getEstadoColor(estado),
+                              size: 20,
+                            ),
                             const SizedBox(width: 10),
                             Expanded(
                               child: Text(
@@ -318,7 +371,9 @@ class _ValidacionReportesScreenState extends State<ValidacionReportesScreen> {
             child: Text(
               label,
               style: TextStyle(
-                fontSize: 13, color: AppConfig.grisOscuro, fontWeight: FontWeight.w700,
+                fontSize: 13,
+                color: AppConfig.grisOscuro,
+                fontWeight: FontWeight.w700,
               ),
             ),
           ),
@@ -345,7 +400,12 @@ class _ValidacionReportesScreenState extends State<ValidacionReportesScreen> {
           child: Column(
             children: [
               Padding(
-                padding: EdgeInsets.fromLTRB(isMobile ? 16 : 28, isMobile ? 16 : 28, isMobile ? 16 : 28, 0),
+                padding: EdgeInsets.fromLTRB(
+                  isMobile ? 16 : 28,
+                  isMobile ? 16 : 28,
+                  isMobile ? 16 : 28,
+                  0,
+                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -360,7 +420,12 @@ class _ValidacionReportesScreenState extends State<ValidacionReportesScreen> {
               ),
               Expanded(
                 child: Padding(
-                  padding: EdgeInsets.fromLTRB(isMobile ? 16 : 28, 0, isMobile ? 16 : 28, isMobile ? 16 : 28),
+                  padding: EdgeInsets.fromLTRB(
+                    isMobile ? 16 : 28,
+                    0,
+                    isMobile ? 16 : 28,
+                    isMobile ? 16 : 28,
+                  ),
                   child: _buildLista(),
                 ),
               ),
@@ -377,35 +442,61 @@ class _ValidacionReportesScreenState extends State<ValidacionReportesScreen> {
       padding: EdgeInsets.all(isMobile ? 22 : 28),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [AppConfig.azulOscuro, AppConfig.rojo],
+          colors: [AppConfig.azulOscuro, AppConfig.azulClaro],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(isMobile ? 22 : 28),
         boxShadow: [
-          BoxShadow(color: AppConfig.rojo.withOpacity(0.18), blurRadius: 20, offset: const Offset(0, 10)),
+          BoxShadow(
+            color: AppConfig.azulClaro.withOpacity(0.18),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          ),
         ],
       ),
       child: Stack(
         children: [
           Positioned(
-            right: -10, bottom: -20,
-            child: Icon(Icons.fact_check_rounded,
-              size: isMobile ? 80 : 110, color: Colors.white.withOpacity(0.08)),
+            right: -10,
+            bottom: -8,
+            child: Icon(
+              Icons.fact_check_rounded,
+              size: isMobile ? 80 : 110,
+              color: Colors.white.withOpacity(0.08),
+            ),
           ),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const _HeroBadge(icon: Icons.fact_check_rounded, text: 'Validación de Reportes'),
+              Row(
+                children: const [
+                  Expanded(
+                    child: _HeroBadge(
+                      icon: Icons.fact_check_rounded,
+                      text: 'Validación de Reportes',
+                    ),
+                  ),
+                ],
+              ),
               const SizedBox(height: 14),
-              Text('Validación de Reportes',
+              Text(
+                'Validación de Reportes',
                 style: TextStyle(
-                  fontSize: isMobile ? 22 : 30, fontWeight: FontWeight.w900,
-                  color: Colors.white, letterSpacing: -0.5,
-                )),
+                  fontSize: isMobile ? 22 : 30,
+                  fontWeight: FontWeight.w900,
+                  color: Colors.white,
+                  letterSpacing: -0.5,
+                ),
+              ),
               const SizedBox(height: 8),
-              Text('Aprueba o devuelve respuestas oficiales de funcionarios.',
-                style: TextStyle(fontSize: isMobile ? 13 : 14.5, color: Colors.white.withOpacity(0.84))),
+              Text(
+                'Aprueba o devuelve respuestas oficiales de funcionarios.',
+                style: TextStyle(
+                  fontSize: isMobile ? 13 : 14.5,
+                  color: Colors.white.withOpacity(0.84),
+                ),
+              ),
             ],
           ),
         ],
@@ -414,17 +505,39 @@ class _ValidacionReportesScreenState extends State<ValidacionReportesScreen> {
   }
 
   Widget _buildResumen() {
-    final pendVal = _reportes.where((r) => r['estado'] == 'resuelto_pendiente_validacion').length;
-    final aprobados = _reportes.where((r) => r['estado'] == 'resuelto_publicado').length;
+    final pendVal = _reportes
+        .where((r) => r['estado'] == 'resuelto_pendiente_validacion')
+        .length;
+    final aprobados = _reportes
+        .where((r) => r['estado'] == 'resuelto_publicado')
+        .length;
     final devueltos = _reportes.where((r) => r['estado'] == 'devuelto').length;
 
     return Row(
       children: [
-        Expanded(child: _SummaryRow(label: 'Pend. validación', value: '$pendVal', color: AppConfig.rojo)),
+        Expanded(
+          child: _SummaryRow(
+            label: 'Pend. validación',
+            value: '$pendVal',
+            color: AppConfig.rojo,
+          ),
+        ),
         const SizedBox(width: 12),
-        Expanded(child: _SummaryRow(label: 'Publicados', value: '$aprobados', color: AppConfig.verde)),
+        Expanded(
+          child: _SummaryRow(
+            label: 'Publicados',
+            value: '$aprobados',
+            color: AppConfig.verde,
+          ),
+        ),
         const SizedBox(width: 12),
-        Expanded(child: _SummaryRow(label: 'Devueltos', value: '$devueltos', color: const Color(0xFF9C27B0))),
+        Expanded(
+          child: _SummaryRow(
+            label: 'Devueltos',
+            value: '$devueltos',
+            color: const Color(0xFF9C27B0),
+          ),
+        ),
       ],
     );
   }
@@ -432,44 +545,56 @@ class _ValidacionReportesScreenState extends State<ValidacionReportesScreen> {
   Widget _buildFiltros(bool isMobile) {
     final filtros = [
       {'label': 'Todos', 'value': ''},
-      {'label': 'Pend. validación', 'value': 'resuelto_pendiente_validacion'},
+      {'label': 'Pend. val.', 'value': 'resuelto_pendiente_validacion'},
       {'label': 'Publicados', 'value': 'resuelto_publicado'},
       {'label': 'Devueltos', 'value': 'devuelto'},
       {'label': 'En revisión', 'value': 'en_revision'},
       {'label': 'Pendiente', 'value': 'pendiente'},
     ];
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    return Row(
       children: [
-        TextField(
-          onChanged: (v) => setState(() => _buscarTexto = v),
-          decoration: InputDecoration(
-            hintText: 'Buscar por código, ubicación o categoría...',
-            prefixIcon: const Icon(Icons.search_rounded),
-            filled: true,
-            fillColor: Colors.white,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(16),
-              borderSide: BorderSide(color: AppConfig.grisMedio),
+        Expanded(
+          child: SizedBox(
+            height: 44,
+            child: TextField(
+              onChanged: (v) => setState(() => _buscarTexto = v),
+              decoration: InputDecoration(
+                hintText: 'Buscar...',
+                prefixIcon: const Icon(Icons.search_rounded, size: 20),
+                filled: true,
+                fillColor: Colors.white,
+                contentPadding:
+                    const EdgeInsets.symmetric(vertical: 0, horizontal: 12),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: AppConfig.grisMedio),
+                ),
+                isDense: true,
+              ),
             ),
-            contentPadding: const EdgeInsets.symmetric(vertical: 14),
           ),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(width: 10),
         SingleChildScrollView(
           scrollDirection: Axis.horizontal,
           child: Row(
             children: filtros.map((f) {
               final selected = _filtroEstado == f['value'];
               return Padding(
-                padding: const EdgeInsets.only(right: 8),
+                padding: const EdgeInsets.only(right: 6),
                 child: FilterChip(
-                  label: Text(f['label']!),
+                  label: Text(
+                    f['label']!,
+                    style: const TextStyle(fontSize: 12),
+                  ),
                   selected: selected,
-                  onSelected: (_) => setState(() => _filtroEstado = f['value']!),
+                  onSelected: (_) => setState(
+                    () => _filtroEstado = f['value']!,
+                  ),
                   selectedColor: AppConfig.rojo.withOpacity(0.15),
                   checkmarkColor: AppConfig.rojo,
+                  visualDensity: VisualDensity.compact,
                   labelStyle: TextStyle(
                     color: selected ? AppConfig.rojo : AppConfig.grisOscuro,
                     fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
@@ -496,11 +621,20 @@ class _ValidacionReportesScreenState extends State<ValidacionReportesScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.fact_check_rounded, size: 54, color: AppConfig.rojo),
+                const Icon(
+                  Icons.fact_check_rounded,
+                  size: 54,
+                  color: AppConfig.rojo,
+                ),
                 const SizedBox(height: 12),
-                const Text('Sin resultados', style: TextStyle(
-                  fontSize: 19, fontWeight: FontWeight.w900, color: AppConfig.azulOscuro,
-                )),
+                const Text(
+                  'Sin resultados',
+                  style: TextStyle(
+                    fontSize: 19,
+                    fontWeight: FontWeight.w900,
+                    color: AppConfig.azulOscuro,
+                  ),
+                ),
                 const SizedBox(height: 6),
                 Text(
                   'No hay reportes que coincidan con los filtros.',
@@ -536,7 +670,10 @@ class _ValidacionReportesScreenState extends State<ValidacionReportesScreen> {
             ),
             title: Text(
               r['codigo_unico'] ?? '—',
-              style: const TextStyle(fontWeight: FontWeight.w900, color: AppConfig.azulOscuro),
+              style: const TextStyle(
+                fontWeight: FontWeight.w900,
+                color: AppConfig.azulOscuro,
+              ),
             ),
             subtitle: Padding(
               padding: const EdgeInsets.only(top: 6),
@@ -545,8 +682,13 @@ class _ValidacionReportesScreenState extends State<ValidacionReportesScreen> {
                 children: [
                   Text(r['ubicacion'] ?? '—'),
                   const SizedBox(height: 4),
-                  Text(r['categoria'] ?? '—',
-                    style: TextStyle(fontSize: 12, color: AppConfig.grisOscuro)),
+                  Text(
+                    r['categoria'] ?? '—',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: AppConfig.grisOscuro,
+                    ),
+                  ),
                   const SizedBox(height: 7),
                   _StatusChip(label: _getEstadoText(estado), color: color),
                 ],
@@ -555,14 +697,22 @@ class _ValidacionReportesScreenState extends State<ValidacionReportesScreen> {
             isThreeLine: true,
             trailing: estado == 'resuelto_pendiente_validacion'
                 ? Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
                       color: AppConfig.rojo.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: const Text('REVISAR', style: TextStyle(
-                      fontSize: 10, color: AppConfig.rojo, fontWeight: FontWeight.w900,
-                    )),
+                    child: const Text(
+                      'REVISAR',
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: AppConfig.rojo,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
                   )
                 : const Icon(Icons.chevron_right_rounded),
             onTap: () => _mostrarDetalle(r),
@@ -583,11 +733,17 @@ class _StatusChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.12), borderRadius: BorderRadius.circular(999),
+        color: color.withOpacity(0.12),
+        borderRadius: BorderRadius.circular(999),
       ),
-      child: Text(label, style: TextStyle(
-        fontSize: 10.5, color: color, fontWeight: FontWeight.w800,
-      )),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 10.5,
+          color: color,
+          fontWeight: FontWeight.w800,
+        ),
+      ),
     );
   }
 }
@@ -596,21 +752,39 @@ class _SummaryRow extends StatelessWidget {
   final String label;
   final String value;
   final Color color;
-  const _SummaryRow({required this.label, required this.value, required this.color});
+  const _SummaryRow({
+    required this.label,
+    required this.value,
+    required this.color,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.08), borderRadius: BorderRadius.circular(16),
+        color: color.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(16),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(value, style: TextStyle(color: color, fontSize: 20, fontWeight: FontWeight.w900)),
+          Text(
+            value,
+            style: TextStyle(
+              color: color,
+              fontSize: 20,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
           const SizedBox(height: 2),
-          Text(label, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
+          Text(
+            label,
+            style: const TextStyle(
+              fontWeight: FontWeight.w700,
+              fontSize: 12,
+            ),
+          ),
         ],
       ),
     );
@@ -631,7 +805,11 @@ class _SoftCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(24),
         border: Border.all(color: AppConfig.grisMedio),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.045), blurRadius: 14, offset: const Offset(0, 8)),
+          BoxShadow(
+            color: Colors.black.withOpacity(0.045),
+            blurRadius: 14,
+            offset: const Offset(0, 8),
+          ),
         ],
       ),
       child: child,
@@ -649,16 +827,55 @@ class _HeroBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.16), borderRadius: BorderRadius.circular(999),
+        color: Colors.white.withOpacity(0.16),
+        borderRadius: BorderRadius.circular(999),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(icon, size: 16, color: Colors.white),
           const SizedBox(width: 7),
-          Text(text, style: const TextStyle(
-            color: Colors.white, fontSize: 12, fontWeight: FontWeight.w800,
-          )),
+          Text(
+            text,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 12,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _HeroChip extends StatelessWidget {
+  final IconData icon;
+  final String text;
+  const _HeroChip({required this.icon, required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.14),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: Colors.white.withOpacity(0.22)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: Colors.white),
+          const SizedBox(width: 6),
+          Text(
+            text,
+            style: const TextStyle(
+              fontSize: 11.5,
+              color: Colors.white,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
         ],
       ),
     );

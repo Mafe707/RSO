@@ -74,14 +74,24 @@ class _EstadisticasScreenState extends State<EstadisticasScreen> {
                     subtitle: 'Resumen general del sistema.',
                   ),
                   const SizedBox(height: 16),
-                  _buildStats(isMobile, total, publicados, tasa, pendValidacion),
+                  _buildStats(
+                    isMobile,
+                    total,
+                    publicados,
+                    tasa,
+                    pendValidacion,
+                  ),
                   SizedBox(height: isMobile ? 22 : 28),
                   if (isMobile)
                     Column(
                       children: [
                         _buildEstadoChart(
-                          pendientes, enRevision, pendValidacion,
-                          devueltos, publicados, total,
+                          pendientes,
+                          enRevision,
+                          pendValidacion,
+                          devueltos,
+                          publicados,
+                          total,
                         ),
                         const SizedBox(height: 18),
                         _buildCategoriaChart(),
@@ -97,8 +107,12 @@ class _EstadisticasScreenState extends State<EstadisticasScreen> {
                           children: [
                             Expanded(
                               child: _buildEstadoChart(
-                                pendientes, enRevision, pendValidacion,
-                                devueltos, publicados, total,
+                                pendientes,
+                                enRevision,
+                                pendValidacion,
+                                devueltos,
+                                publicados,
+                                total,
                               ),
                             ),
                             const SizedBox(width: 20),
@@ -121,30 +135,30 @@ class _EstadisticasScreenState extends State<EstadisticasScreen> {
   Widget _buildHero({required bool isMobile}) {
     return Container(
       width: double.infinity,
-      padding: EdgeInsets.all(isMobile ? 22 : 30),
+      padding: EdgeInsets.all(isMobile ? 22 : 28),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [AppConfig.azulOscuro, AppConfig.verde],
+          colors: [Color(0xFF0B3D2E), Color(0xFF2E7D32)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(isMobile ? 24 : 30),
+        borderRadius: BorderRadius.circular(isMobile ? 22 : 28),
         boxShadow: [
           BoxShadow(
-            color: AppConfig.verde.withOpacity(0.18),
-            blurRadius: 22,
-            offset: const Offset(0, 12),
+            color: AppConfig.azulClaro.withOpacity(0.18),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
           ),
         ],
       ),
       child: Stack(
         children: [
           Positioned(
-            right: -14,
-            bottom: -24,
+            right: -10,
+            bottom: -8,
             child: Icon(
               Icons.bar_chart_rounded,
-              size: isMobile ? 90 : 130,
+              size: isMobile ? 80 : 110,
               color: Colors.white.withOpacity(0.08),
             ),
           ),
@@ -155,51 +169,77 @@ class _EstadisticasScreenState extends State<EstadisticasScreen> {
                 icon: Icons.query_stats_rounded,
                 text: 'Indicadores administrativos',
               ),
-              const SizedBox(height: 18),
+              const SizedBox(height: 14),
               Text(
                 'Estadísticas del sistema',
                 style: TextStyle(
-                  fontSize: isMobile ? 26 : 36,
-                  height: 1.08,
+                  fontSize: isMobile ? 22 : 30,
                   fontWeight: FontWeight.w900,
                   color: Colors.white,
-                  letterSpacing: -0.6,
+                  letterSpacing: -0.5,
                 ),
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 8),
               Text(
                 'Analiza reportes, validaciones y estados para mejorar la gestión institucional.',
                 style: TextStyle(
-                  fontSize: isMobile ? 13.5 : 15.5,
-                  height: 1.4,
+                  fontSize: isMobile ? 13 : 14.5,
                   color: Colors.white.withOpacity(0.84),
                 ),
               ),
               const SizedBox(height: 16),
-              GestureDetector(
-                onTap: _cargar,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.16),
-                    borderRadius: BorderRadius.circular(999),
+              Wrap(
+                spacing: 10,
+                runSpacing: 8,
+                children: [
+                  const _HeroChip(
+                    icon: Icons.pie_chart_rounded,
+                    text: 'Por estado',
                   ),
-                  child: const Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.refresh_rounded, size: 16, color: Colors.white),
-                      SizedBox(width: 7),
-                      Text(
-                        'Actualizar datos',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w800,
+                  const _HeroChip(
+                    icon: Icons.category_rounded,
+                    text: 'Por categoría',
+                  ),
+                  const _HeroChip(
+                    icon: Icons.person_search_rounded,
+                    text: 'Anónimas',
+                  ),
+                  GestureDetector(
+                    onTap: _cargar,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 11,
+                        vertical: 7,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.22),
+                        borderRadius: BorderRadius.circular(999),
+                        border: Border.all(
+                          color: Colors.white.withOpacity(0.35),
                         ),
                       ),
-                    ],
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.refresh_rounded,
+                            size: 14,
+                            color: Colors.white,
+                          ),
+                          SizedBox(width: 6),
+                          Text(
+                            'Actualizar',
+                            style: TextStyle(
+                              fontSize: 11.5,
+                              color: Colors.white,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
-                ),
+                ],
               ),
             ],
           ),
@@ -209,7 +249,12 @@ class _EstadisticasScreenState extends State<EstadisticasScreen> {
   }
 
   Widget _buildStats(
-    bool isMobile, int total, int publicados, int tasa, int pendVal) {
+    bool isMobile,
+    int total,
+    int publicados,
+    int tasa,
+    int pendVal,
+  ) {
     final cards = [
       _StatCard(
         title: 'Total reportes',
@@ -238,24 +283,40 @@ class _EstadisticasScreenState extends State<EstadisticasScreen> {
     ];
 
     if (isMobile) {
-      return Column(children: [
-        cards[0], const SizedBox(height: 12),
-        cards[1], const SizedBox(height: 12),
-        cards[2], const SizedBox(height: 12),
-        cards[3],
-      ]);
+      return Column(
+        children: [
+          cards[0],
+          const SizedBox(height: 12),
+          cards[1],
+          const SizedBox(height: 12),
+          cards[2],
+          const SizedBox(height: 12),
+          cards[3],
+        ],
+      );
     }
 
-    return Row(children: [
-      Expanded(child: cards[0]), const SizedBox(width: 16),
-      Expanded(child: cards[1]), const SizedBox(width: 16),
-      Expanded(child: cards[2]), const SizedBox(width: 16),
-      Expanded(child: cards[3]),
-    ]);
+    return Row(
+      children: [
+        Expanded(child: cards[0]),
+        const SizedBox(width: 16),
+        Expanded(child: cards[1]),
+        const SizedBox(width: 16),
+        Expanded(child: cards[2]),
+        const SizedBox(width: 16),
+        Expanded(child: cards[3]),
+      ],
+    );
   }
 
   Widget _buildEstadoChart(
-    int pend, int rev, int pendVal, int dev, int pub, int total) {
+    int pend,
+    int rev,
+    int pendVal,
+    int dev,
+    int pub,
+    int total,
+  ) {
     final items = [
       _ChartItem('Pendientes', pend, AppConfig.naranja),
       _ChartItem('En revisión', rev, AppConfig.azulClaro),
@@ -274,15 +335,17 @@ class _EstadisticasScreenState extends State<EstadisticasScreen> {
             subtitle: 'Distribución actual de todos los reportes.',
           ),
           const SizedBox(height: 20),
-          ...items.map((item) => Padding(
-            padding: const EdgeInsets.only(bottom: 14),
-            child: _ProgressLine(
-              label: item.label,
-              value: item.value,
-              total: total == 0 ? 1 : total,
-              color: item.color,
+          ...items.map(
+            (item) => Padding(
+              padding: const EdgeInsets.only(bottom: 14),
+              child: _ProgressLine(
+                label: item.label,
+                value: item.value,
+                total: total == 0 ? 1 : total,
+                color: item.color,
+              ),
             ),
-          )),
+          ),
           if (total == 0)
             Center(
               child: Padding(
@@ -337,23 +400,27 @@ class _EstadisticasScreenState extends State<EstadisticasScreen> {
               ),
             )
           else
-            ...sorted.take(6).toList().asMap().entries.map((e) => Padding(
-              padding: const EdgeInsets.only(bottom: 14),
-              child: _ProgressLine(
-                label: e.value.key,
-                value: e.value.value,
-                total: total == 0 ? 1 : total,
-                color: colors[e.key % colors.length],
-              ),
-            )),
+            ...sorted.take(6).toList().asMap().entries.map(
+                  (e) => Padding(
+                    padding: const EdgeInsets.only(bottom: 14),
+                    child: _ProgressLine(
+                      label: e.value.key,
+                      value: e.value.value,
+                      total: total == 0 ? 1 : total,
+                      color: colors[e.key % colors.length],
+                    ),
+                  ),
+                ),
         ],
       ),
     );
   }
 
   Widget _buildResumenAnonimasCard() {
-    final anonimas = _denuncias.where((d) => d['es_anonima'] == true).length;
-    final identificadas = _denuncias.where((d) => d['es_anonima'] == false).length;
+    final anonimas =
+        _denuncias.where((d) => d['es_anonima'] == true).length;
+    final identificadas =
+        _denuncias.where((d) => d['es_anonima'] == false).length;
     final total = _denuncias.length;
 
     return _SoftCard(
@@ -382,7 +449,8 @@ class _EstadisticasScreenState extends State<EstadisticasScreen> {
                 child: _MiniStatBox(
                   label: 'Identificadas',
                   value: '$identificadas',
-                  percent: total > 0 ? ((identificadas / total) * 100).round() : 0,
+                  percent:
+                      total > 0 ? ((identificadas / total) * 100).round() : 0,
                   color: AppConfig.azulClaro,
                   icon: Icons.person_rounded,
                 ),
@@ -416,11 +484,22 @@ class _SectionHeader extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(title, style: const TextStyle(
-          fontSize: 22, fontWeight: FontWeight.w900, color: AppConfig.azulOscuro,
-        )),
+        Text(
+          title,
+          style: const TextStyle(
+            fontSize: 22,
+            fontWeight: FontWeight.w900,
+            color: AppConfig.azulOscuro,
+          ),
+        ),
         const SizedBox(height: 4),
-        Text(subtitle, style: TextStyle(fontSize: 13.5, color: AppConfig.grisOscuro)),
+        Text(
+          subtitle,
+          style: TextStyle(
+            fontSize: 13.5,
+            color: AppConfig.grisOscuro,
+          ),
+        ),
       ],
     );
   }
@@ -432,8 +511,10 @@ class _StatCard extends StatelessWidget {
   final IconData icon;
   final Color color;
   const _StatCard({
-    required this.title, required this.value,
-    required this.icon, required this.color,
+    required this.title,
+    required this.value,
+    required this.icon,
+    required this.color,
   });
 
   @override
@@ -442,7 +523,8 @@ class _StatCard extends StatelessWidget {
       child: Row(
         children: [
           Container(
-            width: 54, height: 54,
+            width: 54,
+            height: 54,
             decoration: BoxDecoration(
               color: color.withOpacity(0.1),
               borderRadius: BorderRadius.circular(17),
@@ -454,13 +536,23 @@ class _StatCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(value, style: TextStyle(
-                  fontSize: 25, fontWeight: FontWeight.w900, color: color,
-                )),
+                Text(
+                  value,
+                  style: TextStyle(
+                    fontSize: 25,
+                    fontWeight: FontWeight.w900,
+                    color: color,
+                  ),
+                ),
                 const SizedBox(height: 2),
-                Text(title, style: TextStyle(
-                  fontSize: 12.5, color: AppConfig.grisOscuro, fontWeight: FontWeight.w600,
-                )),
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    color: AppConfig.grisOscuro,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
               ],
             ),
           ),
@@ -476,8 +568,10 @@ class _ProgressLine extends StatelessWidget {
   final int total;
   final Color color;
   const _ProgressLine({
-    required this.label, required this.value,
-    required this.total, required this.color,
+    required this.label,
+    required this.value,
+    required this.total,
+    required this.color,
   });
 
   @override
@@ -486,10 +580,23 @@ class _ProgressLine extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(children: [
-          Expanded(child: Text(label, style: const TextStyle(fontWeight: FontWeight.w800))),
-          Text('$value', style: TextStyle(fontWeight: FontWeight.w900, color: color)),
-        ]),
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                label,
+                style: const TextStyle(fontWeight: FontWeight.w800),
+              ),
+            ),
+            Text(
+              '$value',
+              style: TextStyle(
+                fontWeight: FontWeight.w900,
+                color: color,
+              ),
+            ),
+          ],
+        ),
         const SizedBox(height: 8),
         ClipRRect(
           borderRadius: BorderRadius.circular(999),
@@ -512,8 +619,11 @@ class _MiniStatBox extends StatelessWidget {
   final Color color;
   final IconData icon;
   const _MiniStatBox({
-    required this.label, required this.value,
-    required this.percent, required this.color, required this.icon,
+    required this.label,
+    required this.value,
+    required this.percent,
+    required this.color,
+    required this.icon,
   });
 
   @override
@@ -530,17 +640,32 @@ class _MiniStatBox extends StatelessWidget {
         children: [
           Icon(icon, color: color, size: 26),
           const SizedBox(height: 10),
-          Text(value, style: TextStyle(
-            fontSize: 28, fontWeight: FontWeight.w900, color: color,
-          )),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 28,
+              fontWeight: FontWeight.w900,
+              color: color,
+            ),
+          ),
           const SizedBox(height: 2),
-          Text(label, style: TextStyle(
-            fontSize: 13, fontWeight: FontWeight.w700, color: AppConfig.grisOscuro,
-          )),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: AppConfig.grisOscuro,
+            ),
+          ),
           const SizedBox(height: 6),
-          Text('$percent% del total', style: TextStyle(
-            fontSize: 11.5, color: color, fontWeight: FontWeight.w600,
-          )),
+          Text(
+            '$percent% del total',
+            style: TextStyle(
+              fontSize: 11.5,
+              color: color,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
         ],
       ),
     );
@@ -578,7 +703,9 @@ class _CardHeading extends StatelessWidget {
   final String title;
   final String subtitle;
   const _CardHeading({
-    required this.icon, required this.title, required this.subtitle,
+    required this.icon,
+    required this.title,
+    required this.subtitle,
   });
 
   @override
@@ -586,7 +713,8 @@ class _CardHeading extends StatelessWidget {
     return Row(
       children: [
         Container(
-          height: 46, width: 46,
+          height: 46,
+          width: 46,
           decoration: BoxDecoration(
             color: AppConfig.verde.withOpacity(0.1),
             borderRadius: BorderRadius.circular(15),
@@ -598,13 +726,22 @@ class _CardHeading extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(title, style: const TextStyle(
-                fontSize: 18, fontWeight: FontWeight.w900, color: AppConfig.azulOscuro,
-              )),
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w900,
+                  color: AppConfig.azulOscuro,
+                ),
+              ),
               const SizedBox(height: 3),
-              Text(subtitle, style: TextStyle(
-                fontSize: 12.5, color: AppConfig.grisOscuro,
-              )),
+              Text(
+                subtitle,
+                style: TextStyle(
+                  fontSize: 12.5,
+                  color: AppConfig.grisOscuro,
+                ),
+              ),
             ],
           ),
         ),
@@ -631,9 +768,47 @@ class _HeroBadge extends StatelessWidget {
         children: [
           Icon(icon, size: 16, color: Colors.white),
           const SizedBox(width: 7),
-          Text(text, style: const TextStyle(
-            color: Colors.white, fontSize: 12, fontWeight: FontWeight.w800,
-          )),
+          Text(
+            text,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 12,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _HeroChip extends StatelessWidget {
+  final IconData icon;
+  final String text;
+  const _HeroChip({required this.icon, required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.14),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: Colors.white.withOpacity(0.22)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: Colors.white),
+          const SizedBox(width: 6),
+          Text(
+            text,
+            style: const TextStyle(
+              fontSize: 11.5,
+              color: Colors.white,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
         ],
       ),
     );
