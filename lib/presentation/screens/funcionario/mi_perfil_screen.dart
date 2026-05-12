@@ -229,7 +229,7 @@ class _MiPerfilScreenState extends State<MiPerfilScreen> {
         children: [
           Positioned(
             right: -12,
-            bottom: -22,
+            bottom: -6,
             child: Icon(
               Icons.person_rounded,
               size: isMobile ? 90 : 130,

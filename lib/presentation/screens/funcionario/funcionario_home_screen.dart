@@ -62,7 +62,8 @@ class _FuncionarioHomeScreenState extends State<FuncionarioHomeScreen> {
         _totalCasos = data.length;
         _pendientes = data.where((d) => d['estado'] == 'pendiente').length;
         _enRevision = data.where((d) => d['estado'] == 'en_revision').length;
-        _resueltos = data.where((d) => d['estado'] == 'resuelto_publicado').length;
+        _resueltos =
+            data.where((d) => d['estado'] == 'resuelto_publicado').length;
         _actividadReciente = List<Map<String, dynamic>>.from(data.take(3));
         _loadingStats = false;
       });
@@ -90,16 +91,16 @@ class _FuncionarioHomeScreenState extends State<FuncionarioHomeScreen> {
   }
 
   Future<void> _cerrarSesion() async {
-  final authService = Provider.of<AuthService>(context, listen: false);
-  await authService.logout();
-  if (mounted) {
-    Navigator.pushAndRemoveUntil(
-      context,
-      MaterialPageRoute(builder: (_) => const FuncionarioLoginScreen()),
-      (route) => false,
-    );
+    final authService = Provider.of<AuthService>(context, listen: false);
+    await authService.logout();
+    if (mounted) {
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (_) => const FuncionarioLoginScreen()),
+        (route) => false,
+      );
+    }
   }
-}
 
   void _goTo(Widget screen) {
     Navigator.pushReplacement(
@@ -138,7 +139,6 @@ class _FuncionarioHomeScreenState extends State<FuncionarioHomeScreen> {
         elevation: 0,
         centerTitle: isMobile,
         actions: [
-          // Avatar + nombre (web) o solo avatar (móvil) → va a Mi Perfil
           if (!isMobile)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 4),
@@ -295,7 +295,7 @@ class _FuncionarioHomeScreenState extends State<FuncionarioHomeScreen> {
         children: [
           Positioned(
             right: -18,
-            bottom: -24,
+            bottom: -8,
             child: Icon(
               Icons.badge_rounded,
               size: isMobile ? 105 : 150,
@@ -338,8 +338,9 @@ class _FuncionarioHomeScreenState extends State<FuncionarioHomeScreen> {
                       _HeroChip(icon: Icons.work_rounded, text: cargo),
                     if (departamento.isNotEmpty)
                       _HeroChip(
-                          icon: Icons.corporate_fare_rounded,
-                          text: departamento),
+                        icon: Icons.corporate_fare_rounded,
+                        text: departamento,
+                      ),
                   ],
                 ),
               ],
@@ -415,79 +416,94 @@ class _FuncionarioHomeScreenState extends State<FuncionarioHomeScreen> {
   }
 
   Widget _buildMobileActions(Map<String, dynamic> userData) {
+    final accesos = [
+      _AccesoRapidoData(
+        icon: Icons.assignment_rounded,
+        title: 'Mis casos',
+        subtitle: 'Consulta y actualiza tus casos asignados.',
+        color: AppConfig.azulClaro,
+        badge: _totalCasos > 0 ? '$_totalCasos' : null,
+        onTap: () => _goTo(MisCasosScreen(userData: userData)),
+      ),
+      _AccesoRapidoData(
+        icon: Icons.flag_rounded,
+        title: 'Nuevos reportes',
+        subtitle: 'Revisa reportes disponibles para atender.',
+        color: AppConfig.rojo,
+        onTap: () => _goTo(NuevosReportesScreen(userData: userData)),
+      ),
+      _AccesoRapidoData(
+        icon: Icons.map_rounded,
+        title: 'Mapa de casos',
+        subtitle: 'Visualiza la ubicación de los reportes.',
+        color: AppConfig.verde,
+        onTap: () => _goTo(const MapaCasosScreen()),
+      ),
+      _AccesoRapidoData(
+        icon: Icons.person_rounded,
+        title: 'Mi perfil',
+        subtitle: 'Consulta tus datos institucionales.',
+        color: AppConfig.azulOscuro,
+        onTap: () => _goTo(MiPerfilScreen(userData: userData)),
+      ),
+    ];
+
     return Column(
-      children: [
-        _ActionTile(
-          icon: Icons.assignment_rounded,
-          title: 'Mis casos',
-          subtitle: 'Consulta y actualiza tus casos asignados.',
-          color: AppConfig.azulClaro,
-          badge: _totalCasos > 0 ? '$_totalCasos' : null,
-          onTap: () => _goTo(MisCasosScreen(userData: userData)),
-        ),
-        const SizedBox(height: 14),
-        _ActionTile(
-          icon: Icons.flag_rounded,
-          title: 'Nuevos reportes',
-          subtitle: 'Revisa reportes disponibles para atender.',
-          color: AppConfig.rojo,
-          onTap: () => _goTo(NuevosReportesScreen(userData: userData)),
-        ),
-        const SizedBox(height: 14),
-        _ActionTile(
-          icon: Icons.map_rounded,
-          title: 'Mapa de casos',
-          subtitle: 'Visualiza la ubicación de los reportes.',
-          color: AppConfig.verde,
-          onTap: () => _goTo(const MapaCasosScreen()),
-        ),
-        const SizedBox(height: 14),
-        _ActionTile(
-          icon: Icons.person_rounded,
-          title: 'Mi perfil',
-          subtitle: 'Consulta tus datos institucionales.',
-          color: AppConfig.azulOscuro,
-          onTap: () => _goTo(MiPerfilScreen(userData: userData)),
-        ),
-      ],
+      children: accesos
+          .map(
+            (a) => Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: _AccesoRapidoCard(data: a),
+            ),
+          )
+          .toList(),
     );
   }
 
   Widget _buildWebActions(Map<String, dynamic> userData) {
+    final accesos = [
+      _AccesoRapidoData(
+        icon: Icons.assignment_rounded,
+        title: 'Mis casos',
+        subtitle: 'Consulta y actualiza tus casos asignados.',
+        color: AppConfig.azulClaro,
+        badge: _totalCasos > 0 ? '$_totalCasos' : null,
+        onTap: () => _goTo(MisCasosScreen(userData: userData)),
+      ),
+      _AccesoRapidoData(
+        icon: Icons.flag_rounded,
+        title: 'Nuevos reportes',
+        subtitle: 'Revisa reportes disponibles para atender.',
+        color: AppConfig.rojo,
+        onTap: () => _goTo(NuevosReportesScreen(userData: userData)),
+      ),
+      _AccesoRapidoData(
+        icon: Icons.map_rounded,
+        title: 'Mapa de casos',
+        subtitle: 'Visualiza la ubicación de los reportes.',
+        color: AppConfig.verde,
+        onTap: () => _goTo(const MapaCasosScreen()),
+      ),
+      _AccesoRapidoData(
+        icon: Icons.person_rounded,
+        title: 'Mi perfil',
+        subtitle: 'Consulta tus datos institucionales.',
+        color: AppConfig.azulOscuro,
+        onTap: () => _goTo(MiPerfilScreen(userData: userData)),
+      ),
+    ];
+
     return Row(
-      children: [
-        Expanded(
-          child: _ActionCard(
-            icon: Icons.assignment_rounded,
-            title: 'Mis casos',
-            subtitle: _totalCasos > 0
-                ? '$_totalCasos casos asignados'
-                : 'Sin casos aún',
-            color: AppConfig.azulClaro,
-            onTap: () => _goTo(MisCasosScreen(userData: userData)),
-          ),
-        ),
-        const SizedBox(width: 16),
-        Expanded(
-          child: _ActionCard(
-            icon: Icons.flag_rounded,
-            title: 'Reportes',
-            subtitle: 'Ver reportes recientes',
-            color: AppConfig.rojo,
-            onTap: () => _goTo(NuevosReportesScreen(userData: userData)),
-          ),
-        ),
-        const SizedBox(width: 16),
-        Expanded(
-          child: _ActionCard(
-            icon: Icons.map_rounded,
-            title: 'Mapa',
-            subtitle: 'Ubicación de casos',
-            color: AppConfig.verde,
-            onTap: () => _goTo(const MapaCasosScreen()),
-          ),
-        ),
-      ],
+      children: accesos
+          .map(
+            (a) => Expanded(
+              child: Padding(
+                padding: EdgeInsets.only(right: accesos.last == a ? 0 : 14),
+                child: _AccesoRapidoCard(data: a),
+              ),
+            ),
+          )
+          .toList(),
     );
   }
 
@@ -561,7 +577,126 @@ class _FuncionarioHomeScreenState extends State<FuncionarioHomeScreen> {
   }
 }
 
-// ─── Widgets privados ────────────────────────────────────────────────────────
+class _AccesoRapidoData {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final Color color;
+  final String? badge;
+  final VoidCallback onTap;
+
+  const _AccesoRapidoData({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.color,
+    required this.onTap,
+    this.badge,
+  });
+}
+
+class _AccesoRapidoCard extends StatelessWidget {
+  final _AccesoRapidoData data;
+
+  const _AccesoRapidoCard({required this.data});
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: data.onTap,
+        borderRadius: BorderRadius.circular(20),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: AppConfig.grisMedio),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.04),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Container(
+                    width: 48,
+                    height: 48,
+                    decoration: BoxDecoration(
+                      color: data.color.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(15),
+                    ),
+                    child: Icon(data.icon, color: data.color, size: 26),
+                  ),
+                  if (data.badge != null)
+                    Positioned(
+                      top: -6,
+                      right: -6,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: data.color,
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        child: Text(
+                          data.badge!,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+              const SizedBox(width: 13),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      data.title,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w900,
+                        color: AppConfig.azulOscuro,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      data.subtitle,
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        color: AppConfig.grisOscuro,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(
+                Icons.arrow_forward_ios_rounded,
+                size: 14,
+                color: AppConfig.grisOscuro,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
 
 class _SectionHeader extends StatelessWidget {
   final String title;
@@ -634,157 +769,6 @@ class _StatCard extends StatelessWidget {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _ActionTile extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final Color color;
-  final String? badge;
-  final VoidCallback onTap;
-
-  const _ActionTile({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.color,
-    required this.onTap,
-    this.badge,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(20),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(20),
-        child: Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: AppConfig.grisMedio),
-          ),
-          child: Row(
-            children: [
-              Stack(
-                children: [
-                  Container(
-                    width: 52,
-                    height: 52,
-                    decoration: BoxDecoration(
-                      color: color.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: Icon(icon, color: color, size: 28),
-                  ),
-                  if (badge != null)
-                    Positioned(
-                      right: 0,
-                      top: 0,
-                      child: Container(
-                        padding: const EdgeInsets.all(4),
-                        decoration: const BoxDecoration(
-                          color: AppConfig.rojo,
-                          shape: BoxShape.circle,
-                        ),
-                        child: Text(
-                          badge!,
-                          style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 9,
-                              fontWeight: FontWeight.w900),
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(title,
-                        style: const TextStyle(
-                            fontSize: 16.5, fontWeight: FontWeight.w900)),
-                    const SizedBox(height: 4),
-                    Text(subtitle,
-                        style: TextStyle(
-                            fontSize: 12.5,
-                            height: 1.35,
-                            color: AppConfig.grisOscuro)),
-                  ],
-                ),
-              ),
-              Icon(Icons.chevron_right_rounded, color: color, size: 28),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _ActionCard extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final Color color;
-  final VoidCallback onTap;
-
-  const _ActionCard({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.color,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return _SoftCard(
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(20),
-        child: Padding(
-          padding: const EdgeInsets.all(4),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: 54,
-                height: 54,
-                decoration: BoxDecoration(
-                  color: color.withOpacity(0.11),
-                  borderRadius: BorderRadius.circular(17),
-                ),
-                child: Icon(icon, color: color, size: 30),
-              ),
-              const SizedBox(height: 18),
-              Text(title,
-                  style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w900,
-                      color: color)),
-              const SizedBox(height: 7),
-              Text(subtitle,
-                  style: TextStyle(
-                      fontSize: 12.5,
-                      height: 1.35,
-                      color: AppConfig.grisOscuro)),
-              const SizedBox(height: 16),
-              Align(
-                alignment: Alignment.centerRight,
-                child: Icon(Icons.arrow_forward_rounded, color: color),
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }

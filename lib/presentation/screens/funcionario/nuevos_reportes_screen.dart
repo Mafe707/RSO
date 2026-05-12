@@ -284,7 +284,7 @@ class _NuevosReportesScreenState extends State<NuevosReportesScreen> {
         children: [
           Positioned(
             right: -14,
-            bottom: -24,
+            bottom: -8,
             child: Icon(
               Icons.flag_rounded,
               size: isMobile ? 90 : 130,

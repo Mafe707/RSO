@@ -22,8 +22,11 @@ class AdminDrawer extends StatelessWidget {
     required ValueChanged<int> onSelect,
     required VoidCallback onLogout,
   }) {
-    final isMobile = MediaQuery.of(context).size.width < 780;
+    final isMobile =
+        MediaQuery.of(context).size.width < 780;
+
     if (isMobile) return null;
+
     return AdminDrawer(
       currentIndex: currentIndex,
       adminData: adminData,
@@ -34,9 +37,15 @@ class AdminDrawer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final adminName = adminData['nombre']?.toString() ?? 'Supervisor';
-    final adminEmail = adminData['correo']?.toString() ?? '';
-    final adminRole = adminData['rol']?.toString() ?? 'admin';
+    final adminName =
+        adminData['nombre']?.toString() ??
+        'Supervisor';
+
+    final adminEmail =
+        adminData['correo']?.toString() ?? '';
+
+    final adminRole =
+        adminData['rol']?.toString() ?? 'admin';
 
     return Drawer(
       child: Container(
@@ -49,10 +58,18 @@ class AdminDrawer extends StatelessWidget {
                 adminEmail: adminEmail,
                 adminRole: adminRole,
               ),
-              const Divider(color: AppConfig.azulClaro, height: 1),
+
+              const Divider(
+                color: Colors.white12,
+                height: 1,
+              ),
+
               Expanded(
                 child: ListView(
-                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  padding:
+                      const EdgeInsets.symmetric(
+                        vertical: 10,
+                      ),
                   children: [
                     _DrawerItem(
                       icon: Icons.dashboard_rounded,
@@ -63,24 +80,30 @@ class AdminDrawer extends StatelessWidget {
                         onSelect(0);
                       },
                     ),
+
                     _DrawerItem(
                       icon: Icons.fact_check_rounded,
-                      title: 'Validación de Reportes',
+                      title:
+                          'Validación de Reportes',
                       selected: currentIndex == 1,
                       onTap: () {
                         Navigator.pop(context);
                         onSelect(1);
                       },
                     ),
+
                     _DrawerItem(
-                      icon: Icons.manage_accounts_rounded,
-                      title: 'Gestión de Funcionarios',
+                      icon:
+                          Icons.manage_accounts_rounded,
+                      title:
+                          'Gestión de Funcionarios',
                       selected: currentIndex == 2,
                       onTap: () {
                         Navigator.pop(context);
                         onSelect(2);
                       },
                     ),
+
                     _DrawerItem(
                       icon: Icons.bar_chart_rounded,
                       title: 'Estadísticas',
@@ -90,6 +113,7 @@ class AdminDrawer extends StatelessWidget {
                         onSelect(3);
                       },
                     ),
+
                     _DrawerItem(
                       icon: Icons.settings_rounded,
                       title: 'Configuración',
@@ -99,12 +123,23 @@ class AdminDrawer extends StatelessWidget {
                         onSelect(4);
                       },
                     ),
-                    const Divider(color: AppConfig.azulClaro, height: 18),
+
+                    const Padding(
+                      padding:
+                          EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 6,
+                          ),
+                      child: Divider(
+                        color: Colors.white12,
+                      ),
+                    ),
+
                     _DrawerItem(
                       icon: Icons.logout_rounded,
                       title: 'Cerrar sesión',
                       selected: false,
-                      color: AppConfig.rojo,
+                      color: Colors.redAccent,
                       onTap: () {
                         Navigator.pop(context);
                         onLogout();
@@ -134,80 +169,127 @@ class _AdminHeader extends StatelessWidget {
 
   String _capitalize(String s) {
     if (s.isEmpty) return s;
-    return s[0].toUpperCase() + s.substring(1).toLowerCase();
+
+    return s[0].toUpperCase() +
+        s.substring(1).toLowerCase();
   }
 
   @override
   Widget build(BuildContext context) {
-    final initial = adminName.trim().isNotEmpty
-        ? adminName.trim()[0].toUpperCase()
-        : 'S';
+    final initial =
+        adminName.trim().isNotEmpty
+            ? adminName.trim()[0].toUpperCase()
+            : 'S';
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
-      decoration: const BoxDecoration(color: AppConfig.azulOscuro),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
+      padding: EdgeInsets.only(
+        top:
+            MediaQuery.of(context).padding.top +
+            24,
+        left: 20,
+        right: 20,
+        bottom: 22,
+      ),
+      child: Column(
+        crossAxisAlignment:
+            CrossAxisAlignment.start,
         children: [
-          CircleAvatar(
-            radius: 28,
-            backgroundColor: AppConfig.rojo,
-            child: Text(
-              initial,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 24,
-                fontWeight: FontWeight.w900,
-              ),
-            ),
-          ),
-          const SizedBox(width: 13),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  adminName,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+          Row(
+            children: [
+              CircleAvatar(
+                radius: 24,
+                backgroundColor:
+                    Colors.white.withOpacity(0.18),
+                child: Text(
+                  initial,
                   style: const TextStyle(
                     color: Colors.white,
-                    fontSize: 17,
                     fontWeight: FontWeight.w900,
+                    fontSize: 20,
                   ),
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  adminEmail,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: Colors.white.withOpacity(0.72),
-                    fontSize: 12,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                  decoration: BoxDecoration(
-                    color: AppConfig.rojo.withOpacity(0.25),
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                  child: Text(
-                    _capitalize(adminRole),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w800,
+              ),
+
+              const SizedBox(width: 14),
+
+              Expanded(
+                child: Column(
+                  crossAxisAlignment:
+                      CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      adminName,
+                      maxLines: 1,
+                      overflow:
+                          TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 15,
+                        fontWeight:
+                            FontWeight.w800,
+                      ),
                     ),
+
+                    const SizedBox(height: 2),
+
+                    Text(
+                      adminEmail,
+                      maxLines: 1,
+                      overflow:
+                          TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: Colors.white
+                            .withOpacity(0.60),
+                        fontSize: 11.5,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 18),
+
+          Row(
+            children: [
+              const Text(
+                'Panel administrativo',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: -0.3,
+                ),
+              ),
+
+              const SizedBox(width: 10),
+
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 5,
+                    ),
+                decoration: BoxDecoration(
+                  color:
+                      AppConfig.rojo.withOpacity(
+                        0.25,
+                      ),
+                  borderRadius:
+                      BorderRadius.circular(999),
+                ),
+                child: Text(
+                  _capitalize(adminRole),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
                   ),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ],
       ),
@@ -232,18 +314,46 @@ class _DrawerItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final itemColor = color ?? Colors.white;
+    final itemColor =
+        color ??
+        (selected ? Colors.white : Colors.white70);
+
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      padding: const EdgeInsets.symmetric(
+        horizontal: 10,
+        vertical: 2,
+      ),
       child: ListTile(
         selected: selected,
-        selectedTileColor: Colors.white.withOpacity(0.09),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        leading: Icon(icon, color: itemColor),
+        selectedTileColor:
+            Colors.white.withOpacity(0.10),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(14),
+        ),
+        contentPadding:
+            const EdgeInsets.symmetric(
+              horizontal: 14,
+              vertical: 2,
+            ),
+
+        leading: Icon(
+          icon,
+          color: itemColor,
+          size: 22,
+        ),
+
         title: Text(
           title,
-          style: TextStyle(color: itemColor, fontWeight: FontWeight.w700),
+          style: TextStyle(
+            color: itemColor,
+            fontWeight:
+                selected
+                    ? FontWeight.w800
+                    : FontWeight.w600,
+            fontSize: 14,
+          ),
         ),
+
         onTap: onTap,
       ),
     );

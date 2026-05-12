@@ -413,29 +413,37 @@ class _ReportarScreenState extends State<ReportarScreen> {
   }
 
   Future<void> _cargarCategorias() async {
-    setState(() => _cargandoCategorias = true);
+  setState(() => _cargandoCategorias = true);
+
     try {
       final res = await _supabase
           .from('tipos_invasion')
           .select('nombre')
-          .eq('activo', true)
-          .order('nombre', ascending: true);
+          .eq('activo', true);
 
       if (!mounted) return;
 
-      final lista =
-          (res as List).map((e) => e['nombre'].toString()).toList();
+      final lista = (res as List)
+          .map((e) => e['nombre'].toString())
+          .where((e) => e.trim().toLowerCase() != 'otro')
+          .toList();
+
+      lista.sort();
+
+      lista.add('Otro');
 
       setState(() {
         _categorias = lista;
         _cargandoCategorias = false;
+
         if (_categoriaSeleccionada != null &&
-            !lista.contains(_categoriaSeleccionada)) {
+            !_categorias.contains(_categoriaSeleccionada)) {
           _categoriaSeleccionada = null;
         }
       });
     } catch (_) {
       if (!mounted) return;
+
       setState(() => _cargandoCategorias = false);
     }
   }

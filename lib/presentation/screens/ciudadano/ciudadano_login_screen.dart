@@ -354,7 +354,7 @@ class _CiudadanoLoginScreenState extends State<CiudadanoLoginScreen> {
                       ),
                     )
                   : const Icon(Icons.login_rounded),
-              label: Text(svc.isLoading ? 'Iniciando sesión...' : 'Ingresar'),
+              label: Text(svc.isLoading ? 'Iniciando sesión...' : 'Iniciar sesión'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppConfig.azulClaro,
                 shape: RoundedRectangleBorder(

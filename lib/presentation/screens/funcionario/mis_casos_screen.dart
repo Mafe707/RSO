@@ -945,7 +945,7 @@ class _MisCasosScreenState extends State<MisCasosScreen> {
         children: [
           Positioned(
             right: -14,
-            bottom: -24,
+            bottom: -8,
             child: Icon(
               Icons.assignment_rounded,
               size: isMobile ? 90 : 130,
