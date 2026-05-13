@@ -155,9 +155,18 @@ class _NuevosReportesScreenState extends State<NuevosReportesScreen> {
           'Nuevos Reportes',
           style: TextStyle(fontWeight: FontWeight.w800),
         ),
+        centerTitle: false,
         backgroundColor: AppConfig.azulOscuro,
         elevation: 0,
-        centerTitle: isMobile,
+        automaticallyImplyLeading: false,
+leading: isMobile
+    ? null
+    : Builder(
+        builder: (ctx) => IconButton(
+          icon: const Icon(Icons.menu_rounded, color: Colors.white),
+          onPressed: () => Scaffold.of(ctx).openDrawer(),
+        ),
+      ),
         actions: [
           IconButton(
             tooltip: 'Actualizar',
@@ -193,15 +202,75 @@ class _NuevosReportesScreenState extends State<NuevosReportesScreen> {
     );
   }
 
-  Widget _buildMobileLayout() {
-    return Column(
+
+Widget _buildMobileLayout() {
+  return RefreshIndicator(
+    onRefresh: _cargarReportes,
+    child: ListView(
+      padding: const EdgeInsets.fromLTRB(0, 0, 0, 20),
       children: [
         _buildHero(isMobile: true),
+
         const SizedBox(height: 16),
-        Expanded(child: _buildBody()),
+
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 2),
+          child: _buildSummaryCard(),
+        ),
+
+        const SizedBox(height: 16),
+
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 2),
+          child: _buildMobileBody(),
+        ),
       ],
+    ),
+  );
+}
+
+Widget _buildMobileBody() {
+  if (_loading) {
+    return const Padding(
+      padding: EdgeInsets.only(top: 60),
+      child: Center(
+        child: CircularProgressIndicator(),
+      ),
     );
   }
+
+  if (_errorMsg != null) {
+    return _EmptyState(
+      icon: Icons.error_outline_rounded,
+      title: 'Error',
+      text: _errorMsg!,
+    );
+  }
+
+  if (_reportes.isEmpty) {
+    return const _EmptyState(
+      icon: Icons.check_circle_outline_rounded,
+      title: 'Sin reportes nuevos',
+      text: 'No hay reportes disponibles para asignación en este momento.',
+    );
+  }
+
+  return Column(
+    children: _reportes.map((reporte) {
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 12),
+        child: _ReportCard(
+          reporte: reporte,
+          categoriaIcon: _getCategoriaIcon(reporte['categoria']),
+          estadoColor: _getPrioridadColor(reporte['estado']),
+          onAssign: () => _asignarACaso(reporte),
+        ),
+      );
+    }).toList(),
+  );
+}
+
+
 
   Widget _buildWebLayout() {
     return Row(

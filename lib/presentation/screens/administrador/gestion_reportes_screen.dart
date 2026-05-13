@@ -46,7 +46,9 @@ class _ValidacionReportesScreenState extends State<ValidacionReportesScreen> {
 
   List<Map<String, dynamic>> get _reportesFiltrados {
     return _reportes.where((r) {
-      if (_filtroEstado.isNotEmpty && r['estado'] != _filtroEstado) return false;
+      if (_filtroEstado.isNotEmpty && r['estado'] != _filtroEstado) {
+        return false;
+      }
       if (_buscarTexto.isNotEmpty) {
         final q = _buscarTexto.toLowerCase();
         return r['codigo_unico'].toString().toLowerCase().contains(q) ||
@@ -101,8 +103,9 @@ class _ValidacionReportesScreenState extends State<ValidacionReportesScreen> {
     if (ok) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content:
-              Text('Reporte ${reporte['codigo_unico']} publicado correctamente'),
+          content: Text(
+            'Reporte ${reporte['codigo_unico']} publicado correctamente',
+          ),
           backgroundColor: AppConfig.verde,
         ),
       );
@@ -118,7 +121,9 @@ class _ValidacionReportesScreenState extends State<ValidacionReportesScreen> {
   }
 
   Future<void> _devolverReporte(
-      Map<String, dynamic> reporte, String motivo) async {
+    Map<String, dynamic> reporte,
+    String motivo,
+  ) async {
     try {
       final service = Provider.of<DenunciaService>(context, listen: false);
       await service.actualizarEstadoConRespuesta(
@@ -129,8 +134,9 @@ class _ValidacionReportesScreenState extends State<ValidacionReportesScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content:
-              Text('Reporte ${reporte['codigo_unico']} devuelto al funcionario'),
+          content: Text(
+            'Reporte ${reporte['codigo_unico']} devuelto al funcionario',
+          ),
           backgroundColor: const Color(0xFF9C27B0),
         ),
       );
@@ -260,56 +266,66 @@ class _ValidacionReportesScreenState extends State<ValidacionReportesScreen> {
                         ),
                       ),
                       const SizedBox(height: 18),
-                      LayoutBuilder(builder: (context, constraints) {
-                        final isNarrow = constraints.maxWidth < 430;
-                        final aprobarBtn = ElevatedButton.icon(
-                          onPressed: () {
-                            Navigator.pop(ctx);
-                            _aprobarReporte(reporte);
-                          },
-                          icon: const Icon(Icons.check_circle_rounded),
-                          label: const Text('Aprobar y publicar'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppConfig.verde,
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16),
+                      LayoutBuilder(
+                        builder: (context, constraints) {
+                          final isNarrow = constraints.maxWidth < 430;
+                          final aprobarBtn = ElevatedButton.icon(
+                            onPressed: () {
+                              Navigator.pop(ctx);
+                              _aprobarReporte(reporte);
+                            },
+                            icon: const Icon(Icons.check_circle_rounded),
+                            label: const Text('Aprobar y publicar'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppConfig.verde,
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16),
+                              ),
                             ),
-                          ),
-                        );
-                        final devolverBtn = ElevatedButton.icon(
-                          onPressed: () {
-                            final motivo = motivoController.text.trim();
-                            Navigator.pop(ctx);
-                            _devolverReporte(reporte, motivo);
-                          },
-                          icon: const Icon(Icons.replay_rounded),
-                          label: const Text('Devolver'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF9C27B0),
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16),
+                          );
+                          final devolverBtn = ElevatedButton.icon(
+                            onPressed: () {
+                              final motivo = motivoController.text.trim();
+                              Navigator.pop(ctx);
+                              _devolverReporte(reporte, motivo);
+                            },
+                            icon: const Icon(Icons.replay_rounded),
+                            label: const Text('Devolver'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF9C27B0),
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16),
+                              ),
                             ),
-                          ),
-                        );
-                        if (isNarrow) {
-                          return Column(
+                          );
+
+                          if (isNarrow) {
+                            return Column(
+                              children: [
+                                SizedBox(
+                                  width: double.infinity,
+                                  child: aprobarBtn,
+                                ),
+                                const SizedBox(height: 10),
+                                SizedBox(
+                                  width: double.infinity,
+                                  child: devolverBtn,
+                                ),
+                              ],
+                            );
+                          }
+
+                          return Row(
                             children: [
-                              SizedBox(width: double.infinity, child: aprobarBtn),
-                              const SizedBox(height: 10),
-                              SizedBox(width: double.infinity, child: devolverBtn),
+                              Expanded(child: aprobarBtn),
+                              const SizedBox(width: 12),
+                              Expanded(child: devolverBtn),
                             ],
                           );
-                        }
-                        return Row(
-                          children: [
-                            Expanded(child: aprobarBtn),
-                            const SizedBox(width: 12),
-                            Expanded(child: devolverBtn),
-                          ],
-                        );
-                      }),
+                        },
+                      ),
                     ] else ...[
                       const SizedBox(height: 16),
                       Container(
@@ -380,7 +396,10 @@ class _ValidacionReportesScreenState extends State<ValidacionReportesScreen> {
           Expanded(
             child: Text(
               value,
-              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+              style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
         ],
@@ -458,8 +477,8 @@ class _ValidacionReportesScreenState extends State<ValidacionReportesScreen> {
       child: Stack(
         children: [
           Positioned(
-            right: -10,
-            bottom: -8,
+            right: -5,
+            bottom: -12,
             child: Icon(
               Icons.fact_check_rounded,
               size: isMobile ? 80 : 110,
@@ -552,56 +571,103 @@ class _ValidacionReportesScreenState extends State<ValidacionReportesScreen> {
       {'label': 'Pendiente', 'value': 'pendiente'},
     ];
 
+    Widget buscador = SizedBox(
+      height: 44,
+      child: TextField(
+        onChanged: (v) => setState(() => _buscarTexto = v),
+        decoration: InputDecoration(
+          hintText: 'Buscar...',
+          prefixIcon: const Icon(Icons.search_rounded, size: 20),
+          filled: true,
+          fillColor: Colors.white,
+          contentPadding: const EdgeInsets.symmetric(
+            vertical: 0,
+            horizontal: 12,
+          ),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(color: AppConfig.grisMedio),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(color: AppConfig.grisMedio),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(color: AppConfig.azulClaro),
+          ),
+          isDense: true,
+        ),
+      ),
+    );
+
+    Widget chipsWrap = Wrap(
+      spacing: 6,
+      runSpacing: 8,
+      children: filtros.map((f) {
+        final selected = _filtroEstado == f['value'];
+        return FilterChip(
+          label: Text(
+            f['label']!,
+            style: const TextStyle(fontSize: 12),
+          ),
+          selected: selected,
+          onSelected: (_) => setState(() => _filtroEstado = f['value']!),
+          selectedColor: AppConfig.rojo.withOpacity(0.15),
+          checkmarkColor: AppConfig.rojo,
+          visualDensity: VisualDensity.compact,
+          labelStyle: TextStyle(
+            color: selected ? AppConfig.rojo : AppConfig.grisOscuro,
+            fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
+          ),
+        );
+      }).toList(),
+    );
+
+    if (isMobile) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          buscador,
+          const SizedBox(height: 12),
+          chipsWrap,
+        ],
+      );
+    }
+
     return Row(
       children: [
-        Expanded(
-          child: SizedBox(
-            height: 44,
-            child: TextField(
-              onChanged: (v) => setState(() => _buscarTexto = v),
-              decoration: InputDecoration(
-                hintText: 'Buscar...',
-                prefixIcon: const Icon(Icons.search_rounded, size: 20),
-                filled: true,
-                fillColor: Colors.white,
-                contentPadding:
-                    const EdgeInsets.symmetric(vertical: 0, horizontal: 12),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: AppConfig.grisMedio),
-                ),
-                isDense: true,
-              ),
-            ),
-          ),
-        ),
+        Expanded(child: buscador),
         const SizedBox(width: 10),
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Row(
-            children: filtros.map((f) {
-              final selected = _filtroEstado == f['value'];
-              return Padding(
-                padding: const EdgeInsets.only(right: 6),
-                child: FilterChip(
-                  label: Text(
-                    f['label']!,
-                    style: const TextStyle(fontSize: 12),
+        Expanded(
+          flex: 2,
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: filtros.map((f) {
+                final selected = _filtroEstado == f['value'];
+                return Padding(
+                  padding: const EdgeInsets.only(right: 6),
+                  child: FilterChip(
+                    label: Text(
+                      f['label']!,
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                    selected: selected,
+                    onSelected: (_) =>
+                        setState(() => _filtroEstado = f['value']!),
+                    selectedColor: AppConfig.rojo.withOpacity(0.15),
+                    checkmarkColor: AppConfig.rojo,
+                    visualDensity: VisualDensity.compact,
+                    labelStyle: TextStyle(
+                      color: selected ? AppConfig.rojo : AppConfig.grisOscuro,
+                      fontWeight:
+                          selected ? FontWeight.w800 : FontWeight.w600,
+                    ),
                   ),
-                  selected: selected,
-                  onSelected: (_) => setState(
-                    () => _filtroEstado = f['value']!,
-                  ),
-                  selectedColor: AppConfig.rojo.withOpacity(0.15),
-                  checkmarkColor: AppConfig.rojo,
-                  visualDensity: VisualDensity.compact,
-                  labelStyle: TextStyle(
-                    color: selected ? AppConfig.rojo : AppConfig.grisOscuro,
-                    fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
-                  ),
-                ),
-              );
-            }).toList(),
+                );
+              }).toList(),
+            ),
           ),
         ),
       ],

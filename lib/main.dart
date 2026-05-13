@@ -1,8 +1,5 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'config/app_config.dart';
 import 'core/supabase/supabase_config.dart';
@@ -16,7 +13,6 @@ import 'presentation/screens/rol_selection_screen.dart';
 import 'presentation/screens/funcionario/funcionario_home_screen.dart';
 import 'presentation/screens/administrador/dashboard_screen.dart';
 import 'presentation/screens/ciudadano/ciudadano_home_screen.dart';
-import 'presentation/screens/ciudadano/reset_password_screen.dart';
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
@@ -26,46 +22,14 @@ void main() async {
   runApp(const RSOApp());
 }
 
-class RSOApp extends StatefulWidget {
+class RSOApp extends StatelessWidget {
   const RSOApp({super.key});
-
-  @override
-  State<RSOApp> createState() => _RSOAppState();
-}
-
-class _RSOAppState extends State<RSOApp> {
-  StreamSubscription<AuthState>? _authSubscription;
-
-  @override
-  void initState() {
-    super.initState();
-
-    _authSubscription =
-        Supabase.instance.client.auth.onAuthStateChange.listen((data) {
-      if (data.event == AuthChangeEvent.passwordRecovery) {
-        navigatorKey.currentState?.pushAndRemoveUntil(
-          MaterialPageRoute(
-            builder: (_) => const ResetPasswordScreen(),
-          ),
-          (route) => false,
-        );
-      }
-    });
-  }
-
-  @override
-  void dispose() {
-    _authSubscription?.cancel();
-    super.dispose();
-  }
 
   @override
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
-        ChangeNotifierProvider<AuthService>(
-          create: (_) => AuthService(),
-        ),
+        ChangeNotifierProvider<AuthService>(create: (_) => AuthService()),
         ChangeNotifierProvider<AdminAuthService>(
           create: (_) => AdminAuthService(),
         ),
@@ -87,27 +51,33 @@ class _RSOAppState extends State<RSOApp> {
   }
 }
 
-class _SessionRouter extends StatelessWidget {
+class _SessionRouter extends StatefulWidget {
   const _SessionRouter();
+
+  @override
+  State<_SessionRouter> createState() => _SessionRouterState();
+}
+
+class _SessionRouterState extends State<_SessionRouter> {
+  @override
+  void initState() {
+    super.initState();
+    // Ya no necesitamos escuchar auth state para recovery
+    // El flujo es completamente interno ahora
+  }
 
   @override
   Widget build(BuildContext context) {
     return Consumer3<AuthService, AdminAuthService, CiudadanoAuthService>(
       builder: (context, auth, adminAuth, ciudadanoAuth, _) {
-        final adminChecking = adminAuth.isCheckingSession;
-
-        if (adminChecking || ciudadanoAuth.isLoading) {
+        if (adminAuth.isCheckingSession || ciudadanoAuth.isLoading) {
           return const Scaffold(
-            body: Center(
-              child: CircularProgressIndicator(),
-            ),
+            body: Center(child: CircularProgressIndicator()),
           );
         }
 
         if (adminAuth.isAdminLoggedIn && adminAuth.adminData != null) {
-          return AdminDashboardScreen(
-            adminData: adminAuth.adminData!,
-          );
+          return AdminDashboardScreen(adminData: adminAuth.adminData!);
         }
 
         if (auth.isLoggedIn) {

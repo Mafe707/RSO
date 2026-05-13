@@ -1,3 +1,4 @@
+// ignore: avoid_web_libraries_in_flutter
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -11,13 +12,20 @@ class CiudadanoAuthService extends ChangeNotifier {
   bool _isLoading = false;
   String? _error;
   bool _sessionChecked = false;
+  bool _isPasswordRecovery = false;
 
-  bool get isLoggedIn => _currentUser != null;
+  bool get isLoggedIn => _currentUser != null && !_isPasswordRecovery;
   User? get currentUser => _currentUser;
   Map<String, dynamic>? get ciudadanoData => _ciudadanoData;
   bool get isLoading => _isLoading;
   String? get error => _error;
   bool get sessionChecked => _sessionChecked;
+  bool get isPasswordRecovery => _isPasswordRecovery;
+
+  void setPasswordRecovery(bool value) {
+    _isPasswordRecovery = value;
+    notifyListeners();
+  }
 
   CiudadanoAuthService() {
     _init();
@@ -35,7 +43,6 @@ class CiudadanoAuthService extends ChangeNotifier {
   Future<void> _checkSession() async {
     try {
       final session = _supabase.auth.currentSession;
-
       if (session == null) {
         _currentUser = null;
         _ciudadanoData = null;
@@ -104,9 +111,7 @@ class CiudadanoAuthService extends ChangeNotifier {
       );
 
       final user = authResponse.user;
-      if (user == null) {
-        throw Exception('Error al registrar usuario');
-      }
+      if (user == null) throw Exception('Error al registrar usuario');
 
       await _supabase.from('ciudadanos').insert({
         'auth_user_id': user.id,
@@ -128,7 +133,6 @@ class CiudadanoAuthService extends ChangeNotifier {
       );
 
       final loggedUser = loginRes.user;
-
       if (loggedUser != null) {
         final ciudadano = await _buscarCiudadanoPorUserId(loggedUser.id);
         _currentUser = loggedUser;
@@ -166,9 +170,7 @@ class CiudadanoAuthService extends ChangeNotifier {
       );
 
       final user = response.user;
-      if (user == null) {
-        throw Exception('Credenciales incorrectas');
-      }
+      if (user == null) throw Exception('Credenciales incorrectas');
 
       final ciudadano = await _buscarCiudadanoPorUserId(user.id);
 
@@ -192,17 +194,43 @@ class CiudadanoAuthService extends ChangeNotifier {
     }
   }
 
-  Future<bool> sendPasswordReset(String email) async {
+  // PASO 1: envía el correo con OTP
+  Future<bool> sendPasswordResetOtp(String email) async {
     _clearError();
-
     try {
-      await _supabase.auth.resetPasswordForEmail(
-        email.trim().toLowerCase(),
-        redirectTo: 'http://localhost:63308/#/reset-password',
+      await _supabase.auth.signInWithOtp(
+        email: email.trim().toLowerCase(),
+        shouldCreateUser: false, // no crear usuario si no existe
       );
       return true;
     } catch (e) {
       _setError('No se pudo enviar el correo');
+      return false;
+    }
+  }
+
+  // PASO 2: verifica el OTP y crea sesión
+  Future<bool> verifyOtp(String email, String token) async {
+    _clearError();
+    try {
+      final response = await _supabase.auth.verifyOTP(
+        email: email.trim().toLowerCase(),
+        token: token.trim(),
+        type: OtpType.email,
+      );
+
+      if (response.user == null) {
+        _setError('Código inválido o expirado');
+        return false;
+      }
+
+      // Sesión creada, listo para updatePassword
+      _isPasswordRecovery = true;
+      _currentUser = response.user;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _setError('Código inválido o expirado');
       return false;
     }
   }
@@ -225,27 +253,17 @@ class CiudadanoAuthService extends ChangeNotifier {
     await _supabase.auth.signOut();
     _currentUser = null;
     _ciudadanoData = null;
+    _isPasswordRecovery = false;
     _clearError();
     notifyListeners();
   }
 
   String _traducirError(AuthException e) {
     final msg = e.message.toLowerCase();
-
-    if (msg.contains('invalid login credentials')) {
-      return 'Correo o contraseña incorrectos';
-    }
-    if (msg.contains('user already registered') ||
-        msg.contains('already registered')) {
-      return 'Este correo ya está registrado';
-    }
-    if (msg.contains('email not confirmed')) {
-      return 'Confirma tu correo antes de ingresar';
-    }
-    if (msg.contains('too many requests')) {
-      return 'Demasiados intentos, intenta más tarde';
-    }
-
+    if (msg.contains('invalid login credentials')) return 'Correo o contraseña incorrectos';
+    if (msg.contains('user already registered') || msg.contains('already registered')) return 'Este correo ya está registrado';
+    if (msg.contains('email not confirmed')) return 'Confirma tu correo antes de ingresar';
+    if (msg.contains('too many requests')) return 'Demasiados intentos, intenta más tarde';
     return e.message;
   }
 
@@ -265,7 +283,6 @@ class CiudadanoAuthService extends ChangeNotifier {
 
   Future<void> refreshData() async {
     if (_currentUser == null) return;
-
     try {
       final ciudadano = await _buscarCiudadanoPorUserId(_currentUser!.id);
       _ciudadanoData = ciudadano;

@@ -344,7 +344,7 @@ class _FuncionarioLoginScreenState extends State<FuncionarioLoginScreen> {
               onPressed: authService.isLoading
                   ? null
                   : () => _showError(
-                      'Contacte al administrador para recuperar su contraseña'),
+                      'Contacte al administrador para recuperar su contraseña: admin@alcaldia.gov.co'),
               child: const Text('¿Olvidaste tu contraseña?'),
             ),
           ),

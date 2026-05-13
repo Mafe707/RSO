@@ -293,9 +293,18 @@ class _MapaCasosScreenState extends State<MapaCasosScreen> {
           'Mapa de Casos',
           style: TextStyle(fontWeight: FontWeight.w800),
         ),
+        centerTitle: false,
         backgroundColor: AppConfig.azulOscuro,
         elevation: 0,
-        centerTitle: isMobile,
+        automaticallyImplyLeading: false,
+leading: isMobile
+    ? null
+    : Builder(
+        builder: (ctx) => IconButton(
+          icon: const Icon(Icons.menu_rounded, color: Colors.white),
+          onPressed: () => Scaffold.of(ctx).openDrawer(),
+        ),
+      ),
         actions: [
           IconButton(
             tooltip: 'Cerrar sesión',

@@ -5,6 +5,7 @@ import '../../../config/app_config.dart';
 import '../../../services/ciudadano_auth_service.dart';
 import 'ciudadano_home_screen.dart';
 import 'ciudadano_register_screen.dart';
+import 'reset_password_screen.dart';
 import '../rol_selection_screen.dart';
 
 class CiudadanoLoginScreen extends StatefulWidget {
@@ -98,78 +99,9 @@ class _CiudadanoLoginScreenState extends State<CiudadanoLoginScreen> {
   }
 
   void _mostrarDialogoReset(BuildContext context, CiudadanoAuthService svc) {
-    final emailCtrl = TextEditingController(text: _emailController.text.trim());
-
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text(
-          'Recuperar contraseña',
-          style: TextStyle(
-            fontWeight: FontWeight.w800,
-            color: AppConfig.azulOscuro,
-          ),
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text(
-              'Ingresa tu correo y te enviaremos un enlace para restablecer tu contraseña.',
-              style: TextStyle(fontSize: 13.5),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: emailCtrl,
-              keyboardType: TextInputType.emailAddress,
-              decoration: InputDecoration(
-                labelText: 'Correo electrónico',
-                prefixIcon: const Icon(Icons.email_rounded),
-                filled: true,
-                fillColor: const Color(0xFFF8FAFC),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(14),
-                ),
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancelar'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              final email = emailCtrl.text.trim();
-              if (email.isEmpty) return;
-
-              Navigator.pop(ctx);
-
-              final ok = await svc.sendPasswordReset(email);
-
-              if (!mounted) return;
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(
-                    ok
-                        ? 'Correo enviado. Revisa tu bandeja de entrada.'
-                        : svc.error ?? 'Error al enviar el correo',
-                  ),
-                  backgroundColor: ok ? AppConfig.azulClaro : AppConfig.rojo,
-                ),
-              );
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppConfig.azulClaro,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-            child: const Text('Enviar enlace'),
-          ),
-        ],
-      ),
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const ResetPasswordScreen()),
     );
   }
 
@@ -451,7 +383,9 @@ class _CiudadanoLoginScreenState extends State<CiudadanoLoginScreen> {
           ),
           const SizedBox(height: 12),
           TextButton(
-            onPressed: svc.isLoading ? null : () => _mostrarDialogoReset(context, svc),
+            onPressed: svc.isLoading
+                ? null
+                : () => _mostrarDialogoReset(context, svc),
             child: const Text('¿Olvidaste tu contraseña?'),
           ),
           const SizedBox(height: 6),

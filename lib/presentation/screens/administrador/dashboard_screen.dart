@@ -107,7 +107,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           _getTitle(),
           style: const TextStyle(fontWeight: FontWeight.w800),
         ),
-        centerTitle: isMobile,
+        centerTitle: false,
         backgroundColor: AppConfig.azulOscuro,
         elevation: 0,
         actions: [
@@ -308,7 +308,7 @@ class _AdminDashboardContentState extends State<AdminDashboardContent> {
       child: Stack(
         children: [
           Positioned(
-            right: -18,
+            right: -10,
             bottom: -8,
             child: Icon(
               Icons.admin_panel_settings_rounded,

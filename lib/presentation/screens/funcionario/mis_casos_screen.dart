@@ -659,9 +659,18 @@ class _MisCasosScreenState extends State<MisCasosScreen> {
           'Mis Casos',
           style: TextStyle(fontWeight: FontWeight.w800),
         ),
+        centerTitle: false,
         backgroundColor: AppConfig.azulOscuro,
         elevation: 0,
-        centerTitle: isMobile,
+        automaticallyImplyLeading: false,
+leading: isMobile
+    ? null
+    : Builder(
+        builder: (ctx) => IconButton(
+          icon: const Icon(Icons.menu_rounded, color: Colors.white),
+          onPressed: () => Scaffold.of(ctx).openDrawer(),
+        ),
+      ),
         actions: [
           IconButton(
             tooltip: 'Actualizar',
@@ -700,20 +709,59 @@ class _MisCasosScreenState extends State<MisCasosScreen> {
   }
 
   Widget _buildMobileLayout() {
-    return Column(
-      children: [
-        Container(
-          padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
-          color: const Color(0xFFF5F7FB),
-          child: _buildMobileTopFilters(),
-        ),
-        Expanded(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(12, 4, 12, 12),
-            child: _buildBody(),
-          ),
-        ),
-      ],
+    return RefreshIndicator(
+      onRefresh: _cargarCasos,
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(12, 12, 12, 20),
+        children: [
+          // HERO
+          _buildHero(isMobile: true),
+
+          const SizedBox(height: 16),
+
+          // RESUMEN
+          _buildSummaryCard(),
+
+          const SizedBox(height: 16),
+
+          // FILTROS
+          _buildMobileTopFilters(),
+
+          const SizedBox(height: 14),
+
+          // LISTA DE CASOS
+          if (_loading)
+            const Padding(
+              padding: EdgeInsets.only(top: 60),
+              child: Center(
+                child: CircularProgressIndicator(),
+              ),
+            )
+          else if (_errorMsg != null)
+            _EmptyState(
+              icon: Icons.error_outline_rounded,
+              title: 'Error',
+              text: _errorMsg!,
+            )
+          else if (_casosFiltrados.isEmpty)
+            const _EmptyState(
+              icon: Icons.search_off_rounded,
+              title: 'Sin casos',
+              text: 'No tienes casos asignados que coincidan con los filtros.',
+            )
+          else
+            ..._casosFiltrados.map((caso) {
+              final estado = caso['estado'] ?? 'pendiente';
+
+              return _CaseCard(
+                caso: caso,
+                estadoText: _getEstadoText(estado),
+                estadoColor: _getEstadoColor(estado),
+                onTap: () => _verDetalles(caso),
+              );
+            }).toList(),
+        ],
+      ),
     );
   }
 
@@ -903,22 +951,20 @@ class _MisCasosScreenState extends State<MisCasosScreen> {
       );
     }
 
-    return RefreshIndicator(
-      onRefresh: _cargarCasos,
-      child: ListView.builder(
-        padding: EdgeInsets.zero,
-        itemCount: _casosFiltrados.length,
-        itemBuilder: (context, index) {
-          final caso = _casosFiltrados[index];
-          final estado = caso['estado'] ?? 'pendiente';
-          return _CaseCard(
-            caso: caso,
-            estadoText: _getEstadoText(estado),
-            estadoColor: _getEstadoColor(estado),
-            onTap: () => _verDetalles(caso),
-          );
-        },
-      ),
+    return ListView.builder(
+      padding: EdgeInsets.zero,
+      itemCount: _casosFiltrados.length,
+      itemBuilder: (context, index) {
+        final caso = _casosFiltrados[index];
+        final estado = caso['estado'] ?? 'pendiente';
+
+        return _CaseCard(
+          caso: caso,
+          estadoText: _getEstadoText(estado),
+          estadoColor: _getEstadoColor(estado),
+          onTap: () => _verDetalles(caso),
+        );
+      },
     );
   }
 

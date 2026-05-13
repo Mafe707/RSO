@@ -31,25 +31,30 @@ class InformacionScreen extends StatelessWidget {
         centerTitle: false,
         titleSpacing: 16,
         automaticallyImplyLeading: false,
-leading: isMobile
-    ? null
-    : Builder(
-        builder: (ctx) => IconButton(
-          icon: const Icon(Icons.menu_rounded, color: Colors.white),
-          onPressed: () => Scaffold.of(ctx).openDrawer(),
-        ),
-      ),
+        leading: isMobile
+            ? null
+            : Builder(
+                builder: (ctx) => IconButton(
+                  icon: const Icon(Icons.menu_rounded, color: Colors.white),
+                  onPressed: () => Scaffold.of(ctx).openDrawer(),
+                ),
+              ),
         actions: [
           IconButton(
             tooltip: 'Cerrar sesión',
             icon: const Icon(Icons.logout_rounded, color: Colors.white),
             onPressed: () async {
-              final svc = Provider.of<CiudadanoAuthService>(context, listen: false);
+              final svc = Provider.of<CiudadanoAuthService>(
+                context,
+                listen: false,
+              );
               await svc.logout();
               if (context.mounted) {
                 Navigator.pushAndRemoveUntil(
                   context,
-                  MaterialPageRoute(builder: (_) => const CiudadanoLoginScreen()),
+                  MaterialPageRoute(
+                    builder: (_) => const CiudadanoLoginScreen(),
+                  ),
                   (route) => false,
                 );
               }
@@ -121,16 +126,16 @@ leading: isMobile
       padding: EdgeInsets.all(isMobile ? 24 : 32),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
+          colors: [AppConfig.azulOscuro, AppConfig.rojo],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [AppConfig.azulOscuro, AppConfig.azulClaro],
         ),
         borderRadius: BorderRadius.circular(isMobile ? 24 : 30),
         boxShadow: [
           BoxShadow(
-            color: AppConfig.azulOscuro.withOpacity(0.18),
-            blurRadius: 22,
-            offset: const Offset(0, 12),
+            color: AppConfig.rojo.withOpacity(0.18),
+            blurRadius: 24,
+            offset: const Offset(0, 14),
           ),
         ],
       ),

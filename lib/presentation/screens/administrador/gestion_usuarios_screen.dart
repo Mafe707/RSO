@@ -39,7 +39,9 @@ class _GestionFuncionariosScreenState
           .from('funcionarios')
           .select()
           .order('creado_en', ascending: false);
+
       if (!mounted) return;
+
       setState(() {
         _funcionarios = List<Map<String, dynamic>>.from(response);
         _cargando = false;
@@ -51,10 +53,12 @@ class _GestionFuncionariosScreenState
         _cargando = false;
         _recargando = false;
       });
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Error al cargar funcionarios: $e'),
-        backgroundColor: AppConfig.rojo,
-      ));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error al cargar funcionarios: $e'),
+          backgroundColor: AppConfig.rojo,
+        ),
+      );
     }
   }
 
@@ -63,7 +67,9 @@ class _GestionFuncionariosScreenState
 
   List<Map<String, dynamic>> get _filtrados {
     return _funcionarios.where((f) {
-      if (_filtroEstado.isNotEmpty && f['estado'] != _filtroEstado) return false;
+      if (_filtroEstado.isNotEmpty && f['estado'] != _filtroEstado) {
+        return false;
+      }
       if (_buscarTexto.isNotEmpty) {
         final q = _buscarTexto.toLowerCase();
         return f['nombre'].toString().toLowerCase().contains(q) ||
@@ -84,17 +90,21 @@ class _GestionFuncionariosScreenState
       }).eq('id', func['id']);
 
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('${func['nombre']} aprobado correctamente'),
-        backgroundColor: AppConfig.verde,
-      ));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('${func['nombre']} aprobado correctamente'),
+          backgroundColor: AppConfig.verde,
+        ),
+      );
       _cargarFuncionarios(silencioso: true);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Error al aprobar: $e'),
-        backgroundColor: AppConfig.rojo,
-      ));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error al aprobar: $e'),
+          backgroundColor: AppConfig.rojo,
+        ),
+      );
     }
   }
 
@@ -107,17 +117,21 @@ class _GestionFuncionariosScreenState
       }).eq('id', func['id']);
 
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('${func['nombre']} rechazado'),
-        backgroundColor: AppConfig.rojo,
-      ));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('${func['nombre']} rechazado'),
+          backgroundColor: AppConfig.rojo,
+        ),
+      );
       _cargarFuncionarios(silencioso: true);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Error al rechazar: $e'),
-        backgroundColor: AppConfig.rojo,
-      ));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error al rechazar: $e'),
+          backgroundColor: AppConfig.rojo,
+        ),
+      );
     }
   }
 
@@ -130,19 +144,25 @@ class _GestionFuncionariosScreenState
       }).eq('id', func['id']);
 
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(nuevoActivo
-            ? '${func['nombre']} activado'
-            : '${func['nombre']} desactivado'),
-        backgroundColor: nuevoActivo ? AppConfig.verde : AppConfig.naranja,
-      ));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            nuevoActivo
+                ? '${func['nombre']} activado'
+                : '${func['nombre']} desactivado',
+          ),
+          backgroundColor: nuevoActivo ? AppConfig.verde : AppConfig.naranja,
+        ),
+      );
       _cargarFuncionarios(silencioso: true);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Error: $e'),
-        backgroundColor: AppConfig.rojo,
-      ));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error: $e'),
+          backgroundColor: AppConfig.rojo,
+        ),
+      );
     }
   }
 
@@ -174,11 +194,15 @@ class _GestionFuncionariosScreenState
 
             Future.microtask(() async {
               final count = await _contarReportesAsignados(func['id'] as int);
-              if (ctx.mounted) setModalState(() => reportesAsignados = count);
+              if (ctx.mounted) {
+                setModalState(() => reportesAsignados = count);
+              }
             });
 
             return Padding(
-              padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(ctx).viewInsets.bottom,
+              ),
               child: Container(
                 margin: const EdgeInsets.all(12),
                 padding: const EdgeInsets.all(22),
@@ -198,7 +222,8 @@ class _GestionFuncionariosScreenState
                       children: [
                         Center(
                           child: Container(
-                            width: 46, height: 5,
+                            width: 46,
+                            height: 5,
                             margin: const EdgeInsets.only(bottom: 18),
                             decoration: BoxDecoration(
                               color: AppConfig.grisMedio,
@@ -210,12 +235,15 @@ class _GestionFuncionariosScreenState
                           children: [
                             CircleAvatar(
                               radius: 30,
-                              backgroundColor: _estadoColor(estado).withOpacity(0.12),
+                              backgroundColor:
+                                  _estadoColor(estado).withOpacity(0.12),
                               child: Text(
-                                (func['nombre']?.toString() ?? 'F')[0].toUpperCase(),
+                                (func['nombre']?.toString() ?? 'F')[0]
+                                    .toUpperCase(),
                                 style: TextStyle(
                                   color: _estadoColor(estado),
-                                  fontWeight: FontWeight.w900, fontSize: 22,
+                                  fontWeight: FontWeight.w900,
+                                  fontSize: 22,
                                 ),
                               ),
                             ),
@@ -224,12 +252,22 @@ class _GestionFuncionariosScreenState
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text(func['nombre'] ?? '—', style: const TextStyle(
-                                    fontSize: 20, fontWeight: FontWeight.w900, color: AppConfig.azulOscuro,
-                                  )),
+                                  Text(
+                                    func['nombre'] ?? '—',
+                                    style: const TextStyle(
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.w900,
+                                      color: AppConfig.azulOscuro,
+                                    ),
+                                  ),
                                   const SizedBox(height: 4),
-                                  Text(func['correo'] ?? '—',
-                                    style: TextStyle(color: AppConfig.grisOscuro, fontSize: 13)),
+                                  Text(
+                                    func['correo'] ?? '—',
+                                    style: TextStyle(
+                                      color: AppConfig.grisOscuro,
+                                      fontSize: 13,
+                                    ),
+                                  ),
                                 ],
                               ),
                             ),
@@ -237,7 +275,10 @@ class _GestionFuncionariosScreenState
                         ),
                         const Divider(height: 30),
                         _buildInfoRow('Cargo', func['cargo'] ?? '—'),
-                        _buildInfoRow('Departamento', func['departamento'] ?? '—'),
+                        _buildInfoRow(
+                          'Departamento',
+                          func['departamento'] ?? '—',
+                        ),
                         _buildInfoRow('Estado', _estadoText(estado)),
                         _buildInfoRow('Activo', activo ? 'Sí' : 'No'),
                         _buildInfoRow(
@@ -253,68 +294,122 @@ class _GestionFuncionariosScreenState
                           ),
                           child: Row(
                             children: [
-                              const Icon(Icons.assignment_rounded, color: AppConfig.azulClaro, size: 20),
+                              const Icon(
+                                Icons.assignment_rounded,
+                                color: AppConfig.azulClaro,
+                                size: 20,
+                              ),
                               const SizedBox(width: 10),
-                              Text(
-                                reportesAsignados == null
-                                    ? 'Cargando reportes asignados...'
-                                    : 'Reportes en revisión actualmente: $reportesAsignados',
-                                style: const TextStyle(
-                                  fontSize: 13, fontWeight: FontWeight.w700, color: AppConfig.azulClaro,
+                              Expanded(
+                                child: Text(
+                                  reportesAsignados == null
+                                      ? 'Cargando reportes asignados...'
+                                      : 'Reportes en revisión actualmente: $reportesAsignados',
+                                  style: const TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppConfig.azulClaro,
+                                  ),
                                 ),
                               ),
                             ],
                           ),
                         ),
                         const SizedBox(height: 20),
-
                         if (estado == 'pendiente') ...[
-                          LayoutBuilder(builder: (context, constraints) {
-                            final isNarrow = constraints.maxWidth < 430;
-                            final aprobarBtn = ElevatedButton.icon(
-                              onPressed: () { Navigator.pop(ctx); _aprobar(func); },
-                              icon: const Icon(Icons.check_rounded),
-                              label: const Text('Aprobar'),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: AppConfig.verde,
-                                padding: const EdgeInsets.symmetric(vertical: 14),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                              ),
-                            );
-                            final rechazarBtn = ElevatedButton.icon(
-                              onPressed: () { Navigator.pop(ctx); _rechazar(func); },
-                              icon: const Icon(Icons.close_rounded),
-                              label: const Text('Rechazar'),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: AppConfig.rojo,
-                                padding: const EdgeInsets.symmetric(vertical: 14),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                              ),
-                            );
-                            if (isNarrow) {
-                              return Column(children: [
-                                SizedBox(width: double.infinity, child: aprobarBtn),
-                                const SizedBox(height: 10),
-                                SizedBox(width: double.infinity, child: rechazarBtn),
-                              ]);
-                            }
-                            return Row(children: [
-                              Expanded(child: aprobarBtn),
-                              const SizedBox(width: 12),
-                              Expanded(child: rechazarBtn),
-                            ]);
-                          }),
+                          LayoutBuilder(
+                            builder: (context, constraints) {
+                              final isNarrow = constraints.maxWidth < 430;
+
+                              final aprobarBtn = ElevatedButton.icon(
+                                onPressed: () {
+                                  Navigator.pop(ctx);
+                                  _aprobar(func);
+                                },
+                                icon: const Icon(Icons.check_rounded),
+                                label: const Text('Aprobar'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppConfig.verde,
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 14,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(16),
+                                  ),
+                                ),
+                              );
+
+                              final rechazarBtn = ElevatedButton.icon(
+                                onPressed: () {
+                                  Navigator.pop(ctx);
+                                  _rechazar(func);
+                                },
+                                icon: const Icon(Icons.close_rounded),
+                                label: const Text('Rechazar'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppConfig.rojo,
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 14,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(16),
+                                  ),
+                                ),
+                              );
+
+                              if (isNarrow) {
+                                return Column(
+                                  children: [
+                                    SizedBox(
+                                      width: double.infinity,
+                                      child: aprobarBtn,
+                                    ),
+                                    const SizedBox(height: 10),
+                                    SizedBox(
+                                      width: double.infinity,
+                                      child: rechazarBtn,
+                                    ),
+                                  ],
+                                );
+                              }
+
+                              return Row(
+                                children: [
+                                  Expanded(child: aprobarBtn),
+                                  const SizedBox(width: 12),
+                                  Expanded(child: rechazarBtn),
+                                ],
+                              );
+                            },
+                          ),
                         ] else if (estado == 'aprobado') ...[
                           SizedBox(
                             width: double.infinity,
                             child: ElevatedButton.icon(
-                              onPressed: () { Navigator.pop(ctx); _toggleActivo(func); },
-                              icon: Icon(activo ? Icons.block_rounded : Icons.check_circle_rounded),
-                              label: Text(activo ? 'Desactivar funcionario' : 'Activar funcionario'),
+                              onPressed: () {
+                                Navigator.pop(ctx);
+                                _toggleActivo(func);
+                              },
+                              icon: Icon(
+                                activo
+                                    ? Icons.block_rounded
+                                    : Icons.check_circle_rounded,
+                              ),
+                              label: Text(
+                                activo
+                                    ? 'Desactivar funcionario'
+                                    : 'Activar funcionario',
+                              ),
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: activo ? AppConfig.naranja : AppConfig.verde,
-                                padding: const EdgeInsets.symmetric(vertical: 14),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                                backgroundColor: activo
+                                    ? AppConfig.naranja
+                                    : AppConfig.verde,
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 14,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
                               ),
                             ),
                           ),
@@ -335,7 +430,7 @@ class _GestionFuncionariosScreenState
     if (fecha == null) return '—';
     try {
       final dt = DateTime.parse(fecha.toString()).toLocal();
-      return '${dt.day.toString().padLeft(2,'0')}/${dt.month.toString().padLeft(2,'0')}/${dt.year}';
+      return '${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}/${dt.year}';
     } catch (_) {
       return fecha.toString();
     }
@@ -349,12 +444,23 @@ class _GestionFuncionariosScreenState
         children: [
           SizedBox(
             width: 130,
-            child: Text(label,
-              style: TextStyle(fontSize: 13, color: AppConfig.grisOscuro, fontWeight: FontWeight.w700)),
+            child: Text(
+              label,
+              style: TextStyle(
+                fontSize: 13,
+                color: AppConfig.grisOscuro,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
           ),
           Expanded(
-            child: Text(value,
-              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+            child: Text(
+              value,
+              style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ),
         ],
       ),
@@ -363,19 +469,27 @@ class _GestionFuncionariosScreenState
 
   Color _estadoColor(String estado) {
     switch (estado) {
-      case 'pendiente': return AppConfig.naranja;
-      case 'aprobado': return AppConfig.verde;
-      case 'rechazado': return AppConfig.rojo;
-      default: return AppConfig.grisOscuro;
+      case 'pendiente':
+        return AppConfig.naranja;
+      case 'aprobado':
+        return AppConfig.verde;
+      case 'rechazado':
+        return AppConfig.rojo;
+      default:
+        return AppConfig.grisOscuro;
     }
   }
 
   String _estadoText(String estado) {
     switch (estado) {
-      case 'pendiente': return 'Pendiente';
-      case 'aprobado': return 'Aprobado';
-      case 'rechazado': return 'Rechazado';
-      default: return estado;
+      case 'pendiente':
+        return 'Pendiente';
+      case 'aprobado':
+        return 'Aprobado';
+      case 'rechazado':
+        return 'Rechazado';
+      default:
+        return estado;
     }
   }
 
@@ -391,7 +505,12 @@ class _GestionFuncionariosScreenState
           child: Column(
             children: [
               Padding(
-                padding: EdgeInsets.fromLTRB(isMobile ? 16 : 28, isMobile ? 16 : 28, isMobile ? 16 : 28, 0),
+                padding: EdgeInsets.fromLTRB(
+                  isMobile ? 16 : 28,
+                  isMobile ? 16 : 28,
+                  isMobile ? 16 : 28,
+                  0,
+                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -406,7 +525,12 @@ class _GestionFuncionariosScreenState
               ),
               Expanded(
                 child: Padding(
-                  padding: EdgeInsets.fromLTRB(isMobile ? 16 : 28, 0, isMobile ? 16 : 28, isMobile ? 16 : 28),
+                  padding: EdgeInsets.fromLTRB(
+                    isMobile ? 16 : 28,
+                    0,
+                    isMobile ? 16 : 28,
+                    isMobile ? 16 : 28,
+                  ),
                   child: _buildLista(),
                 ),
               ),
@@ -429,63 +553,55 @@ class _GestionFuncionariosScreenState
         ),
         borderRadius: BorderRadius.circular(isMobile ? 22 : 28),
         boxShadow: [
-          BoxShadow(color: AppConfig.azulClaro.withOpacity(0.18), blurRadius: 20, offset: const Offset(0, 10)),
+          BoxShadow(
+            color: AppConfig.azulClaro.withOpacity(0.18),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          ),
         ],
       ),
       child: Stack(
         children: [
           Positioned(
-            right: -10, 
+            right: -5,
             bottom: -8,
-            child: Icon(Icons.manage_accounts_rounded,
-              size: isMobile ? 80 : 110, color: Colors.white.withOpacity(0.08)),
+            child: Icon(
+              Icons.manage_accounts_rounded,
+              size: isMobile ? 80 : 110,
+              color: Colors.white.withOpacity(0.08),
+            ),
           ),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
+              const Row(
                 children: [
-                  const Expanded(
-                    child: _HeroBadge(icon: Icons.manage_accounts_rounded, text: 'Gestión de Funcionarios'),
-                  ),
-                  // ── BOTÓN RECARGAR ──
-                  GestureDetector(
-                    onTap: _recargando ? null : () => _cargarFuncionarios(silencioso: true),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.18),
-                        borderRadius: BorderRadius.circular(999),
-                        border: Border.all(color: Colors.white.withOpacity(0.28)),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          _recargando
-                              ? const SizedBox(
-                                  width: 14, height: 14,
-                                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                                )
-                              : const Icon(Icons.refresh_rounded, size: 15, color: Colors.white),
-                          const SizedBox(width: 6),
-                          const Text('Actualizar', style: TextStyle(
-                            color: Colors.white, fontSize: 12, fontWeight: FontWeight.w800,
-                          )),
-                        ],
-                      ),
+                  Expanded(
+                    child: _HeroBadge(
+                      icon: Icons.manage_accounts_rounded,
+                      text: 'Gestión de Funcionarios',
                     ),
                   ),
                 ],
               ),
               const SizedBox(height: 14),
-              Text('Gestión de Funcionarios',
+              Text(
+                'Gestión de Funcionarios',
                 style: TextStyle(
-                  fontSize: isMobile ? 22 : 30, fontWeight: FontWeight.w900,
-                  color: Colors.white, letterSpacing: -0.5,
-                )),
+                  fontSize: isMobile ? 22 : 30,
+                  fontWeight: FontWeight.w900,
+                  color: Colors.white,
+                  letterSpacing: -0.5,
+                ),
+              ),
               const SizedBox(height: 8),
-              Text('Aprueba, rechaza o gestiona el estado de los funcionarios del sistema.',
-                style: TextStyle(fontSize: isMobile ? 13 : 14.5, color: Colors.white.withOpacity(0.84))),
+              Text(
+                'Aprueba, rechaza o gestiona el estado de los funcionarios del sistema.',
+                style: TextStyle(
+                  fontSize: isMobile ? 13 : 14.5,
+                  color: Colors.white.withOpacity(0.84),
+                ),
+              ),
             ],
           ),
         ],
@@ -494,17 +610,38 @@ class _GestionFuncionariosScreenState
   }
 
   Widget _buildResumen() {
-    final pendientes = _funcionarios.where((f) => f['estado'] == 'pendiente').length;
-    final aprobados = _funcionarios.where((f) => f['estado'] == 'aprobado').length;
-    final rechazados = _funcionarios.where((f) => f['estado'] == 'rechazado').length;
+    final pendientes =
+        _funcionarios.where((f) => f['estado'] == 'pendiente').length;
+    final aprobados =
+        _funcionarios.where((f) => f['estado'] == 'aprobado').length;
+    final rechazados =
+        _funcionarios.where((f) => f['estado'] == 'rechazado').length;
 
     return Row(
       children: [
-        Expanded(child: _SummaryRow(label: 'Pendientes', value: '$pendientes', color: AppConfig.naranja)),
+        Expanded(
+          child: _SummaryRow(
+            label: 'Pendientes',
+            value: '$pendientes',
+            color: AppConfig.naranja,
+          ),
+        ),
         const SizedBox(width: 12),
-        Expanded(child: _SummaryRow(label: 'Aprobados', value: '$aprobados', color: AppConfig.verde)),
+        Expanded(
+          child: _SummaryRow(
+            label: 'Aprobados',
+            value: '$aprobados',
+            color: AppConfig.verde,
+          ),
+        ),
         const SizedBox(width: 12),
-        Expanded(child: _SummaryRow(label: 'Rechazados', value: '$rechazados', color: AppConfig.rojo)),
+        Expanded(
+          child: _SummaryRow(
+            label: 'Rechazados',
+            value: '$rechazados',
+            color: AppConfig.rojo,
+          ),
+        ),
       ],
     );
   }
@@ -517,57 +654,106 @@ class _GestionFuncionariosScreenState
       {'label': 'Rechazados', 'value': 'rechazado'},
     ];
 
-    // Buscador + chips en una sola fila compacta
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    Widget buscador = SizedBox(
+      height: 44,
+      child: TextField(
+        onChanged: (v) => setState(() => _buscarTexto = v),
+        decoration: InputDecoration(
+          hintText: 'Buscar...',
+          prefixIcon: const Icon(Icons.search_rounded, size: 20),
+          filled: true,
+          fillColor: Colors.white,
+          contentPadding: const EdgeInsets.symmetric(
+            vertical: 0,
+            horizontal: 12,
+          ),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(color: AppConfig.grisMedio),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(color: AppConfig.grisMedio),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(color: AppConfig.azulClaro),
+          ),
+          isDense: true,
+        ),
+      ),
+    );
+
+    Widget chipsWrap = Wrap(
+      spacing: 6,
+      runSpacing: 8,
+      children: filtros.map((f) {
+        final selected = _filtroEstado == f['value'];
+        return FilterChip(
+          label: Text(
+            f['label']!,
+            style: const TextStyle(fontSize: 12),
+          ),
+          selected: selected,
+          onSelected: (_) => setState(() => _filtroEstado = f['value']!),
+          selectedColor: AppConfig.azulClaro.withOpacity(0.15),
+          checkmarkColor: AppConfig.azulClaro,
+          visualDensity: VisualDensity.compact,
+          labelStyle: TextStyle(
+            color: selected ? AppConfig.azulClaro : AppConfig.grisOscuro,
+            fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
+          ),
+        );
+      }).toList(),
+    );
+
+    if (isMobile) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          buscador,
+          const SizedBox(height: 12),
+          chipsWrap,
+        ],
+      );
+    }
+
+    return Row(
       children: [
-        Row(
-          children: [
-            Expanded(
-              child: SizedBox(
-                height: 44,
-                child: TextField(
-                  onChanged: (v) => setState(() => _buscarTexto = v),
-                  decoration: InputDecoration(
-                    hintText: 'Buscar...',
-                    prefixIcon: const Icon(Icons.search_rounded, size: 20),
-                    filled: true,
-                    fillColor: Colors.white,
-                    contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 12),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(color: AppConfig.grisMedio),
+        Expanded(child: buscador),
+        const SizedBox(width: 10),
+        Expanded(
+          flex: 2,
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: filtros.map((f) {
+                final selected = _filtroEstado == f['value'];
+                return Padding(
+                  padding: const EdgeInsets.only(right: 6),
+                  child: FilterChip(
+                    label: Text(
+                      f['label']!,
+                      style: const TextStyle(fontSize: 12),
                     ),
-                    isDense: true,
+                    selected: selected,
+                    onSelected: (_) =>
+                        setState(() => _filtroEstado = f['value']!),
+                    selectedColor: AppConfig.azulClaro.withOpacity(0.15),
+                    checkmarkColor: AppConfig.azulClaro,
+                    visualDensity: VisualDensity.compact,
+                    labelStyle: TextStyle(
+                      color: selected
+                          ? AppConfig.azulClaro
+                          : AppConfig.grisOscuro,
+                      fontWeight:
+                          selected ? FontWeight.w800 : FontWeight.w600,
+                    ),
                   ),
-                ),
-              ),
+                );
+              }).toList(),
             ),
-            const SizedBox(width: 10),
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: filtros.map((f) {
-                  final selected = _filtroEstado == f['value'];
-                  return Padding(
-                    padding: const EdgeInsets.only(right: 6),
-                    child: FilterChip(
-                      label: Text(f['label']!, style: const TextStyle(fontSize: 12)),
-                      selected: selected,
-                      onSelected: (_) => setState(() => _filtroEstado = f['value']!),
-                      selectedColor: AppConfig.azulClaro.withOpacity(0.15),
-                      checkmarkColor: AppConfig.azulClaro,
-                      visualDensity: VisualDensity.compact,
-                      labelStyle: TextStyle(
-                        color: selected ? AppConfig.azulClaro : AppConfig.grisOscuro,
-                        fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
-                      ),
-                    ),
-                  );
-                }).toList(),
-              ),
-            ),
-          ],
+          ),
         ),
       ],
     );
@@ -586,15 +772,26 @@ class _GestionFuncionariosScreenState
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.manage_accounts_rounded, size: 54, color: AppConfig.azulClaro),
+                const Icon(
+                  Icons.manage_accounts_rounded,
+                  size: 54,
+                  color: AppConfig.azulClaro,
+                ),
                 const SizedBox(height: 12),
-                const Text('Sin resultados', style: TextStyle(
-                  fontSize: 19, fontWeight: FontWeight.w900, color: AppConfig.azulOscuro,
-                )),
+                const Text(
+                  'Sin resultados',
+                  style: TextStyle(
+                    fontSize: 19,
+                    fontWeight: FontWeight.w900,
+                    color: AppConfig.azulOscuro,
+                  ),
+                ),
                 const SizedBox(height: 6),
-                Text('No hay funcionarios que coincidan.',
+                Text(
+                  'No hay funcionarios que coincidan.',
                   textAlign: TextAlign.center,
-                  style: TextStyle(color: AppConfig.grisOscuro)),
+                  style: TextStyle(color: AppConfig.grisOscuro),
+                ),
               ],
             ),
           ),
@@ -623,12 +820,19 @@ class _GestionFuncionariosScreenState
               backgroundColor: color.withOpacity(0.12),
               child: Text(
                 (f['nombre']?.toString() ?? 'F')[0].toUpperCase(),
-                style: TextStyle(color: color, fontWeight: FontWeight.w900),
+                style: TextStyle(
+                  color: color,
+                  fontWeight: FontWeight.w900,
+                ),
               ),
             ),
-            title: Text(f['nombre'] ?? '—', style: const TextStyle(
-              fontWeight: FontWeight.w900, color: AppConfig.azulOscuro,
-            )),
+            title: Text(
+              f['nombre'] ?? '—',
+              style: const TextStyle(
+                fontWeight: FontWeight.w900,
+                color: AppConfig.azulOscuro,
+              ),
+            ),
             subtitle: Padding(
               padding: const EdgeInsets.only(top: 6),
               child: Column(
@@ -636,32 +840,51 @@ class _GestionFuncionariosScreenState
                 children: [
                   Text(f['correo'] ?? '—'),
                   const SizedBox(height: 4),
-                  Text(f['cargo'] ?? '—', style: TextStyle(
-                    fontSize: 12.5, color: AppConfig.grisOscuro,
-                  )),
+                  Text(
+                    f['cargo'] ?? '—',
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      color: AppConfig.grisOscuro,
+                    ),
+                  ),
                   const SizedBox(height: 7),
-                  Wrap(spacing: 8, runSpacing: 6, children: [
-                    _StatusChip(label: _estadoText(estado), color: color),
-                    if (estado == 'aprobado')
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 6,
+                    children: [
                       _StatusChip(
-                        label: activo ? 'Activo' : 'Inactivo',
-                        color: activo ? AppConfig.verde : AppConfig.rojo,
+                        label: _estadoText(estado),
+                        color: color,
                       ),
-                  ]),
+                      if (estado == 'aprobado')
+                        _StatusChip(
+                          label: activo ? 'Activo' : 'Inactivo',
+                          color: activo ? AppConfig.verde : AppConfig.rojo,
+                        ),
+                    ],
+                  ),
                 ],
               ),
             ),
             isThreeLine: true,
             trailing: estado == 'pendiente'
                 ? Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
                       color: AppConfig.naranja.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: const Text('REVISAR', style: TextStyle(
-                      fontSize: 10, color: AppConfig.naranja, fontWeight: FontWeight.w900,
-                    )),
+                    child: const Text(
+                      'REVISAR',
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: AppConfig.naranja,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
                   )
                 : const Icon(Icons.chevron_right_rounded),
             onTap: () => _mostrarDetalle(f),
@@ -682,11 +905,17 @@ class _StatusChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.12), borderRadius: BorderRadius.circular(999),
+        color: color.withOpacity(0.12),
+        borderRadius: BorderRadius.circular(999),
       ),
-      child: Text(label, style: TextStyle(
-        fontSize: 10.5, color: color, fontWeight: FontWeight.w800,
-      )),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 10.5,
+          color: color,
+          fontWeight: FontWeight.w800,
+        ),
+      ),
     );
   }
 }
@@ -695,21 +924,39 @@ class _SummaryRow extends StatelessWidget {
   final String label;
   final String value;
   final Color color;
-  const _SummaryRow({required this.label, required this.value, required this.color});
+  const _SummaryRow({
+    required this.label,
+    required this.value,
+    required this.color,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.08), borderRadius: BorderRadius.circular(16),
+        color: color.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(16),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(value, style: TextStyle(color: color, fontSize: 20, fontWeight: FontWeight.w900)),
+          Text(
+            value,
+            style: TextStyle(
+              color: color,
+              fontSize: 20,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
           const SizedBox(height: 2),
-          Text(label, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
+          Text(
+            label,
+            style: const TextStyle(
+              fontWeight: FontWeight.w700,
+              fontSize: 12,
+            ),
+          ),
         ],
       ),
     );
@@ -730,7 +977,11 @@ class _SoftCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(24),
         border: Border.all(color: AppConfig.grisMedio),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.045), blurRadius: 14, offset: const Offset(0, 8)),
+          BoxShadow(
+            color: Colors.black.withOpacity(0.045),
+            blurRadius: 14,
+            offset: const Offset(0, 8),
+          ),
         ],
       ),
       child: child,
@@ -748,16 +999,22 @@ class _HeroBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.16), borderRadius: BorderRadius.circular(999),
+        color: Colors.white.withOpacity(0.16),
+        borderRadius: BorderRadius.circular(999),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(icon, size: 16, color: Colors.white),
           const SizedBox(width: 7),
-          Text(text, style: const TextStyle(
-            color: Colors.white, fontSize: 12, fontWeight: FontWeight.w800,
-          )),
+          Text(
+            text,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 12,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
         ],
       ),
     );

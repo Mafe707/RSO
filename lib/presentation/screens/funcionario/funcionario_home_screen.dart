@@ -137,9 +137,18 @@ class _FuncionarioHomeScreenState extends State<FuncionarioHomeScreen> {
           'Panel Funcionario',
           style: TextStyle(fontWeight: FontWeight.w800),
         ),
+        centerTitle: false,
         backgroundColor: AppConfig.azulOscuro,
         elevation: 0,
-        centerTitle: isMobile,
+        automaticallyImplyLeading: false,
+leading: isMobile
+    ? null
+    : Builder(
+        builder: (ctx) => IconButton(
+          icon: const Icon(Icons.menu_rounded, color: Colors.white),
+          onPressed: () => Scaffold.of(ctx).openDrawer(),
+        ),
+      ),
         actions: [
           if (!isMobile)
             Padding(
@@ -284,7 +293,7 @@ class _FuncionarioHomeScreenState extends State<FuncionarioHomeScreen> {
       child: Stack(
         children: [
           Positioned(
-            right: -18,
+            right: -10,
             bottom: -8,
             child: Icon(
               Icons.badge_rounded,
