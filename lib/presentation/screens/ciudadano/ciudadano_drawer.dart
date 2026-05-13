@@ -83,8 +83,7 @@ class CiudadanoDrawer extends StatelessWidget {
     final apellido = svc.ciudadanoData?['apellido'] ?? '';
     final correo = svc.ciudadanoData?['correo'] ?? '';
 
-    final inicial =
-        nombre.isNotEmpty ? nombre[0].toUpperCase() : 'C';
+    final inicial = nombre.isNotEmpty ? nombre[0].toUpperCase() : 'C';
 
     return Drawer(
       child: Container(
@@ -106,26 +105,31 @@ class CiudadanoDrawer extends StatelessWidget {
                   // Avatar + datos
                   Row(
                     children: [
-                      CircleAvatar(
-                        radius: 24,
-                        backgroundColor:
-                            Colors.white.withOpacity(0.18),
-                        child: Text(
-                          inicial,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w900,
-                            fontSize: 20,
-                          ),
-                        ),
-                      ),
-
+                      svc.ciudadanoData?['foto_url'] != null &&
+                              (svc.ciudadanoData!['foto_url'] as String).isNotEmpty
+                          ? CircleAvatar(
+                              radius: 24,
+                              backgroundImage: NetworkImage(
+                                svc.ciudadanoData!['foto_url'] as String,
+                              ),
+                              onBackgroundImageError: (_, __) {},
+                            )
+                          : CircleAvatar(
+                              radius: 24,
+                              backgroundColor: Colors.white.withOpacity(0.18),
+                              child: Text(
+                                inicial,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w900,
+                                  fontSize: 20,
+                                ),
+                              ),
+                            ),
                       const SizedBox(width: 14),
-
                       Expanded(
                         child: Column(
-                          crossAxisAlignment:
-                              CrossAxisAlignment.start,
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             if (nombre.isNotEmpty)
                               Text(
@@ -146,17 +150,14 @@ class CiudadanoDrawer extends StatelessWidget {
                                   fontSize: 13,
                                 ),
                               ),
-
                             const SizedBox(height: 2),
-
                             if (correo.isNotEmpty)
                               Text(
                                 correo,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: TextStyle(
-                                  color:
-                                      Colors.white.withOpacity(0.60),
+                                  color: Colors.white.withOpacity(0.60),
                                   fontSize: 11.5,
                                 ),
                               ),
@@ -165,9 +166,7 @@ class CiudadanoDrawer extends StatelessWidget {
                       ),
                     ],
                   ),
-
                   const SizedBox(height: 18),
-
                   const Text(
                     'Ruta Sin Obstáculos',
                     style: TextStyle(
@@ -180,7 +179,6 @@ class CiudadanoDrawer extends StatelessWidget {
                 ],
               ),
             ),
-
             const Divider(
               color: Colors.white12,
               height: 1,
@@ -189,8 +187,7 @@ class CiudadanoDrawer extends StatelessWidget {
             // ───────────────── MENÚ ─────────────────
             Expanded(
               child: ListView(
-                padding:
-                    const EdgeInsets.symmetric(vertical: 10),
+                padding: const EdgeInsets.symmetric(vertical: 10),
                 children: [
                   _DrawerItem(
                     icon: Icons.home_rounded,
@@ -198,28 +195,24 @@ class CiudadanoDrawer extends StatelessWidget {
                     selected: currentIndex == 0,
                     onTap: () => _navigate(context, 0),
                   ),
-
                   _DrawerItem(
                     icon: Icons.add_location_alt_rounded,
                     title: 'Reportar invasión',
                     selected: currentIndex == 1,
                     onTap: () => _navigate(context, 1),
                   ),
-
                   _DrawerItem(
                     icon: Icons.search_rounded,
                     title: 'Consultar estado',
                     selected: currentIndex == 2,
                     onTap: () => _navigate(context, 2),
                   ),
-
                   _DrawerItem(
                     icon: Icons.map_rounded,
                     title: 'Mapa de reportes',
                     selected: currentIndex == 3,
                     onTap: () => _navigate(context, 3),
                   ),
-
                   _DrawerItem(
                     icon: Icons.info_rounded,
                     title: 'Información',
@@ -234,7 +227,6 @@ class CiudadanoDrawer extends StatelessWidget {
                     selected: currentIndex == 5,
                     onTap: () => _navigate(context, 5),
                   ),
-
                   const Padding(
                     padding: EdgeInsets.symmetric(
                       horizontal: 16,
@@ -258,8 +250,7 @@ class CiudadanoDrawer extends StatelessWidget {
                         Navigator.pushAndRemoveUntil(
                           context,
                           MaterialPageRoute(
-                            builder: (_) =>
-                                const CiudadanoLoginScreen(),
+                            builder: (_) => const CiudadanoLoginScreen(),
                           ),
                           (route) => false,
                         );
@@ -294,8 +285,7 @@ class _DrawerItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final itemColor =
-        color ??
-        (selected ? Colors.white : Colors.white70);
+        color ?? (selected ? Colors.white : Colors.white70);
 
     return Padding(
       padding: const EdgeInsets.symmetric(
@@ -304,8 +294,7 @@ class _DrawerItem extends StatelessWidget {
       ),
       child: ListTile(
         selected: selected,
-        selectedTileColor:
-            Colors.white.withOpacity(0.10),
+        selectedTileColor: Colors.white.withOpacity(0.10),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(14),
         ),
@@ -313,25 +302,20 @@ class _DrawerItem extends StatelessWidget {
           horizontal: 14,
           vertical: 2,
         ),
-
         leading: Icon(
           icon,
           color: itemColor,
           size: 22,
         ),
-
         title: Text(
           title,
           style: TextStyle(
             color: itemColor,
             fontWeight:
-                selected
-                    ? FontWeight.w800
-                    : FontWeight.w600,
+                selected ? FontWeight.w800 : FontWeight.w600,
             fontSize: 14,
           ),
         ),
-
         onTap: onTap,
       ),
     );

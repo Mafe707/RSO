@@ -1,7 +1,14 @@
+import 'dart:typed_data';
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:image_cropper/image_cropper.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../config/app_config.dart';
+import '../../../core/supabase/supabase_config.dart';
 import '../../../services/ciudadano_auth_service.dart';
 import 'ciudadano_home_screen.dart';
 
@@ -30,6 +37,9 @@ class _CiudadanoRegisterScreenState extends State<CiudadanoRegisterScreen> {
   bool _hasMinLength = false;
   bool _hasUpperCase = false;
   bool _hasNumber = false;
+
+  Uint8List? _fotoBytes;
+  bool _subiendoFoto = false;
 
   @override
   void initState() {
@@ -74,12 +84,205 @@ class _CiudadanoRegisterScreenState extends State<CiudadanoRegisterScreen> {
     super.dispose();
   }
 
+  Future<void> _pickFoto(ImageSource source) async {
+    try {
+      final picker = ImagePicker();
+      final picked = await picker.pickImage(
+        source: source,
+        maxWidth: 1400,
+        maxHeight: 1400,
+        imageQuality: 90,
+      );
+
+      if (picked == null) return;
+
+      final cropped = await ImageCropper().cropImage(
+        sourcePath: picked.path,
+        compressFormat: ImageCompressFormat.jpg,
+        compressQuality: 88,
+        aspectRatio: const CropAspectRatio(ratioX: 1, ratioY: 1),
+        uiSettings: [
+          AndroidUiSettings(
+            toolbarTitle: 'Ajustar foto de perfil',
+            toolbarColor: AppConfig.azulOscuro,
+            toolbarWidgetColor: Colors.white,
+            backgroundColor: Colors.black,
+            activeControlsWidgetColor: AppConfig.azulClaro,
+            lockAspectRatio: true,
+            hideBottomControls: false,
+            initAspectRatio: CropAspectRatioPreset.square,
+          ),
+          IOSUiSettings(
+            title: 'Ajustar foto de perfil',
+            aspectRatioLockEnabled: true,
+            resetAspectRatioEnabled: false,
+            rotateButtonsHidden: false,
+            rotateClockwiseButtonHidden: false,
+          ),
+        ],
+      );
+
+      if (cropped == null) return;
+
+      final bytes = await File(cropped.path).readAsBytes();
+
+      if (!mounted) return;
+      setState(() => _fotoBytes = bytes);
+    } catch (e) {
+      _showError('No se pudo seleccionar o ajustar la imagen');
+    }
+  }
+
+  void _mostrarOpcionesFoto() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 40,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 18),
+                decoration: BoxDecoration(
+                  color: AppConfig.grisMedio,
+                  borderRadius: BorderRadius.circular(99),
+                ),
+              ),
+              const Text(
+                'Foto de perfil',
+                style: TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w900,
+                  color: AppConfig.azulOscuro,
+                ),
+              ),
+              const SizedBox(height: 18),
+              ListTile(
+                leading: Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: AppConfig.azulClaro.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(
+                    Icons.camera_alt_rounded,
+                    color: AppConfig.azulClaro,
+                  ),
+                ),
+                title: const Text(
+                  'Tomar foto',
+                  style: TextStyle(fontWeight: FontWeight.w700),
+                ),
+                subtitle: const Text('Luego podrás ajustarla'),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _pickFoto(ImageSource.camera);
+                },
+              ),
+              ListTile(
+                leading: Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: AppConfig.verde.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(
+                    Icons.photo_library_rounded,
+                    color: AppConfig.verde,
+                  ),
+                ),
+                title: const Text(
+                  'Galería / Archivos',
+                  style: TextStyle(fontWeight: FontWeight.w700),
+                ),
+                subtitle: const Text('Elige y ubica la imagen'),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _pickFoto(ImageSource.gallery);
+                },
+              ),
+              if (_fotoBytes != null)
+                ListTile(
+                  leading: Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: AppConfig.rojo.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(
+                      Icons.delete_rounded,
+                      color: AppConfig.rojo,
+                    ),
+                  ),
+                  title: const Text(
+                    'Eliminar foto',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w700,
+                      color: AppConfig.rojo,
+                    ),
+                  ),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    setState(() => _fotoBytes = null);
+                  },
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<({String? url, String? path})> _subirFoto(String emailNorm) async {
+    if (_fotoBytes == null) return (url: null, path: null);
+
+    final supabase = SupabaseConfig.client;
+    final nombre =
+        'ciudadano_${emailNorm.replaceAll('@', '_').replaceAll('.', '_')}_${DateTime.now().millisecondsSinceEpoch}.jpg';
+    final path = 'ciudadanos/$nombre';
+
+    await supabase.storage.from('avatares').uploadBinary(
+          path,
+          _fotoBytes!,
+          fileOptions:
+              const FileOptions(contentType: 'image/jpeg', upsert: true),
+        );
+
+    final url = supabase.storage.from('avatares').getPublicUrl(path);
+    return (url: url, path: path);
+  }
+
   Future<void> _register() async {
     if (!_formKey.currentState!.validate()) return;
+
     if (!_termsAccepted) {
       _showError('Debes aceptar los términos y condiciones');
       return;
     }
+
+    setState(() => _subiendoFoto = true);
+
+    String? fotoUrl;
+    String? fotoPath;
+
+    try {
+      final result =
+          await _subirFoto(_emailController.text.trim().toLowerCase());
+      fotoUrl = result.url;
+      fotoPath = result.path;
+    } catch (e) {
+      debugPrint('Error subiendo foto: $e');
+    } finally {
+      setState(() => _subiendoFoto = false);
+    }
+
+    if (!mounted) return;
 
     final svc = Provider.of<CiudadanoAuthService>(context, listen: false);
     final ok = await svc.register(
@@ -89,11 +292,13 @@ class _CiudadanoRegisterScreenState extends State<CiudadanoRegisterScreen> {
       password: _passwordController.text,
       telefono: _telefonoController.text.trim(),
       barrio: _barrioController.text.trim(),
+      fotoUrl: fotoUrl,
+      fotoPath: fotoPath,
     );
 
     if (!mounted) return;
+
     if (ok) {
-      // Si quedó logueado directo, ir al home
       if (svc.isLoggedIn) {
         Navigator.pushAndRemoveUntil(
           context,
@@ -111,7 +316,11 @@ class _CiudadanoRegisterScreenState extends State<CiudadanoRegisterScreen> {
   void _showError(String msg) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(msg), backgroundColor: AppConfig.rojo));
+      SnackBar(
+        content: Text(msg),
+        backgroundColor: AppConfig.rojo,
+      ),
+    );
   }
 
   void _showSuccessDialog() {
@@ -125,8 +334,10 @@ class _CiudadanoRegisterScreenState extends State<CiudadanoRegisterScreen> {
             Icon(Icons.check_circle_rounded, color: AppConfig.verde),
             SizedBox(width: 10),
             Expanded(
-              child: Text('¡Registro exitoso!',
-                  style: TextStyle(fontWeight: FontWeight.w800)),
+              child: Text(
+                '¡Registro exitoso!',
+                style: TextStyle(fontWeight: FontWeight.w800),
+              ),
             ),
           ],
         ),
@@ -143,7 +354,8 @@ class _CiudadanoRegisterScreenState extends State<CiudadanoRegisterScreen> {
             style: ElevatedButton.styleFrom(
               backgroundColor: AppConfig.azulClaro,
               shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14)),
+                borderRadius: BorderRadius.circular(14),
+              ),
             ),
             child: const Text('Ir al inicio de sesión'),
           ),
@@ -159,6 +371,7 @@ class _CiudadanoRegisterScreenState extends State<CiudadanoRegisterScreen> {
   Widget build(BuildContext context) {
     final svc = Provider.of<CiudadanoAuthService>(context);
     final isMobile = _isMobile(context);
+    final loading = svc.isLoading || _subiendoFoto;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FB),
@@ -186,20 +399,24 @@ class _CiudadanoRegisterScreenState extends State<CiudadanoRegisterScreen> {
               ),
             ),
           ),
-          if (svc.isLoading)
+          if (loading)
             Container(
               color: Colors.black54,
-              child: const Center(
+              child: Center(
                 child: Card(
                   child: Padding(
-                    padding: EdgeInsets.all(26),
+                    padding: const EdgeInsets.all(26),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        CircularProgressIndicator(),
-                        SizedBox(height: 16),
-                        Text('Creando cuenta...',
-                            style: TextStyle(fontWeight: FontWeight.w700)),
+                        const CircularProgressIndicator(),
+                        const SizedBox(height: 16),
+                        Text(
+                          _subiendoFoto
+                              ? 'Subiendo foto...'
+                              : 'Creando cuenta...',
+                          style: const TextStyle(fontWeight: FontWeight.w700),
+                        ),
                       ],
                     ),
                   ),
@@ -265,9 +482,11 @@ class _CiudadanoRegisterScreenState extends State<CiudadanoRegisterScreen> {
           Positioned(
             right: -12,
             bottom: -24,
-            child: Icon(Icons.how_to_reg_rounded,
-                size: isMobile ? 90 : 130,
-                color: Colors.white.withOpacity(0.07)),
+            child: Icon(
+              Icons.how_to_reg_rounded,
+              size: isMobile ? 90 : 130,
+              color: Colors.white.withOpacity(0.07),
+            ),
           ),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -284,11 +503,14 @@ class _CiudadanoRegisterScreenState extends State<CiudadanoRegisterScreen> {
                   children: [
                     Icon(Icons.person_add_rounded, size: 15, color: Colors.white),
                     SizedBox(width: 7),
-                    Text('Nuevo ciudadano',
-                        style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700)),
+                    Text(
+                      'Nuevo ciudadano',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -316,12 +538,18 @@ class _CiudadanoRegisterScreenState extends State<CiudadanoRegisterScreen> {
                 ),
               ),
               const SizedBox(height: 18),
-              Wrap(
+              const Wrap(
                 spacing: 10,
                 runSpacing: 10,
-                children: const [
-                  _HeroChip(icon: Icons.lock_rounded, text: 'Datos protegidos'),
-                  _HeroChip(icon: Icons.verified_rounded, text: 'Registro gratuito'),
+                children: [
+                  _HeroChip(
+                    icon: Icons.lock_rounded,
+                    text: 'Datos protegidos',
+                  ),
+                  _HeroChip(
+                    icon: Icons.verified_rounded,
+                    text: 'Registro gratuito',
+                  ),
                 ],
               ),
             ],
@@ -343,24 +571,99 @@ class _CiudadanoRegisterScreenState extends State<CiudadanoRegisterScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _PanelHeading(
+          const _PanelHeading(
             icon: Icons.lightbulb_outline_rounded,
             title: 'Antes de registrarte',
             subtitle: 'Ten en cuenta estas recomendaciones.',
           ),
           const SizedBox(height: 18),
-          _TipItem(
+          const _TipItem(
             icon: Icons.shield_rounded,
-            text: 'Tus datos personales están protegidos y solo se usarán para gestionar tus reportes.',
+            text:
+                'Tus datos personales están protegidos y solo se usarán para gestionar tus reportes.',
           ),
-          _TipItem(
+          const _TipItem(
             icon: Icons.confirmation_number_rounded,
-            text: 'Al hacer un reporte recibirás un código único para consultar su estado.',
+            text:
+                'Al hacer un reporte recibirás un código único para consultar su estado.',
           ),
-          _TipItem(
+          const _TipItem(
             icon: Icons.visibility_off_rounded,
-            text: 'Puedes elegir que tu reporte sea anónimo si no quieres compartir tus datos.',
+            text:
+                'Puedes elegir que tu reporte sea anónimo si no quieres compartir tus datos.',
             isLast: true,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFotoSelector() {
+    return GestureDetector(
+      onTap: _mostrarOpcionesFoto,
+      child: Column(
+        children: [
+          Stack(
+            alignment: Alignment.center,
+            children: [
+              Container(
+                width: 100,
+                height: 100,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: AppConfig.azulOscuro.withOpacity(0.08),
+                  border: Border.all(
+                    color: _fotoBytes != null
+                        ? AppConfig.azulClaro
+                        : AppConfig.grisMedio,
+                    width: _fotoBytes != null ? 2.5 : 1.5,
+                  ),
+                ),
+                child: _fotoBytes != null
+                    ? ClipOval(
+                        child: Image.memory(
+                          _fotoBytes!,
+                          fit: BoxFit.cover,
+                          width: 100,
+                          height: 100,
+                        ),
+                      )
+                    : const Icon(
+                        Icons.person_add_alt_1_rounded,
+                        size: 42,
+                        color: AppConfig.azulOscuro,
+                      ),
+              ),
+              Positioned(
+                bottom: 0,
+                right: 0,
+                child: Container(
+                  width: 32,
+                  height: 32,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: AppConfig.azulClaro,
+                    border: Border.all(color: Colors.white, width: 2),
+                  ),
+                  child: const Icon(
+                    Icons.camera_alt_rounded,
+                    size: 16,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            _fotoBytes != null
+                ? 'Cambiar o ajustar foto'
+                : 'Agregar foto (opcional)',
+            style: const TextStyle(
+              fontSize: 12.5,
+              color: AppConfig.azulClaro,
+              fontWeight: FontWeight.w700,
+            ),
           ),
         ],
       ),
@@ -397,29 +700,42 @@ class _CiudadanoRegisterScreenState extends State<CiudadanoRegisterScreen> {
                     color: AppConfig.azulOscuro.withOpacity(0.08),
                     borderRadius: BorderRadius.circular(18),
                   ),
-                  child: const Icon(Icons.assignment_ind_rounded,
-                      color: AppConfig.azulOscuro),
+                  child: const Icon(
+                    Icons.assignment_ind_rounded,
+                    color: AppConfig.azulOscuro,
+                  ),
                 ),
                 const SizedBox(width: 14),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text('Datos personales',
-                          style: TextStyle(
-                              fontSize: 22,
-                              fontWeight: FontWeight.w900,
-                              color: AppConfig.azulOscuro)),
+                      const Text(
+                        'Datos personales',
+                        style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.w900,
+                          color: AppConfig.azulOscuro,
+                        ),
+                      ),
                       const SizedBox(height: 3),
-                      Text('Completa la información para crear tu cuenta.',
-                          style: TextStyle(
-                              fontSize: 13, color: AppConfig.grisOscuro)),
+                      Text(
+                        'Completa la información para crear tu cuenta.',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: AppConfig.grisOscuro,
+                        ),
+                      ),
                     ],
                   ),
                 ),
               ],
             ),
             const SizedBox(height: 24),
+            Center(child: _buildFotoSelector()),
+            const SizedBox(height: 22),
+            const Divider(),
+            const SizedBox(height: 16),
             Row(
               children: [
                 Expanded(
@@ -431,7 +747,8 @@ class _CiudadanoRegisterScreenState extends State<CiudadanoRegisterScreen> {
                       filled: true,
                       fillColor: const Color(0xFFF8FAFC),
                       border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(16)),
+                        borderRadius: BorderRadius.circular(16),
+                      ),
                     ),
                     validator: (v) =>
                         (v == null || v.trim().isEmpty) ? 'Campo requerido' : null,
@@ -447,7 +764,8 @@ class _CiudadanoRegisterScreenState extends State<CiudadanoRegisterScreen> {
                       filled: true,
                       fillColor: const Color(0xFFF8FAFC),
                       border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(16)),
+                        borderRadius: BorderRadius.circular(16),
+                      ),
                     ),
                     validator: (v) =>
                         (v == null || v.trim().isEmpty) ? 'Campo requerido' : null,
@@ -465,8 +783,9 @@ class _CiudadanoRegisterScreenState extends State<CiudadanoRegisterScreen> {
                 prefixIcon: const Icon(Icons.email_rounded),
                 filled: true,
                 fillColor: const Color(0xFFF8FAFC),
-                border:
-                    OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
               ),
               validator: (v) {
                 if (v == null || v.trim().isEmpty) return 'Campo requerido';
@@ -489,7 +808,8 @@ class _CiudadanoRegisterScreenState extends State<CiudadanoRegisterScreen> {
                       filled: true,
                       fillColor: const Color(0xFFF8FAFC),
                       border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(16)),
+                        borderRadius: BorderRadius.circular(16),
+                      ),
                     ),
                   ),
                 ),
@@ -503,7 +823,8 @@ class _CiudadanoRegisterScreenState extends State<CiudadanoRegisterScreen> {
                       filled: true,
                       fillColor: const Color(0xFFF8FAFC),
                       border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(16)),
+                        borderRadius: BorderRadius.circular(16),
+                      ),
                     ),
                   ),
                 ),
@@ -519,16 +840,19 @@ class _CiudadanoRegisterScreenState extends State<CiudadanoRegisterScreen> {
                 labelText: 'Contraseña *',
                 prefixIcon: const Icon(Icons.lock_rounded),
                 suffixIcon: IconButton(
-                  icon: Icon(_obscurePassword
-                      ? Icons.visibility_off_rounded
-                      : Icons.visibility_rounded),
+                  icon: Icon(
+                    _obscurePassword
+                        ? Icons.visibility_off_rounded
+                        : Icons.visibility_rounded,
+                  ),
                   onPressed: () =>
                       setState(() => _obscurePassword = !_obscurePassword),
                 ),
                 filled: true,
                 fillColor: const Color(0xFFF8FAFC),
-                border:
-                    OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
               ),
               validator: (v) {
                 if (v == null || v.isEmpty) return 'Campo requerido';
@@ -552,11 +876,14 @@ class _CiudadanoRegisterScreenState extends State<CiudadanoRegisterScreen> {
                     ),
                   ),
                   const SizedBox(width: 10),
-                  Text(_strengthText,
-                      style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          color: _strengthColor)),
+                  Text(
+                    _strengthText,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: _strengthColor,
+                    ),
+                  ),
                 ],
               ),
               const SizedBox(height: 6),
@@ -577,16 +904,19 @@ class _CiudadanoRegisterScreenState extends State<CiudadanoRegisterScreen> {
                 labelText: 'Confirmar contraseña *',
                 prefixIcon: const Icon(Icons.lock_outline_rounded),
                 suffixIcon: IconButton(
-                  icon: Icon(_obscureConfirm
-                      ? Icons.visibility_off_rounded
-                      : Icons.visibility_rounded),
+                  icon: Icon(
+                    _obscureConfirm
+                        ? Icons.visibility_off_rounded
+                        : Icons.visibility_rounded,
+                  ),
                   onPressed: () =>
                       setState(() => _obscureConfirm = !_obscureConfirm),
                 ),
                 filled: true,
                 fillColor: const Color(0xFFF8FAFC),
-                border:
-                    OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
               ),
               validator: (v) {
                 if (v == null || v.isEmpty) return 'Campo requerido';
@@ -619,9 +949,10 @@ class _CiudadanoRegisterScreenState extends State<CiudadanoRegisterScreen> {
                       child: Text(
                         'Acepto los términos y condiciones y la política de privacidad del sistema',
                         style: TextStyle(
-                            color: AppConfig.grisOscuro,
-                            fontSize: 13,
-                            height: 1.35),
+                          color: AppConfig.grisOscuro,
+                          fontSize: 13,
+                          height: 1.35,
+                        ),
                       ),
                     ),
                   ),
@@ -639,9 +970,12 @@ class _CiudadanoRegisterScreenState extends State<CiudadanoRegisterScreen> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppConfig.azulClaro,
                   shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16)),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
                   textStyle: const TextStyle(
-                      fontSize: 15.5, fontWeight: FontWeight.w800),
+                    fontSize: 15.5,
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
               ),
             ),
@@ -663,6 +997,7 @@ class _CiudadanoRegisterScreenState extends State<CiudadanoRegisterScreen> {
 class _ReqIndicator extends StatelessWidget {
   final String text;
   final bool isMet;
+
   const _ReqIndicator(this.text, this.isMet);
 
   @override
@@ -676,11 +1011,14 @@ class _ReqIndicator extends StatelessWidget {
           color: isMet ? AppConfig.verde : AppConfig.grisOscuro,
         ),
         const SizedBox(width: 5),
-        Text(text,
-            style: TextStyle(
-                fontSize: 11.5,
-                color: isMet ? AppConfig.verde : AppConfig.grisOscuro,
-                fontWeight: isMet ? FontWeight.w700 : FontWeight.w400)),
+        Text(
+          text,
+          style: TextStyle(
+            fontSize: 11.5,
+            color: isMet ? AppConfig.verde : AppConfig.grisOscuro,
+            fontWeight: isMet ? FontWeight.w700 : FontWeight.w400,
+          ),
+        ),
       ],
     );
   }
@@ -689,6 +1027,7 @@ class _ReqIndicator extends StatelessWidget {
 class _HeroChip extends StatelessWidget {
   final IconData icon;
   final String text;
+
   const _HeroChip({required this.icon, required this.text});
 
   @override
@@ -705,9 +1044,14 @@ class _HeroChip extends StatelessWidget {
         children: [
           Icon(icon, size: 15, color: Colors.white),
           const SizedBox(width: 6),
-          Text(text,
-              style: const TextStyle(
-                  fontSize: 11.5, color: Colors.white, fontWeight: FontWeight.w700)),
+          Text(
+            text,
+            style: const TextStyle(
+              fontSize: 11.5,
+              color: Colors.white,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
         ],
       ),
     );
@@ -718,8 +1062,12 @@ class _PanelHeading extends StatelessWidget {
   final IconData icon;
   final String title;
   final String subtitle;
-  const _PanelHeading(
-      {required this.icon, required this.title, required this.subtitle});
+
+  const _PanelHeading({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -739,14 +1087,22 @@ class _PanelHeading extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(title,
-                  style: const TextStyle(
-                      fontSize: 17,
-                      fontWeight: FontWeight.w900,
-                      color: AppConfig.azulOscuro)),
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w900,
+                  color: AppConfig.azulOscuro,
+                ),
+              ),
               const SizedBox(height: 3),
-              Text(subtitle,
-                  style: TextStyle(fontSize: 12.5, color: AppConfig.grisOscuro)),
+              Text(
+                subtitle,
+                style: TextStyle(
+                  fontSize: 12.5,
+                  color: AppConfig.grisOscuro,
+                ),
+              ),
             ],
           ),
         ),
@@ -759,7 +1115,12 @@ class _TipItem extends StatelessWidget {
   final IconData icon;
   final String text;
   final bool isLast;
-  const _TipItem({required this.icon, required this.text, this.isLast = false});
+
+  const _TipItem({
+    required this.icon,
+    required this.text,
+    this.isLast = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -771,9 +1132,14 @@ class _TipItem extends StatelessWidget {
             Icon(icon, color: AppConfig.azulClaro, size: 22),
             const SizedBox(width: 10),
             Expanded(
-              child: Text(text,
-                  style: TextStyle(
-                      fontSize: 13, height: 1.35, color: AppConfig.grisOscuro)),
+              child: Text(
+                text,
+                style: TextStyle(
+                  fontSize: 13,
+                  height: 1.35,
+                  color: AppConfig.grisOscuro,
+                ),
+              ),
             ),
           ],
         ),

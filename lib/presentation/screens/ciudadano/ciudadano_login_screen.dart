@@ -35,9 +35,10 @@ class _CiudadanoLoginScreenState extends State<CiudadanoLoginScreen> {
 
     if (svc.isLoggedIn) {
       _redirecting = true;
-      Navigator.pushReplacement(
+      Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(builder: (_) => const CiudadanoHomeScreen()),
+        (route) => false,
       );
     }
   }
@@ -86,13 +87,90 @@ class _CiudadanoLoginScreenState extends State<CiudadanoLoginScreen> {
 
     if (!mounted) return;
     if (ok) {
-      Navigator.pushReplacement(
+      Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(builder: (_) => const CiudadanoHomeScreen()),
+        (route) => false,
       );
     } else {
       _showError(svc.error ?? 'Credenciales incorrectas');
     }
+  }
+
+  void _mostrarDialogoReset(BuildContext context, CiudadanoAuthService svc) {
+    final emailCtrl = TextEditingController(text: _emailController.text.trim());
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text(
+          'Recuperar contraseña',
+          style: TextStyle(
+            fontWeight: FontWeight.w800,
+            color: AppConfig.azulOscuro,
+          ),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'Ingresa tu correo y te enviaremos un enlace para restablecer tu contraseña.',
+              style: TextStyle(fontSize: 13.5),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: emailCtrl,
+              keyboardType: TextInputType.emailAddress,
+              decoration: InputDecoration(
+                labelText: 'Correo electrónico',
+                prefixIcon: const Icon(Icons.email_rounded),
+                filled: true,
+                fillColor: const Color(0xFFF8FAFC),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final email = emailCtrl.text.trim();
+              if (email.isEmpty) return;
+
+              Navigator.pop(ctx);
+
+              final ok = await svc.sendPasswordReset(email);
+
+              if (!mounted) return;
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                    ok
+                        ? 'Correo enviado. Revisa tu bandeja de entrada.'
+                        : svc.error ?? 'Error al enviar el correo',
+                  ),
+                  backgroundColor: ok ? AppConfig.azulClaro : AppConfig.rojo,
+                ),
+              );
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppConfig.azulClaro,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            child: const Text('Enviar enlace'),
+          ),
+        ],
+      ),
+    );
   }
 
   void _showError(String msg) {
@@ -326,7 +404,9 @@ class _CiudadanoLoginScreenState extends State<CiudadanoLoginScreen> {
                 ),
                 onPressed: svc.isLoading
                     ? null
-                    : () => setState(() => _obscurePassword = !_obscurePassword),
+                    : () => setState(
+                          () => _obscurePassword = !_obscurePassword,
+                        ),
               ),
               filled: true,
               fillColor: const Color(0xFFF8FAFC),
@@ -354,7 +434,9 @@ class _CiudadanoLoginScreenState extends State<CiudadanoLoginScreen> {
                       ),
                     )
                   : const Icon(Icons.login_rounded),
-              label: Text(svc.isLoading ? 'Iniciando sesión...' : 'Iniciar sesión'),
+              label: Text(
+                svc.isLoading ? 'Iniciando sesión...' : 'Iniciar sesión',
+              ),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppConfig.azulClaro,
                 shape: RoundedRectangleBorder(
@@ -367,7 +449,12 @@ class _CiudadanoLoginScreenState extends State<CiudadanoLoginScreen> {
               ),
             ),
           ),
-          const SizedBox(height: 18),
+          const SizedBox(height: 12),
+          TextButton(
+            onPressed: svc.isLoading ? null : () => _mostrarDialogoReset(context, svc),
+            child: const Text('¿Olvidaste tu contraseña?'),
+          ),
+          const SizedBox(height: 6),
           Wrap(
             alignment: WrapAlignment.center,
             crossAxisAlignment: WrapCrossAlignment.center,

@@ -265,6 +265,15 @@ class _ConsultarScreenState extends State<ConsultarScreen>
         toolbarHeight: 64,
         centerTitle: false,
         titleSpacing: 16,
+        automaticallyImplyLeading: false,
+leading: isMobile
+    ? null
+    : Builder(
+        builder: (ctx) => IconButton(
+          icon: const Icon(Icons.menu_rounded, color: Colors.white),
+          onPressed: () => Scaffold.of(ctx).openDrawer(),
+        ),
+      ),
         actions: [
           IconButton(
             tooltip: 'Cerrar sesión',

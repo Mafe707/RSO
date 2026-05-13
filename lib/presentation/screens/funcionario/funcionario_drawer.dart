@@ -119,55 +119,53 @@ class FuncionarioDrawer extends StatelessWidget {
                 bottom: 22,
               ),
               child: Column(
-                crossAxisAlignment:
-                    CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
                     children: [
-                      CircleAvatar(
-                        radius: 24,
-                        backgroundColor:
-                            Colors.white.withOpacity(0.18),
-                        child: Text(
-                          inicial,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w900,
-                            fontSize: 20,
-                          ),
-                        ),
-                      ),
-
+                      userData['foto_url'] != null &&
+                              (userData['foto_url'] as String).isNotEmpty
+                          ? CircleAvatar(
+                              radius: 24,
+                              backgroundImage: NetworkImage(
+                                userData['foto_url'] as String,
+                              ),
+                              onBackgroundImageError: (_, __) {},
+                            )
+                          : CircleAvatar(
+                              radius: 24,
+                              backgroundColor: Colors.white.withOpacity(0.18),
+                              child: Text(
+                                inicial,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w900,
+                                  fontSize: 20,
+                                ),
+                              ),
+                            ),
                       const SizedBox(width: 14),
-
                       Expanded(
                         child: Column(
-                          crossAxisAlignment:
-                              CrossAxisAlignment.start,
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
                               userName,
                               maxLines: 1,
-                              overflow:
-                                  TextOverflow.ellipsis,
+                              overflow: TextOverflow.ellipsis,
                               style: const TextStyle(
                                 color: Colors.white,
                                 fontSize: 15,
-                                fontWeight:
-                                    FontWeight.w800,
+                                fontWeight: FontWeight.w800,
                               ),
                             ),
-
                             const SizedBox(height: 2),
-
                             Text(
                               userEmail,
                               maxLines: 1,
-                              overflow:
-                                  TextOverflow.ellipsis,
+                              overflow: TextOverflow.ellipsis,
                               style: TextStyle(
-                                color: Colors.white
-                                    .withOpacity(0.60),
+                                color: Colors.white.withOpacity(0.60),
                                 fontSize: 11.5,
                               ),
                             ),
@@ -176,9 +174,7 @@ class FuncionarioDrawer extends StatelessWidget {
                       ),
                     ],
                   ),
-
                   const SizedBox(height: 18),
-
                   const Text(
                     'Panel del funcionario',
                     style: TextStyle(
@@ -191,7 +187,6 @@ class FuncionarioDrawer extends StatelessWidget {
                 ],
               ),
             ),
-
             const Divider(
               color: Colors.white12,
               height: 1,
@@ -200,10 +195,9 @@ class FuncionarioDrawer extends StatelessWidget {
             // ───────────────── MENÚ ─────────────────
             Expanded(
               child: ListView(
-                padding:
-                    const EdgeInsets.symmetric(
-                      vertical: 10,
-                    ),
+                padding: const EdgeInsets.symmetric(
+                  vertical: 10,
+                ),
                 children: [
                   _DrawerItem(
                     icon: Icons.dashboard_rounded,
@@ -211,35 +205,30 @@ class FuncionarioDrawer extends StatelessWidget {
                     selected: currentIndex == 0,
                     onTap: () => _navigate(context, 0),
                   ),
-
                   _DrawerItem(
                     icon: Icons.assignment_rounded,
                     title: 'Mis casos',
                     selected: currentIndex == 1,
                     onTap: () => _navigate(context, 1),
                   ),
-
                   _DrawerItem(
                     icon: Icons.flag_rounded,
                     title: 'Nuevos reportes',
                     selected: currentIndex == 2,
                     onTap: () => _navigate(context, 2),
                   ),
-
                   _DrawerItem(
                     icon: Icons.map_rounded,
                     title: 'Mapa de casos',
                     selected: currentIndex == 3,
                     onTap: () => _navigate(context, 3),
                   ),
-
                   _DrawerItem(
                     icon: Icons.manage_accounts_rounded,
                     title: 'Mi perfil',
                     selected: currentIndex == 4,
                     onTap: () => _navigate(context, 4),
                   ),
-
                   const Padding(
                     padding: EdgeInsets.symmetric(
                       horizontal: 16,
@@ -249,7 +238,6 @@ class FuncionarioDrawer extends StatelessWidget {
                       color: Colors.white12,
                     ),
                   ),
-
                   _DrawerItem(
                     icon: Icons.logout_rounded,
                     title: 'Cerrar sesión',
@@ -285,8 +273,7 @@ class _DrawerItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final itemColor =
-        color ??
-        (selected ? Colors.white : Colors.white70);
+        color ?? (selected ? Colors.white : Colors.white70);
 
     return Padding(
       padding: const EdgeInsets.symmetric(
@@ -295,35 +282,28 @@ class _DrawerItem extends StatelessWidget {
       ),
       child: ListTile(
         selected: selected,
-        selectedTileColor:
-            Colors.white.withOpacity(0.10),
+        selectedTileColor: Colors.white.withOpacity(0.10),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(14),
         ),
-        contentPadding:
-            const EdgeInsets.symmetric(
-              horizontal: 14,
-              vertical: 2,
-            ),
-
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 14,
+          vertical: 2,
+        ),
         leading: Icon(
           icon,
           color: itemColor,
           size: 22,
         ),
-
         title: Text(
           title,
           style: TextStyle(
             color: itemColor,
             fontWeight:
-                selected
-                    ? FontWeight.w800
-                    : FontWeight.w600,
+                selected ? FontWeight.w800 : FontWeight.w600,
             fontSize: 14,
           ),
         ),
-
         onTap: onTap,
       ),
     );

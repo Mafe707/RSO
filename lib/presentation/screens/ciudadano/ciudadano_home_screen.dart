@@ -22,11 +22,132 @@ class CiudadanoHomeScreen extends StatelessWidget {
     return MediaQuery.of(context).size.width < _mobileBreakpoint;
   }
 
+  void _mostrarMenuPerfilMovil(
+    BuildContext context,
+    CiudadanoAuthService ciudadanoSvc,
+    String nombre,
+    String apellido,
+    String inicial,
+  ) {
+    final correo = ciudadanoSvc.ciudadanoData?['correo']?.toString() ?? '';
+    final fotoUrl = ciudadanoSvc.ciudadanoData?['foto_url']?.toString();
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        return SafeArea(
+          top: false,
+          child: Container(
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 18),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 42,
+                    height: 4,
+                    margin: const EdgeInsets.only(bottom: 16),
+                    decoration: BoxDecoration(
+                      color: AppConfig.grisMedio,
+                      borderRadius: BorderRadius.circular(99),
+                    ),
+                  ),
+                  Row(
+                    children: [
+                      _AvatarCircle(
+                        fotoUrl: fotoUrl,
+                        inicial: inicial,
+                        radius: 24,
+                        fontSize: 18,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              '$nombre $apellido'.trim().isEmpty
+                                  ? 'Ciudadano'
+                                  : '$nombre $apellido',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 15.5,
+                                fontWeight: FontWeight.w800,
+                                color: AppConfig.azulOscuro,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            if (correo.isNotEmpty)
+                              Text(
+                                correo,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: AppConfig.grisOscuro.withOpacity(0.85),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 18),
+                  _MoreItem(
+                    icon: Icons.person_rounded,
+                    title: 'Mi perfil',
+                    subtitle: 'Ver y editar tus datos',
+                    color: AppConfig.azulClaro,
+                    onTap: () {
+                      Navigator.pop(ctx);
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const CiudadanoPerfilScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                  _MoreItem(
+                    icon: Icons.logout_rounded,
+                    title: 'Cerrar sesión',
+                    subtitle: 'Salir de tu cuenta actual',
+                    color: AppConfig.rojo,
+                    onTap: () async {
+                      Navigator.pop(ctx);
+                      await ciudadanoSvc.logout();
+                      if (context.mounted) {
+                        Navigator.pushAndRemoveUntil(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const CiudadanoLoginScreen(),
+                          ),
+                          (route) => false,
+                        );
+                      }
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final isMobile = _isMobile(context);
     final ciudadanoSvc = Provider.of<CiudadanoAuthService>(context);
-    final nombre = ciudadanoSvc.ciudadanoData?['nombre'] as String? ?? 'Ciudadano';
+    final nombre =
+        ciudadanoSvc.ciudadanoData?['nombre'] as String? ?? 'Ciudadano';
     final apellido = ciudadanoSvc.ciudadanoData?['apellido'] as String? ?? '';
     final inicial = nombre.isNotEmpty ? nombre[0].toUpperCase() : 'C';
 
@@ -39,7 +160,16 @@ class CiudadanoHomeScreen extends StatelessWidget {
           'Ruta Sin Obstáculos',
           style: TextStyle(fontWeight: FontWeight.w700),
         ),
-        centerTitle: isMobile,
+        centerTitle: false,
+        automaticallyImplyLeading: false,
+leading: isMobile
+    ? null
+    : Builder(
+        builder: (ctx) => IconButton(
+          icon: const Icon(Icons.menu_rounded, color: Colors.white),
+          onPressed: () => Scaffold.of(ctx).openDrawer(),
+        ),
+      ),
         actions: [
           if (!isMobile)
             Padding(
@@ -47,24 +177,22 @@ class CiudadanoHomeScreen extends StatelessWidget {
               child: InkWell(
                 onTap: () => Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (_) => const CiudadanoPerfilScreen()),
+                  MaterialPageRoute(
+                    builder: (_) => const CiudadanoPerfilScreen(),
+                  ),
                 ),
                 borderRadius: BorderRadius.circular(12),
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                   child: Row(
                     children: [
-                      CircleAvatar(
+                      _AvatarCircle(
+                        fotoUrl:
+                            ciudadanoSvc.ciudadanoData?['foto_url']?.toString(),
+                        inicial: inicial,
                         radius: 17,
-                        backgroundColor: Colors.white.withOpacity(0.22),
-                        child: Text(
-                          inicial,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w800,
-                            fontSize: 15,
-                          ),
-                        ),
+                        fontSize: 15,
                       ),
                       const SizedBox(width: 8),
                       Text(
@@ -80,39 +208,41 @@ class CiudadanoHomeScreen extends StatelessWidget {
                 ),
               ),
             ),
+
           if (isMobile)
             InkWell(
-              onTap: () => Navigator.push(
+              onTap: () => _mostrarMenuPerfilMovil(
                 context,
-                MaterialPageRoute(builder: (_) => const CiudadanoPerfilScreen()),
+                ciudadanoSvc,
+                nombre,
+                apellido,
+                inicial,
               ),
               borderRadius: BorderRadius.circular(50),
               child: Padding(
                 padding: const EdgeInsets.all(8),
-                child: CircleAvatar(
+                child: _AvatarCircle(
+                  fotoUrl: ciudadanoSvc.ciudadanoData?['foto_url']?.toString(),
+                  inicial: inicial,
                   radius: 16,
-                  backgroundColor: Colors.white.withOpacity(0.22),
-                  child: Text(
-                    inicial,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w800,
-                      fontSize: 13,
-                    ),
-                  ),
+                  fontSize: 13,
                 ),
               ),
             ),
+
           IconButton(
             icon: const Icon(Icons.logout_rounded),
             tooltip: 'Cerrar sesión',
             onPressed: () async {
-              final svc = Provider.of<CiudadanoAuthService>(context, listen: false);
+              final svc =
+                  Provider.of<CiudadanoAuthService>(context, listen: false);
               await svc.logout();
               if (context.mounted) {
                 Navigator.pushAndRemoveUntil(
                   context,
-                  MaterialPageRoute(builder: (_) => const CiudadanoLoginScreen()),
+                  MaterialPageRoute(
+                    builder: (_) => const CiudadanoLoginScreen(),
+                  ),
                   (route) => false,
                 );
               }
@@ -217,7 +347,8 @@ class CiudadanoHomeScreen extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
                 decoration: BoxDecoration(
                   color: Colors.white.withOpacity(0.16),
                   borderRadius: BorderRadius.circular(999),
@@ -395,7 +526,8 @@ class CiudadanoHomeScreen extends StatelessWidget {
           _buildStep(
             number: 1,
             title: 'Reporta',
-            text: 'Registra ubicación, categoría, descripción y evidencia fotográfica.',
+            text:
+                'Registra ubicación, categoría, descripción y evidencia fotográfica.',
           ),
           const SizedBox(height: 14),
           _buildStep(
@@ -496,14 +628,16 @@ class CiudadanoHomeScreen extends StatelessWidget {
           const _InfoRow(
             icon: Icons.directions_car_rounded,
             title: 'Invasión vehicular',
-            text: 'Vehículos que bloquean zonas peatonales o espacios públicos.',
+            text:
+                'Vehículos que bloquean zonas peatonales o espacios públicos.',
             color: AppConfig.azulClaro,
           ),
           const SizedBox(height: 12),
           const _InfoRow(
             icon: Icons.campaign_rounded,
             title: 'Publicidad no autorizada',
-            text: 'Elementos publicitarios instalados en zonas no permitidas.',
+            text:
+                'Elementos publicitarios instalados en zonas no permitidas.',
             color: AppConfig.rojo,
           ),
           const SizedBox(height: 18),
@@ -518,7 +652,8 @@ class CiudadanoHomeScreen extends StatelessWidget {
               label: const Text('Ver más información'),
               style: OutlinedButton.styleFrom(
                 foregroundColor: AppConfig.azulOscuro,
-                side: BorderSide(color: AppConfig.azulOscuro.withOpacity(0.25)),
+                side:
+                    BorderSide(color: AppConfig.azulOscuro.withOpacity(0.25)),
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(14),
@@ -981,6 +1116,99 @@ class _BannerChip extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _AvatarCircle extends StatelessWidget {
+  final String? fotoUrl;
+  final String inicial;
+  final double radius;
+  final double fontSize;
+
+  const _AvatarCircle({
+    required this.fotoUrl,
+    required this.inicial,
+    required this.radius,
+    required this.fontSize,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (fotoUrl != null && fotoUrl!.isNotEmpty) {
+      return CircleAvatar(
+        radius: radius,
+        backgroundImage: NetworkImage(fotoUrl!),
+        onBackgroundImageError: (_, __) {},
+        backgroundColor: Colors.white.withOpacity(0.22),
+      );
+    }
+    return CircleAvatar(
+      radius: radius,
+      backgroundColor: Colors.white.withOpacity(0.22),
+      child: Text(
+        inicial,
+        style: TextStyle(
+          color: Colors.white,
+          fontWeight: FontWeight.w800,
+          fontSize: fontSize,
+        ),
+      ),
+    );
+  }
+}
+
+class _MoreItem extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _MoreItem({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.color,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Material(
+        color: color.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(18),
+        child: ListTile(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(18),
+          ),
+          leading: CircleAvatar(
+            backgroundColor: color.withOpacity(0.14),
+            child: Icon(icon, color: color),
+          ),
+          title: Text(
+            title,
+            style: const TextStyle(
+              fontWeight: FontWeight.w800,
+              color: AppConfig.azulOscuro,
+            ),
+          ),
+          subtitle: Text(
+            subtitle,
+            style: TextStyle(
+              fontSize: 12.5,
+              color: AppConfig.grisOscuro.withOpacity(0.85),
+            ),
+          ),
+          trailing: const Icon(
+            Icons.chevron_right_rounded,
+            color: AppConfig.azulOscuro,
+          ),
+          onTap: onTap,
+        ),
       ),
     );
   }

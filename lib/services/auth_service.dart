@@ -230,6 +230,11 @@ class AuthService extends ChangeNotifier {
     }
   }
 
+  void updateFuncionarioData(Map<String, dynamic> data) {
+    _funcionarioData = data;
+    notifyListeners();
+  }
+
   // ── LOGOUT ────────────────────────────────────────────────────────────────
   Future<void> logout() async {
     await _supabase.auth.signOut();

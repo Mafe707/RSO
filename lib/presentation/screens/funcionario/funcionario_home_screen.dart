@@ -123,10 +123,12 @@ class _FuncionarioHomeScreenState extends State<FuncionarioHomeScreen> {
   @override
   Widget build(BuildContext context) {
     final isMobile = _isMobile(context);
+    final authService = Provider.of<AuthService>(context);
     final userData = _buildUserData(context);
     final nombre = userData['nombre']?.toString() ?? 'Funcionario';
     final correo = userData['correo']?.toString() ?? '';
     final inicial = nombre.isNotEmpty ? nombre[0].toUpperCase() : 'F';
+    final fotoUrl = authService.funcionarioData?['foto_url']?.toString();
 
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FB),
@@ -150,17 +152,11 @@ class _FuncionarioHomeScreenState extends State<FuncionarioHomeScreen> {
                       const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                   child: Row(
                     children: [
-                      CircleAvatar(
+                      _AvatarCircle(
+                        fotoUrl: fotoUrl,
+                        inicial: inicial,
                         radius: 17,
-                        backgroundColor: Colors.white.withOpacity(0.22),
-                        child: Text(
-                          inicial,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w800,
-                            fontSize: 15,
-                          ),
-                        ),
+                        fontSize: 15,
                       ),
                       const SizedBox(width: 8),
                       Text(
@@ -182,17 +178,11 @@ class _FuncionarioHomeScreenState extends State<FuncionarioHomeScreen> {
               borderRadius: BorderRadius.circular(50),
               child: Padding(
                 padding: const EdgeInsets.all(8),
-                child: CircleAvatar(
+                child: _AvatarCircle(
+                  fotoUrl: fotoUrl,
+                  inicial: inicial,
                   radius: 16,
-                  backgroundColor: Colors.white.withOpacity(0.22),
-                  child: Text(
-                    inicial,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w800,
-                      fontSize: 13,
-                    ),
-                  ),
+                  fontSize: 13,
                 ),
               ),
             ),
@@ -943,6 +933,44 @@ class _HeroChip extends StatelessWidget {
                   color: Colors.white,
                   fontWeight: FontWeight.w700)),
         ],
+      ),
+    );
+  }
+}
+
+class _AvatarCircle extends StatelessWidget {
+  final String? fotoUrl;
+  final String inicial;
+  final double radius;
+  final double fontSize;
+
+  const _AvatarCircle({
+    required this.fotoUrl,
+    required this.inicial,
+    required this.radius,
+    required this.fontSize,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (fotoUrl != null && fotoUrl!.isNotEmpty) {
+      return CircleAvatar(
+        radius: radius,
+        backgroundImage: NetworkImage(fotoUrl!),
+        onBackgroundImageError: (_, __) {},
+        backgroundColor: Colors.white.withOpacity(0.22),
+      );
+    }
+    return CircleAvatar(
+      radius: radius,
+      backgroundColor: Colors.white.withOpacity(0.22),
+      child: Text(
+        inicial,
+        style: TextStyle(
+          color: Colors.white,
+          fontWeight: FontWeight.w800,
+          fontSize: fontSize,
+        ),
       ),
     );
   }

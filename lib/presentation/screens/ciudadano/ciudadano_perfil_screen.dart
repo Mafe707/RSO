@@ -1,4 +1,9 @@
+import 'dart:typed_data';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:image_cropper/image_cropper.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -34,6 +39,9 @@ class _CiudadanoPerfilScreenState extends State<CiudadanoPerfilScreen> {
   int _totalReportes = 0;
   bool _loadingStats = true;
 
+  Uint8List? _nuevaFotoBytes;
+  bool _subiendoFoto = false;
+
   @override
   void initState() {
     super.initState();
@@ -45,6 +53,7 @@ class _CiudadanoPerfilScreenState extends State<CiudadanoPerfilScreen> {
     final svc = Provider.of<CiudadanoAuthService>(context, listen: false);
     final d = svc.ciudadanoData;
     if (d == null) return;
+
     _nombreController.text = d['nombre'] ?? '';
     _apellidoController.text = d['apellido'] ?? '';
     _telefonoController.text = d['telefono'] ?? '';
@@ -63,11 +72,13 @@ class _CiudadanoPerfilScreenState extends State<CiudadanoPerfilScreen> {
           .select('id')
           .eq('ciudadano_id', ciudadanoId);
 
+      if (!mounted) return;
       setState(() {
         _totalReportes = (response as List).length;
         _loadingStats = false;
       });
-    } catch (e) {
+    } catch (_) {
+      if (!mounted) return;
       setState(() => _loadingStats = false);
     }
   }
@@ -81,6 +92,200 @@ class _CiudadanoPerfilScreenState extends State<CiudadanoPerfilScreen> {
     _passwordController.dispose();
     _confirmPasswordController.dispose();
     super.dispose();
+  }
+
+  Future<void> _pickFoto(ImageSource source) async {
+    try {
+      final picker = ImagePicker();
+      final picked = await picker.pickImage(
+        source: source,
+        maxWidth: 1400,
+        maxHeight: 1400,
+        imageQuality: 90,
+      );
+
+      if (picked == null) return;
+
+      Uint8List bytes;
+
+      if (kIsWeb) {
+        bytes = await picked.readAsBytes();
+      } else {
+        try {
+          final cropped = await ImageCropper().cropImage(
+            sourcePath: picked.path,
+            compressFormat: ImageCompressFormat.jpg,
+            compressQuality: 88,
+            aspectRatio: const CropAspectRatio(ratioX: 1, ratioY: 1),
+            uiSettings: [
+              AndroidUiSettings(
+                toolbarTitle: 'Ajustar foto de perfil',
+                toolbarColor: AppConfig.azulOscuro,
+                toolbarWidgetColor: Colors.white,
+                backgroundColor: Colors.black,
+                activeControlsWidgetColor: AppConfig.azulClaro,
+                lockAspectRatio: true,
+                hideBottomControls: false,
+                initAspectRatio: CropAspectRatioPreset.square,
+              ),
+              IOSUiSettings(
+                title: 'Ajustar foto de perfil',
+                aspectRatioLockEnabled: true,
+                resetAspectRatioEnabled: false,
+                rotateButtonsHidden: false,
+                rotateClockwiseButtonHidden: false,
+              ),
+            ],
+          );
+
+          if (cropped != null) {
+            bytes = await cropped.readAsBytes();
+          } else {
+            bytes = await picked.readAsBytes();
+          }
+        } catch (_) {
+          bytes = await picked.readAsBytes();
+        }
+      }
+
+      if (!mounted) return;
+      setState(() => _nuevaFotoBytes = bytes);
+    } catch (_) {
+      _showError('No se pudo seleccionar o procesar la imagen');
+    }
+  }
+
+  void _mostrarOpcionesFoto() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 40,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 18),
+                decoration: BoxDecoration(
+                  color: AppConfig.grisMedio,
+                  borderRadius: BorderRadius.circular(99),
+                ),
+              ),
+              const Text(
+                'Foto de perfil',
+                style: TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w900,
+                  color: AppConfig.azulOscuro,
+                ),
+              ),
+              const SizedBox(height: 18),
+
+              if (!kIsWeb)
+                ListTile(
+                  leading: Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: AppConfig.azulClaro.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(
+                      Icons.camera_alt_rounded,
+                      color: AppConfig.azulClaro,
+                    ),
+                  ),
+                  title: const Text(
+                    'Tomar foto',
+                    style: TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                  subtitle: const Text('Luego podrás ajustarla'),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    _pickFoto(ImageSource.camera);
+                  },
+                ),
+
+              ListTile(
+                leading: Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: AppConfig.verde.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(
+                    kIsWeb
+                        ? Icons.upload_file_rounded
+                        : Icons.photo_library_rounded,
+                    color: AppConfig.verde,
+                  ),
+                ),
+                title: Text(
+                  kIsWeb ? 'Seleccionar archivo' : 'Galería / Archivos',
+                  style: const TextStyle(fontWeight: FontWeight.w700),
+                ),
+                subtitle: Text(
+                  kIsWeb
+                      ? 'Elige una imagen desde tu equipo'
+                      : 'Elige y ajusta la imagen',
+                ),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _pickFoto(ImageSource.gallery);
+                },
+              ),
+              ListTile(
+                leading: Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: AppConfig.rojo.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(
+                    Icons.delete_rounded,
+                    color: AppConfig.rojo,
+                  ),
+                ),
+                title: const Text(
+                  'Eliminar foto',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    color: AppConfig.rojo,
+                  ),
+                ),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  setState(() => _nuevaFotoBytes = null);
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<String?> _subirFoto(String ciudadanoId) async {
+    if (_nuevaFotoBytes == null) return null;
+
+    final supabase = SupabaseConfig.client;
+    final path =
+        'ciudadanos/ciudadano_${ciudadanoId}_${DateTime.now().millisecondsSinceEpoch}.jpg';
+
+    await supabase.storage.from('avatares').uploadBinary(
+          path,
+          _nuevaFotoBytes!,
+          fileOptions: const FileOptions(
+            contentType: 'image/jpeg',
+            upsert: true,
+          ),
+        );
+
+    return supabase.storage.from('avatares').getPublicUrl(path);
   }
 
   Future<void> _guardar() async {
@@ -102,11 +307,23 @@ class _CiudadanoPerfilScreenState extends State<CiudadanoPerfilScreen> {
     try {
       final svc = Provider.of<CiudadanoAuthService>(context, listen: false);
       final ciudadanoId = svc.ciudadanoData?['id'];
-      if (ciudadanoId == null) throw Exception('No se encontró el perfil');
+
+      if (ciudadanoId == null) {
+        throw Exception('No se encontró el perfil');
+      }
 
       final supabase = SupabaseConfig.client;
 
-      await supabase.from('ciudadanos').update({
+      String? nuevaFotoUrl;
+      if (_nuevaFotoBytes != null) {
+        setState(() => _subiendoFoto = true);
+        nuevaFotoUrl = await _subirFoto(ciudadanoId.toString());
+        if (mounted) {
+          setState(() => _subiendoFoto = false);
+        }
+      }
+
+      final updateData = <String, dynamic>{
         'nombre': _nombreController.text.trim(),
         'apellido': _apellidoController.text.trim(),
         'telefono': _telefonoController.text.trim().isEmpty
@@ -116,7 +333,13 @@ class _CiudadanoPerfilScreenState extends State<CiudadanoPerfilScreen> {
             ? null
             : _barrioController.text.trim(),
         'actualizado_en': DateTime.now().toIso8601String(),
-      }).eq('id', ciudadanoId);
+      };
+
+      if (nuevaFotoUrl != null) {
+        updateData['foto_url'] = nuevaFotoUrl;
+      }
+
+      await supabase.from('ciudadanos').update(updateData).eq('id', ciudadanoId);
 
       if (_cambiarPassword && _passwordController.text.isNotEmpty) {
         await supabase.auth.updateUser(
@@ -130,7 +353,9 @@ class _CiudadanoPerfilScreenState extends State<CiudadanoPerfilScreen> {
       setState(() {
         _editando = false;
         _guardando = false;
+        _subiendoFoto = false;
         _cambiarPassword = false;
+        _nuevaFotoBytes = null;
         _passwordController.clear();
         _confirmPasswordController.clear();
       });
@@ -143,7 +368,10 @@ class _CiudadanoPerfilScreenState extends State<CiudadanoPerfilScreen> {
       );
     } catch (e) {
       if (!mounted) return;
-      setState(() => _guardando = false);
+      setState(() {
+        _guardando = false;
+        _subiendoFoto = false;
+      });
       _showError('Error al guardar: ${e.toString()}');
     }
   }
@@ -151,6 +379,7 @@ class _CiudadanoPerfilScreenState extends State<CiudadanoPerfilScreen> {
   Future<void> _cerrarSesion() async {
     final svc = Provider.of<CiudadanoAuthService>(context, listen: false);
     await svc.logout();
+
     if (mounted) {
       Navigator.pushAndRemoveUntil(
         context,
@@ -167,13 +396,127 @@ class _CiudadanoPerfilScreenState extends State<CiudadanoPerfilScreen> {
     );
   }
 
-  bool _isMobile(BuildContext context) =>
-      MediaQuery.of(context).size.width < 700;
+  bool _isMobile(BuildContext context) => MediaQuery.of(context).size.width < 700;
 
   String _getInitial(String name) {
     final clean = name.trim();
     if (clean.isEmpty) return 'C';
     return clean[0].toUpperCase();
+  }
+
+  Widget _buildAvatarHero({
+    required bool isMobile,
+    required String nombre,
+    required String? fotoUrl,
+  }) {
+    final radius = isMobile ? 34.0 : 40.0;
+    final fontSize = isMobile ? 28.0 : 34.0;
+
+    if (_nuevaFotoBytes != null) {
+      return GestureDetector(
+        onTap: _editando ? _mostrarOpcionesFoto : null,
+        child: Stack(
+          children: [
+            CircleAvatar(
+              radius: radius,
+              backgroundImage: MemoryImage(_nuevaFotoBytes!),
+            ),
+            if (_editando)
+              Positioned(
+                bottom: 0,
+                right: 0,
+                child: Container(
+                  width: 24,
+                  height: 24,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: AppConfig.azulClaro,
+                    border: Border.all(color: Colors.white, width: 2),
+                  ),
+                  child: const Icon(
+                    Icons.edit_rounded,
+                    size: 12,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+          ],
+        ),
+      );
+    }
+
+    if (fotoUrl != null && fotoUrl.isNotEmpty) {
+      return GestureDetector(
+        onTap: _editando ? _mostrarOpcionesFoto : null,
+        child: Stack(
+          children: [
+            CircleAvatar(
+              radius: radius,
+              backgroundImage: NetworkImage(fotoUrl),
+              onBackgroundImageError: (_, __) {},
+            ),
+            if (_editando)
+              Positioned(
+                bottom: 0,
+                right: 0,
+                child: Container(
+                  width: 24,
+                  height: 24,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: AppConfig.azulClaro,
+                    border: Border.all(color: Colors.white, width: 2),
+                  ),
+                  child: const Icon(
+                    Icons.edit_rounded,
+                    size: 12,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+          ],
+        ),
+      );
+    }
+
+    return GestureDetector(
+      onTap: _editando ? _mostrarOpcionesFoto : null,
+      child: Stack(
+        children: [
+          CircleAvatar(
+            radius: radius,
+            backgroundColor: Colors.white,
+            child: Text(
+              _getInitial(nombre),
+              style: TextStyle(
+                fontSize: fontSize,
+                fontWeight: FontWeight.w900,
+                color: AppConfig.azulOscuro,
+              ),
+            ),
+          ),
+          if (_editando)
+            Positioned(
+              bottom: 0,
+              right: 0,
+              child: Container(
+                width: 24,
+                height: 24,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: AppConfig.azulClaro,
+                  border: Border.all(color: Colors.white, width: 2),
+                ),
+                child: const Icon(
+                  Icons.add_a_photo_rounded,
+                  size: 12,
+                  color: Colors.white,
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -187,6 +530,7 @@ class _CiudadanoPerfilScreenState extends State<CiudadanoPerfilScreen> {
     final correo = d?['correo']?.toString() ?? '';
     final telefono = d?['telefono']?.toString() ?? '';
     final barrio = d?['barrio']?.toString() ?? '';
+    final fotoUrl = d?['foto_url']?.toString();
 
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FB),
@@ -198,6 +542,15 @@ class _CiudadanoPerfilScreenState extends State<CiudadanoPerfilScreen> {
         backgroundColor: AppConfig.azulOscuro,
         elevation: 0,
         centerTitle: false,
+        automaticallyImplyLeading: false,
+leading: isMobile
+    ? null
+    : Builder(
+        builder: (ctx) => IconButton(
+          icon: const Icon(Icons.menu_rounded, color: Colors.white),
+          onPressed: () => Scaffold.of(ctx).openDrawer(),
+        ),
+      ),
         actions: [
           if (!_editando)
             Padding(
@@ -226,6 +579,7 @@ class _CiudadanoPerfilScreenState extends State<CiudadanoPerfilScreen> {
                         setState(() {
                           _editando = false;
                           _cambiarPassword = false;
+                          _nuevaFotoBytes = null;
                           _passwordController.clear();
                           _confirmPasswordController.clear();
                           _cargarDatos();
@@ -260,8 +614,24 @@ class _CiudadanoPerfilScreenState extends State<CiudadanoPerfilScreen> {
             child: SingleChildScrollView(
               padding: EdgeInsets.all(isMobile ? 16 : 28),
               child: isMobile
-                  ? _buildMobileLayout(nombre, apellido, correo, telefono, barrio, d)
-                  : _buildWebLayout(nombre, apellido, correo, telefono, barrio, d),
+                  ? _buildMobileLayout(
+                      nombre,
+                      apellido,
+                      correo,
+                      telefono,
+                      barrio,
+                      fotoUrl,
+                      d,
+                    )
+                  : _buildWebLayout(
+                      nombre,
+                      apellido,
+                      correo,
+                      telefono,
+                      barrio,
+                      fotoUrl,
+                      d,
+                    ),
             ),
           ),
         ),
@@ -269,13 +639,27 @@ class _CiudadanoPerfilScreenState extends State<CiudadanoPerfilScreen> {
     );
   }
 
-  Widget _buildMobileLayout(String nombre, String apellido, String correo,
-      String telefono, String barrio, Map<String, dynamic>? d) {
+  Widget _buildMobileLayout(
+    String nombre,
+    String apellido,
+    String correo,
+    String telefono,
+    String barrio,
+    String? fotoUrl,
+    Map<String, dynamic>? d,
+  ) {
     return Column(
       children: [
-        _buildHero(isMobile: true, nombre: nombre, apellido: apellido, correo: correo, barrio: barrio),
+        _buildHero(
+          isMobile: true,
+          nombre: nombre,
+          apellido: apellido,
+          correo: correo,
+          barrio: barrio,
+          fotoUrl: fotoUrl,
+        ),
         const SizedBox(height: 18),
-        _buildInfoCard(nombre, apellido, correo, telefono, barrio, d),
+        _buildInfoCard(nombre, apellido, correo, telefono, barrio, fotoUrl, d),
         const SizedBox(height: 18),
         _buildActivityCard(),
         const SizedBox(height: 18),
@@ -284,8 +668,15 @@ class _CiudadanoPerfilScreenState extends State<CiudadanoPerfilScreen> {
     );
   }
 
-  Widget _buildWebLayout(String nombre, String apellido, String correo,
-      String telefono, String barrio, Map<String, dynamic>? d) {
+  Widget _buildWebLayout(
+    String nombre,
+    String apellido,
+    String correo,
+    String telefono,
+    String barrio,
+    String? fotoUrl,
+    Map<String, dynamic>? d,
+  ) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -293,7 +684,14 @@ class _CiudadanoPerfilScreenState extends State<CiudadanoPerfilScreen> {
           flex: 4,
           child: Column(
             children: [
-              _buildHero(isMobile: false, nombre: nombre, apellido: apellido, correo: correo, barrio: barrio),
+              _buildHero(
+                isMobile: false,
+                nombre: nombre,
+                apellido: apellido,
+                correo: correo,
+                barrio: barrio,
+                fotoUrl: fotoUrl,
+              ),
               const SizedBox(height: 20),
               _buildSecurityCard(),
             ],
@@ -304,7 +702,15 @@ class _CiudadanoPerfilScreenState extends State<CiudadanoPerfilScreen> {
           flex: 6,
           child: Column(
             children: [
-              _buildInfoCard(nombre, apellido, correo, telefono, barrio, d),
+              _buildInfoCard(
+                nombre,
+                apellido,
+                correo,
+                telefono,
+                barrio,
+                fotoUrl,
+                d,
+              ),
               const SizedBox(height: 20),
               _buildActivityCard(),
             ],
@@ -320,6 +726,7 @@ class _CiudadanoPerfilScreenState extends State<CiudadanoPerfilScreen> {
     required String apellido,
     required String correo,
     required String barrio,
+    required String? fotoUrl,
   }) {
     return Container(
       width: double.infinity,
@@ -353,7 +760,7 @@ class _CiudadanoPerfilScreenState extends State<CiudadanoPerfilScreen> {
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _HeroBadge(
+              const _HeroBadge(
                 icon: Icons.verified_user_rounded,
                 text: 'Ciudadano registrado',
               ),
@@ -361,17 +768,10 @@ class _CiudadanoPerfilScreenState extends State<CiudadanoPerfilScreen> {
               Row(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  CircleAvatar(
-                    radius: isMobile ? 34 : 40,
-                    backgroundColor: Colors.white,
-                    child: Text(
-                      _getInitial(nombre),
-                      style: TextStyle(
-                        fontSize: isMobile ? 28 : 34,
-                        fontWeight: FontWeight.w900,
-                        color: AppConfig.azulOscuro,
-                      ),
-                    ),
+                  _buildAvatarHero(
+                    isMobile: isMobile,
+                    nombre: nombre,
+                    fotoUrl: fotoUrl,
                   ),
                   const SizedBox(width: 16),
                   Expanded(
@@ -410,11 +810,59 @@ class _CiudadanoPerfilScreenState extends State<CiudadanoPerfilScreen> {
                 spacing: 10,
                 runSpacing: 10,
                 children: [
-                  const _HeroChip(icon: Icons.person_pin_rounded, text: 'Portal Ciudadano'),
+                  const _HeroChip(
+                    icon: Icons.person_pin_rounded,
+                    text: 'Portal Ciudadano',
+                  ),
                   if (barrio.isNotEmpty)
-                    _HeroChip(icon: Icons.location_city_rounded, text: barrio),
+                    _HeroChip(
+                      icon: Icons.location_city_rounded,
+                      text: barrio,
+                    ),
                 ],
               ),
+              if (_editando) ...[
+                const SizedBox(height: 14),
+                GestureDetector(
+                  onTap: _mostrarOpcionesFoto,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 9,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.16),
+                      borderRadius: BorderRadius.circular(999),
+                      border: Border.all(
+                        color: Colors.white.withOpacity(0.3),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          kIsWeb
+                              ? Icons.upload_file_rounded
+                              : Icons.camera_alt_rounded,
+                          size: 15,
+                          color: Colors.white,
+                        ),
+                        const SizedBox(width: 7),
+                        Text(
+                          _nuevaFotoBytes != null
+                              ? 'Cambiar foto'
+                              : 'Cambiar foto de perfil',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
             ],
           ),
         ],
@@ -422,8 +870,15 @@ class _CiudadanoPerfilScreenState extends State<CiudadanoPerfilScreen> {
     );
   }
 
-  Widget _buildInfoCard(String nombre, String apellido, String correo,
-      String telefono, String barrio, Map<String, dynamic>? d) {
+  Widget _buildInfoCard(
+    String nombre,
+    String apellido,
+    String correo,
+    String telefono,
+    String barrio,
+    String? fotoUrl,
+    Map<String, dynamic>? d,
+  ) {
     return _SoftCard(
       child: Form(
         key: _formKey,
@@ -586,8 +1041,9 @@ class _CiudadanoPerfilScreenState extends State<CiudadanoPerfilScreen> {
                             ? Icons.visibility_off_rounded
                             : Icons.visibility_rounded,
                       ),
-                      onPressed: () =>
-                          setState(() => _obscureConfirm = !_obscureConfirm),
+                      onPressed: () => setState(
+                        () => _obscureConfirm = !_obscureConfirm,
+                      ),
                     ),
                     filled: true,
                     fillColor: const Color(0xFFF8FAFC),
@@ -602,8 +1058,8 @@ class _CiudadanoPerfilScreenState extends State<CiudadanoPerfilScreen> {
                 width: double.infinity,
                 height: 52,
                 child: ElevatedButton.icon(
-                  onPressed: _guardando ? null : _guardar,
-                  icon: _guardando
+                  onPressed: (_guardando || _subiendoFoto) ? null : _guardar,
+                  icon: (_guardando || _subiendoFoto)
                       ? const SizedBox(
                           width: 18,
                           height: 18,
@@ -613,7 +1069,13 @@ class _CiudadanoPerfilScreenState extends State<CiudadanoPerfilScreen> {
                           ),
                         )
                       : const Icon(Icons.save_rounded),
-                  label: Text(_guardando ? 'Guardando...' : 'Guardar cambios'),
+                  label: Text(
+                    _subiendoFoto
+                        ? 'Subiendo foto...'
+                        : _guardando
+                            ? 'Guardando...'
+                            : 'Guardar cambios',
+                  ),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppConfig.azulClaro,
                     shape: RoundedRectangleBorder(
@@ -787,10 +1249,9 @@ class _CiudadanoPerfilScreenState extends State<CiudadanoPerfilScreen> {
   }
 }
 
-// ── Widgets compartidos ──────────────────────────────────────────────────────
-
 class _SoftCard extends StatelessWidget {
   final Widget child;
+
   const _SoftCard({required this.child});
 
   @override
