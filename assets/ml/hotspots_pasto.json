@@ -1,0 +1,82 @@
+[
+  {
+    "nombre": "Centro — Calle 17",
+    "lat": 1.213446,
+    "lng": -77.279284
+  },
+  {
+    "nombre": "Centro — Carrera 23",
+    "lat": 1.209583,
+    "lng": -77.286189
+  },
+  {
+    "nombre": "Plaza El Potrerillo",
+    "lat": 1.205,
+    "lng": -77.275
+  },
+  {
+    "nombre": "Sector La Panadería",
+    "lat": 1.212429,
+    "lng": -77.274783
+  },
+  {
+    "nombre": "Av. Julián Bucheli",
+    "lat": 1.205607,
+    "lng": -77.278341
+  },
+  {
+    "nombre": "Barrio Las Lunas",
+    "lat": 1.199915,
+    "lng": -77.274896
+  },
+  {
+    "nombre": "Bomboná",
+    "lat": 1.217015,
+    "lng": -77.283508
+  },
+  {
+    "nombre": "San Andrés",
+    "lat": 1.217363,
+    "lng": -77.281588
+  },
+  {
+    "nombre": "El Ejido",
+    "lat": 1.205109,
+    "lng": -77.265309
+  },
+  {
+    "nombre": "Rumipamba",
+    "lat": 1.216666,
+    "lng": -77.28147
+  },
+  {
+    "nombre": "La Rosa",
+    "lat": 1.192236,
+    "lng": -77.275745
+  },
+  {
+    "nombre": "Tamasagra",
+    "lat": 1.202257,
+    "lng": -77.293511
+  },
+  {
+    "nombre": "Torobajo",
+    "lat": 1.230702,
+    "lng": -77.292004
+  },
+  {
+    "nombre": "Las Cuadras — Parque Infantil",
+    "lat": 1.218661,
+    "lng": -77.279335
+  },
+  {
+    "nombre": "Mijitayo",
+    "lat": 1.203923,
+    "lng": -77.289729
+  },
+  {
+    "nombre": "Aranda",
+    "lat": 1.230657,
+    "lng": -77.265106
+  }
+]

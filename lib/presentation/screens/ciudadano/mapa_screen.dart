@@ -1,132 +1,83 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:provider/provider.dart';
 
 import '../../../config/app_config.dart';
+import '../../../services/ciudadano_auth_service.dart';
 import 'ciudadano_bottom_nav.dart';
 import 'ciudadano_drawer.dart';
-import 'package:provider/provider.dart';
-import '../../../services/ciudadano_auth_service.dart';
 import 'ciudadano_login_screen.dart';
+import '../../../analytics/models/zona_riesgo_model.dart';
+import '../../../analytics/models/hotspot_alert_model.dart';
+import '../../../analytics/services/prediccion_service.dart';
 
 class MapaScreen extends StatefulWidget {
   const MapaScreen({super.key});
-
   @override
   State<MapaScreen> createState() => _MapaScreenState();
 }
 
 class _MapaScreenState extends State<MapaScreen> {
-  String? _categoriaFiltro;
-  String? _estadoFiltro;
+  final Completer<GoogleMapController> _mapController = Completer();
+  ZonaRiesgo? _zonaSeleccionada;
+  static const LatLng _pastoCentro = LatLng(1.2136, -77.2811);
 
-  final List<Map<String, dynamic>> _reportes = [
-    {
-      'id': '1',
-      'titulo': 'Venta informal en el centro',
-      'categoria': 'Venta informal',
-      'estado': 'pendiente',
-      'ubicacion': 'Cra 25 #18-35, Centro',
-    },
-    {
-      'id': '2',
-      'titulo': 'Vehículo abandonado',
-      'categoria': 'Invasión vehicular',
-      'estado': 'revision',
-      'ubicacion': 'Calle 19 #24-50',
-    },
-    {
-      'id': '3',
-      'titulo': 'Publicidad no autorizada',
-      'categoria': 'Publicidad no autorizada',
-      'estado': 'resuelta',
-      'ubicacion': 'Av. Los Estudiantes',
-    },
-    {
-      'id': '4',
-      'titulo': 'Ocupación comercial',
-      'categoria': 'Ocupación comercial',
-      'estado': 'revision',
-      'ubicacion': 'Calle 17 #20-69',
-    },
-    {
-      'id': '5',
-      'titulo': 'Materiales de construcción',
-      'categoria': 'Otro',
-      'estado': 'pendiente',
-      'ubicacion': 'Transversal 23 #15-10',
-    },
-  ];
+  bool get _isMobile => MediaQuery.of(context).size.width < 800;
 
-  List<Map<String, dynamic>> get _reportesFiltrados {
-    return _reportes.where((reporte) {
-      if (_categoriaFiltro != null &&
-          reporte['categoria'] != _categoriaFiltro) {
-        return false;
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<PrediccionService>().inicializar();
+    });
+  }
+
+  Set<Marker> _buildMarkers(List<ZonaRiesgo> zonas) {
+    final Set<Marker> markers = {};
+    for (final zona in zonas) {
+      double hue;
+      switch (zona.nivelRiesgo) {
+        case NivelRiesgo.alto:  hue = BitmapDescriptor.hueRed; break;
+        case NivelRiesgo.medio: hue = BitmapDescriptor.hueOrange; break;
+        case NivelRiesgo.bajo:  hue = BitmapDescriptor.hueGreen; break;
       }
-
-      if (_estadoFiltro != null && reporte['estado'] != _estadoFiltro) {
-        return false;
-      }
-
-      return true;
-    }).toList();
-  }
-
-  bool _isMobile(BuildContext context) {
-    return MediaQuery.of(context).size.width < 800;
-  }
-
-  Color _getEstadoColor(String estado) {
-    switch (estado) {
-      case 'pendiente':
-        return AppConfig.rojo;
-      case 'revision':
-        return AppConfig.azulClaro;
-      case 'resuelta':
-        return AppConfig.verde;
-      default:
-        return Colors.grey;
+      markers.add(Marker(
+        markerId: MarkerId(zona.gridId),
+        position: LatLng(zona.latCentro, zona.lngCentro),
+        icon: BitmapDescriptor.defaultMarkerWithHue(hue),
+        infoWindow: InfoWindow(
+          title: zona.zonaNombre,
+          snippet: '${zona.categoriaPredominante} · ${zona.reportesHistoricos} reportes · IA: ${zona.porcentaje} riesgo',
+        ),
+        onTap: () => setState(() => _zonaSeleccionada = zona),
+      ));
     }
-  }
-
-  String _getEstadoText(String estado) {
-    switch (estado) {
-      case 'pendiente':
-        return 'Pendiente';
-      case 'revision':
-        return 'En revisión';
-      case 'resuelta':
-        return 'Resuelta';
-      default:
-        return estado;
-    }
+    return markers;
   }
 
   @override
   Widget build(BuildContext context) {
-    final isMobile = _isMobile(context);
-
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FB),
       appBar: AppBar(
-        title: const Text(
-          'Mapa de Reportes',
-          style: TextStyle(fontWeight: FontWeight.w700),
-        ),
+        title: const Text('Mapa de Invasiones', style: TextStyle(fontWeight: FontWeight.w700, color: Colors.white)),
         backgroundColor: AppConfig.azulOscuro,
         elevation: 0,
         toolbarHeight: 64,
-        centerTitle: false,
-        titleSpacing: 16,
         automaticallyImplyLeading: false,
-leading: isMobile
-    ? null
-    : Builder(
-        builder: (ctx) => IconButton(
-          icon: const Icon(Icons.menu_rounded, color: Colors.white),
-          onPressed: () => Scaffold.of(ctx).openDrawer(),
+        leading: _isMobile ? null : Builder(
+          builder: (ctx) => IconButton(
+            icon: const Icon(Icons.menu_rounded, color: Colors.white),
+            onPressed: () => Scaffold.of(ctx).openDrawer(),
+          ),
         ),
-      ),
         actions: [
+          IconButton(
+            tooltip: 'Actualizar',
+            icon: const Icon(Icons.refresh_rounded, color: Colors.white),
+            onPressed: () => context.read<PrediccionService>().recargar(),
+          ),
           IconButton(
             tooltip: 'Cerrar sesión',
             icon: const Icon(Icons.logout_rounded, color: Colors.white),
@@ -134,717 +85,362 @@ leading: isMobile
               final svc = Provider.of<CiudadanoAuthService>(context, listen: false);
               await svc.logout();
               if (context.mounted) {
-                Navigator.pushAndRemoveUntil(
-                  context,
+                Navigator.pushAndRemoveUntil(context,
                   MaterialPageRoute(builder: (_) => const CiudadanoLoginScreen()),
-                  (route) => false,
-                );
+                  (route) => false);
               }
             },
           ),
         ],
       ),
-      drawer: CiudadanoDrawer.maybe(
-        context,
-        currentIndex: 3,
+      drawer: CiudadanoDrawer.maybe(context, currentIndex: 3),
+      bottomNavigationBar: CiudadanoBottomNav.maybe(context, currentIndex: 3),
+      body: Consumer<PrediccionService>(
+        builder: (context, svc, _) {
+          if (svc.cargando) {
+            return const Center(child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CircularProgressIndicator(),
+                SizedBox(height: 16),
+                Text('Analizando zonas con IA...', style: TextStyle(fontWeight: FontWeight.w600)),
+              ],
+            ));
+          }
+          if (svc.error != null) {
+            return Center(child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(mainAxisSize: MainAxisSize.min, children: [
+                const Icon(Icons.error_outline, size: 48, color: Colors.red),
+                const SizedBox(height: 12),
+                Text(svc.error!, textAlign: TextAlign.center),
+                const SizedBox(height: 16),
+                ElevatedButton(onPressed: svc.recargar, child: const Text('Reintentar')),
+              ]),
+            ));
+          }
+          return _isMobile ? _buildMobile(svc) : _buildWeb(svc);
+        },
       ),
-      bottomNavigationBar: CiudadanoBottomNav.maybe(
-        context,
-        currentIndex: 3,
-      ),
-      body: isMobile ? _buildMobileLayout() : _buildWebLayout(),
     );
   }
 
-  Widget _buildMobileLayout() {
-    return Column(
-      children: [
-        _buildFilters(),
-        Expanded(
-          flex: 2,
-          child: _buildMapPlaceholder(),
-        ),
-        Expanded(
-          flex: 2,
-          child: _buildReportsPanel(isMobile: true),
-        ),
-        _buildLegend(),
-      ],
-    );
+  Widget _buildMobile(PrediccionService svc) {
+    return Column(children: [
+      _buildIaBanner(svc),
+      _buildAlertaBanner(svc),
+      Expanded(child: Stack(children: [
+        _buildGoogleMap(svc),
+        Positioned(bottom: 12, left: 12, child: _buildLeyenda()),
+        if (_zonaSeleccionada != null)
+          Positioned(bottom: 12, right: 12, left: 80,
+            child: _buildZonaCard(_zonaSeleccionada!)),
+      ])),
+      _buildResumenCards(svc),
+      SizedBox(
+        height: 180,
+        child: _buildListaZonas(svc),
+      ),
+    ]);
   }
 
-  Widget _buildWebLayout() {
+  Widget _buildWeb(PrediccionService svc) {
     return Center(
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 1240),
+        constraints: const BoxConstraints(maxWidth: 1400),
         child: Padding(
-          padding: const EdgeInsets.all(28),
-          child: Row(
-            children: [
-              Expanded(
-                flex: 6,
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(28),
-                  child: Column(
-                    children: [
-                      _buildFilters(),
-                      Expanded(
-                        child: _buildMapPlaceholder(),
-                      ),
-                      _buildLegend(),
-                    ],
-                  ),
+          padding: const EdgeInsets.all(20),
+          child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Expanded(flex: 7, child: Column(children: [
+              _buildIaBanner(svc),
+              _buildAlertaBanner(svc),
+              Expanded(child: Stack(children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(20),
+                  child: _buildGoogleMap(svc),
                 ),
-              ),
-              const SizedBox(width: 24),
-              Expanded(
-                flex: 4,
-                child: _buildReportsPanel(isMobile: false),
-              ),
-            ],
-          ),
+                Positioned(top: 12, left: 12, child: _buildLeyenda()),
+                if (_zonaSeleccionada != null)
+                  Positioned(bottom: 12, right: 12, width: 320,
+                    child: _buildZonaCard(_zonaSeleccionada!)),
+              ])),
+            ])),
+            const SizedBox(width: 20),
+            SizedBox(width: 340, child: Column(children: [
+              _buildResumenCards(svc),
+              const SizedBox(height: 12),
+              Expanded(child: _buildListaZonas(svc)),
+            ])),
+          ]),
         ),
       ),
     );
   }
 
-  Widget _buildFilters() {
-    final categorias = _reportes
-        .map((reporte) => reporte['categoria'].toString())
-        .toSet()
-        .toList();
-
+  Widget _buildIaBanner(PrediccionService svc) {
     return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      color: Colors.white,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Row(
-            children: [
-              Icon(
-                Icons.tune_rounded,
-                size: 19,
-                color: AppConfig.azulOscuro,
-              ),
-              SizedBox(width: 8),
-              Text(
-                'Filtros',
-                style: TextStyle(
-                  fontWeight: FontWeight.w800,
-                  fontSize: 15,
-                  color: AppConfig.azulOscuro,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: [
-                _FilterDropdown(
-                  label: 'Categoría',
-                  value: _categoriaFiltro,
-                  items: [
-                    const DropdownMenuItem<String>(
-                      value: null,
-                      child: Text('Todas'),
-                    ),
-                    ...categorias.map(
-                      (categoria) => DropdownMenuItem<String>(
-                        value: categoria,
-                        child: Text(categoria),
-                      ),
-                    ),
-                  ],
-                  onChanged: (value) {
-                    setState(() => _categoriaFiltro = value);
-                  },
-                ),
-                const SizedBox(width: 12),
-                _FilterDropdown(
-                  label: 'Estado',
-                  value: _estadoFiltro,
-                  items: const [
-                    DropdownMenuItem<String>(
-                      value: null,
-                      child: Text('Todos'),
-                    ),
-                    DropdownMenuItem<String>(
-                      value: 'pendiente',
-                      child: Text('Pendiente'),
-                    ),
-                    DropdownMenuItem<String>(
-                      value: 'revision',
-                      child: Text('En revisión'),
-                    ),
-                    DropdownMenuItem<String>(
-                      value: 'resuelta',
-                      child: Text('Resuelta'),
-                    ),
-                  ],
-                  onChanged: (value) {
-                    setState(() => _estadoFiltro = value);
-                  },
-                ),
-                if (_categoriaFiltro != null || _estadoFiltro != null) ...[
-                  const SizedBox(width: 8),
-                  TextButton.icon(
-                    onPressed: () {
-                      setState(() {
-                        _categoriaFiltro = null;
-                        _estadoFiltro = null;
-                      });
-                    },
-                    icon: const Icon(Icons.close_rounded, size: 18),
-                    label: const Text('Limpiar'),
-                  ),
-                ],
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildMapPlaceholder() {
-    return Container(
-      width: double.infinity,
-      color: AppConfig.grisClaro,
-      child: Stack(
-        children: [
-          Positioned.fill(
-            child: CustomPaint(
-              painter: _MapPatternPainter(),
-            ),
-          ),
-          Center(
-            child: Container(
-              margin: const EdgeInsets.all(22),
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.94),
-                borderRadius: BorderRadius.circular(24),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.08),
-                    blurRadius: 18,
-                    offset: const Offset(0, 10),
-                  ),
-                ],
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(
-                    Icons.map_rounded,
-                    size: 62,
-                    color: AppConfig.azulClaro,
-                  ),
-                  const SizedBox(height: 12),
-                  const Text(
-                    'Mapa interactivo',
-                    style: TextStyle(
-                      color: AppConfig.azulOscuro,
-                      fontSize: 20,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    'Marcadores: ${_reportesFiltrados.length} reportes',
-                    style: TextStyle(
-                      color: AppConfig.grisOscuro,
-                      fontSize: 13,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  const Wrap(
-                    alignment: WrapAlignment.center,
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      _MiniStatusChip(
-                        label: 'Pendiente',
-                        color: AppConfig.rojo,
-                      ),
-                      _MiniStatusChip(
-                        label: 'En revisión',
-                        color: AppConfig.azulClaro,
-                      ),
-                      _MiniStatusChip(
-                        label: 'Resuelta',
-                        color: AppConfig.verde,
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildReportsPanel({required bool isMobile}) {
-    return Container(
+      margin: const EdgeInsets.fromLTRB(12, 10, 12, 4),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: isMobile
-            ? const BorderRadius.vertical(top: Radius.circular(24))
-            : BorderRadius.circular(28),
-        boxShadow: [
-          BoxShadow(
-            blurRadius: 18,
-            color: Colors.black.withOpacity(0.08),
-            offset: const Offset(0, -2),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(18, 18, 18, 12),
-            child: Row(
-              children: [
-                const Expanded(
-                  child: Text(
-                    'Reportes cercanos',
-                    style: TextStyle(
-                      fontSize: 19,
-                      fontWeight: FontWeight.w800,
-                      color: AppConfig.azulOscuro,
-                    ),
-                  ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 6,
-                  ),
-                  decoration: BoxDecoration(
-                    color: AppConfig.azulClaro.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                  child: Text(
-                    '${_reportesFiltrados.length} reportes',
-                    style: const TextStyle(
-                      color: AppConfig.azulOscuro,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Expanded(
-            child: _reportesFiltrados.isEmpty
-                ? _buildEmptyState()
-                : ListView.builder(
-                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                    itemCount: _reportesFiltrados.length,
-                    itemBuilder: (context, index) {
-                      final reporte = _reportesFiltrados[index];
-
-                      return _ReportCard(
-                        reporte: reporte,
-                        color: _getEstadoColor(reporte['estado']),
-                        estadoText: _getEstadoText(reporte['estado']),
-                        onTap: () => _mostrarDetalleReporte(reporte),
-                      );
-                    },
-                  ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildEmptyState() {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(28),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.search_off_rounded,
-              size: 54,
-              color: AppConfig.grisOscuro,
-            ),
-            const SizedBox(height: 12),
-            const Text(
-              'Sin resultados',
-              style: TextStyle(
-                fontWeight: FontWeight.w800,
-                fontSize: 18,
-              ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              'No hay reportes con los filtros seleccionados.',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: AppConfig.grisOscuro),
-            ),
-          ],
+        gradient: const LinearGradient(
+          colors: [Color(0xFF0B1E3D), Color(0xFF1565C0)],
+          begin: Alignment.centerLeft,
+          end: Alignment.centerRight,
         ),
+        borderRadius: BorderRadius.circular(14),
       ),
-    );
-  }
-
-  Widget _buildLegend() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border(
-          top: BorderSide(color: AppConfig.grisMedio),
-        ),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: [
-          _buildLegendItem('Pendiente', AppConfig.rojo),
-          _buildLegendItem('En revisión', AppConfig.azulClaro),
-          _buildLegendItem('Resuelta', AppConfig.verde),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildLegendItem(String title, Color color) {
-    return Row(
-      children: [
+      child: Row(children: [
+        const Icon(Icons.psychology_rounded, color: Colors.white, size: 20),
+        const SizedBox(width: 10),
+        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          const Text('Predicción con Inteligencia Artificial',
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 13)),
+          Text('Random Forest · ${svc.totalReportesUsados} reportes analizados · Pasto, Nariño',
+            style: const TextStyle(color: Colors.white70, fontSize: 11)),
+        ])),
         Container(
-          width: 13,
-          height: 13,
-          decoration: BoxDecoration(
-            color: color,
-            shape: BoxShape.circle,
-          ),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(8)),
+          child: Text(svc.fuente == 'real' ? '✓ Datos reales' : svc.fuente == 'mixto' ? '⚡ Mixto' : '🧪 Simulado',
+            style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w700)),
         ),
-        const SizedBox(width: 6),
-        Text(
-          title,
-          style: const TextStyle(fontSize: 11.5),
-        ),
-      ],
+      ]),
     );
   }
 
-  void _mostrarDetalleReporte(Map<String, dynamic> reporte) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) {
-        return Container(
-          margin: const EdgeInsets.all(12),
-          padding: const EdgeInsets.all(22),
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(
-              top: Radius.circular(28),
-              bottom: Radius.circular(18),
-            ),
-          ),
-          child: SafeArea(
-            top: false,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Center(
-                  child: Container(
-                    width: 46,
-                    height: 5,
-                    margin: const EdgeInsets.only(bottom: 18),
-                    decoration: BoxDecoration(
-                      color: AppConfig.grisMedio,
-                      borderRadius: BorderRadius.circular(999),
-                    ),
-                  ),
-                ),
-                Row(
-                  children: [
-                    Container(
-                      width: 8,
-                      height: 48,
-                      decoration: BoxDecoration(
-                        color: _getEstadoColor(reporte['estado']),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                    ),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            reporte['titulo'],
-                            style: const TextStyle(
-                              fontSize: 19,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                          const SizedBox(height: 3),
-                          Text(
-                            reporte['ubicacion'],
-                            style: TextStyle(color: AppConfig.grisOscuro),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 18),
-                const Divider(),
-                _buildInfoRow('Categoría', reporte['categoria']),
-                _buildInfoRow('Estado', _getEstadoText(reporte['estado'])),
-                _buildInfoRow('Descripción', reporte['titulo']),
-                const SizedBox(height: 20),
-                SizedBox(
-                  width: double.infinity,
-                  height: 48,
-                  child: ElevatedButton(
-                    onPressed: () => Navigator.pop(context),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppConfig.azulOscuro,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                    ),
-                    child: const Text('Cerrar'),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildInfoRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 7),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 88,
-            child: Text(
-              '$label:',
-              style: const TextStyle(fontWeight: FontWeight.w700),
-            ),
-          ),
-          Expanded(
-            child: Text(
-              value,
-              style: TextStyle(color: AppConfig.grisOscuro),
-            ),
-          ),
-        ],
+  Widget _buildAlertaBanner(PrediccionService svc) {
+    if (svc.alertas.isEmpty) return const SizedBox.shrink();
+    final critica = svc.alertas.firstWhere((a) => a.esCritica, orElse: () => svc.alertas.first);
+    return Container(
+      margin: const EdgeInsets.fromLTRB(12, 4, 12, 6),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: critica.esCritica ? const Color(0xFFFFEBEE) : const Color(0xFFFFF8E1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: critica.esCritica ? const Color(0xFFD32F2F) : const Color(0xFFF57C00)),
       ),
+      child: Row(children: [
+        Icon(critica.esCritica ? Icons.warning_rounded : Icons.info_outline_rounded,
+          color: critica.esCritica ? const Color(0xFFD32F2F) : const Color(0xFFF57C00)),
+        const SizedBox(width: 10),
+        Expanded(child: Text(
+          '${svc.alertas.length} zona${svc.alertas.length > 1 ? 's' : ''} con alta actividad. '
+          '${critica.zonaNombre} reporta mayor concentración de ${critica.zonaNombre.contains('Centro') ? 'vendedores ambulantes' : 'invasiones'}.',
+          style: TextStyle(
+            fontWeight: FontWeight.w600, fontSize: 12.5,
+            color: critica.esCritica ? const Color(0xFFB71C1C) : const Color(0xFFE65100)),
+        )),
+      ]),
     );
+  }
+
+  Widget _buildGoogleMap(PrediccionService svc) {
+    return GoogleMap(
+      initialCameraPosition: const CameraPosition(target: _pastoCentro, zoom: 14.5),
+      onMapCreated: (controller) => _mapController.complete(controller),
+      markers: _buildMarkers(svc.zonas),
+      myLocationButtonEnabled: false,
+      zoomControlsEnabled: !_isMobile,
+      mapToolbarEnabled: false,
+      onTap: (_) => setState(() => _zonaSeleccionada = null),
+    );
+  }
+
+  Widget _buildLeyenda() {
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.95),
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 8)],
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+        const Text('Nivel de riesgo IA', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFF0B1E3D))),
+        const SizedBox(height: 6),
+        _legendItem('Alto riesgo', const Color(0xFFD32F2F)),
+        const SizedBox(height: 4),
+        _legendItem('Riesgo medio', const Color(0xFFF57C00)),
+        const SizedBox(height: 4),
+        _legendItem('Bajo riesgo', const Color(0xFF388E3C)),
+      ]),
+    );
+  }
+
+  Widget _legendItem(String label, Color color) {
+    return Row(mainAxisSize: MainAxisSize.min, children: [
+      Container(width: 12, height: 12, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
+      const SizedBox(width: 6),
+      Text(label, style: const TextStyle(fontSize: 10.5)),
+    ]);
+  }
+
+  Widget _buildZonaCard(ZonaRiesgo zona) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.15), blurRadius: 12)],
+        border: Border.all(color: zona.colorRiesgo.withOpacity(0.4)),
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+        Row(children: [
+          Icon(zona.iconoCategoria, color: zona.colorRiesgo, size: 18),
+          const SizedBox(width: 8),
+          Expanded(child: Text(zona.zonaNombre,
+            style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14))),
+          GestureDetector(
+            onTap: () => setState(() => _zonaSeleccionada = null),
+            child: const Icon(Icons.close, size: 16, color: Colors.black45),
+          ),
+        ]),
+        const SizedBox(height: 6),
+        Text(zona.categoriaPredominante,
+          style: TextStyle(color: zona.colorRiesgo, fontWeight: FontWeight.w700, fontSize: 12)),
+        const SizedBox(height: 4),
+        Text('${zona.reportesHistoricos} reportes registrados',
+          style: const TextStyle(fontSize: 11, color: Colors.black54)),
+        const SizedBox(height: 4),
+        Row(children: [
+          const Icon(Icons.psychology_rounded, size: 12, color: Color(0xFF1565C0)),
+          const SizedBox(width: 4),
+          Text('IA predice ${zona.porcentaje} probabilidad de riesgo ${zona.labelRiesgo.toLowerCase()}',
+            style: const TextStyle(fontSize: 10.5, color: Color(0xFF1565C0), fontWeight: FontWeight.w600)),
+        ]),
+        if (zona.mensajeAlerta != null) ...[
+          const SizedBox(height: 6),
+          Text(zona.mensajeAlerta!, style: TextStyle(fontSize: 10.5, color: zona.colorRiesgo)),
+        ],
+      ]),
+    );
+  }
+
+  Widget _buildResumenCards(PrediccionService svc) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 6),
+      child: Row(children: [
+        _ResumenCard(icon: Icons.map_outlined, label: 'Zonas\nanalizadas',
+          valor: '${svc.totalZonasAnalizadas}', color: AppConfig.azulOscuro),
+        const SizedBox(width: 8),
+        _ResumenCard(icon: Icons.warning_amber_rounded, label: 'Riesgo\nalto',
+          valor: '${svc.zonasAltoRiesgo}', color: const Color(0xFFD32F2F)),
+        const SizedBox(width: 8),
+        _ResumenCard(icon: Icons.notifications_active_outlined, label: 'Alertas\nactivas',
+          valor: '${svc.alertasActivas}', color: const Color(0xFFF57C00)),
+      ]),
+    );
+  }
+
+  Widget _buildListaZonas(PrediccionService svc) {
+    final zonasTop = svc.zonas.take(10).toList();
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      const Padding(
+        padding: EdgeInsets.fromLTRB(14, 4, 14, 6),
+        child: Text('Zonas detectadas por IA',
+          style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14, color: Color(0xFF0B1E3D))),
+      ),
+      Expanded(child: ListView.builder(
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        itemCount: zonasTop.length,
+        itemBuilder: (ctx, i) => _ZonaCiudadanoTile(
+          zona: zonasTop[i],
+          onTap: () async {
+            setState(() => _zonaSeleccionada = zonasTop[i]);
+            final ctrl = await _mapController.future;
+            ctrl.animateCamera(CameraUpdate.newLatLngZoom(
+              LatLng(zonasTop[i].latCentro, zonasTop[i].lngCentro), 16));
+          },
+        ),
+      )),
+    ]);
   }
 }
 
-class _FilterDropdown extends StatelessWidget {
+class _ResumenCard extends StatelessWidget {
+  final IconData icon;
   final String label;
-  final String? value;
-  final List<DropdownMenuItem<String>> items;
-  final ValueChanged<String?> onChanged;
-
-  const _FilterDropdown({
-    required this.label,
-    required this.value,
-    required this.items,
-    required this.onChanged,
-  });
+  final String valor;
+  final Color color;
+  const _ResumenCard({required this.icon, required this.label, required this.valor, required this.color});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12),
+    return Expanded(child: Container(
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
       decoration: BoxDecoration(
-        color: const Color(0xFFF8FAFC),
+        color: Colors.white,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppConfig.grisMedio),
+        border: Border.all(color: color.withOpacity(0.2)),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 6)],
       ),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
-          hint: Text(label),
-          value: value,
-          items: items,
-          onChanged: onChanged,
-        ),
-      ),
-    );
+      child: Column(children: [
+        Icon(icon, color: color, size: 20),
+        const SizedBox(height: 4),
+        Text(valor, style: TextStyle(fontWeight: FontWeight.w900, fontSize: 20, color: color)),
+        Text(label, textAlign: TextAlign.center,
+          style: const TextStyle(fontSize: 9.5, color: Colors.black54)),
+      ]),
+    ));
   }
 }
 
-class _ReportCard extends StatelessWidget {
-  final Map<String, dynamic> reporte;
-  final Color color;
-  final String estadoText;
+class _ZonaCiudadanoTile extends StatelessWidget {
+  final ZonaRiesgo zona;
   final VoidCallback onTap;
+  const _ZonaCiudadanoTile({required this.zona, required this.onTap});
 
-  const _ReportCard({
-    required this.reporte,
-    required this.color,
-    required this.estadoText,
-    required this.onTap,
-  });
+  String _labelActividad(NivelRiesgo n) {
+    switch (n) {
+      case NivelRiesgo.alto:  return 'Alta actividad';
+      case NivelRiesgo.medio: return 'Actividad media';
+      case NivelRiesgo.bajo:  return 'Baja actividad';
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Card(
       elevation: 0,
-      margin: const EdgeInsets.only(bottom: 12),
+      margin: const EdgeInsets.only(bottom: 8),
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(18),
-        side: BorderSide(color: AppConfig.grisMedio),
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: zona.colorRiesgo.withOpacity(0.3)),
       ),
-      child: ListTile(
-        contentPadding: const EdgeInsets.all(12),
-        leading: CircleAvatar(
-          backgroundColor: color.withOpacity(0.12),
-          child: Icon(Icons.location_on_rounded, color: color),
-        ),
-        title: Text(
-          reporte['titulo'],
-          style: const TextStyle(fontWeight: FontWeight.w800),
-        ),
-        subtitle: Padding(
-          padding: const EdgeInsets.only(top: 5),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(reporte['ubicacion']),
-              const SizedBox(height: 6),
-              Wrap(
-                spacing: 8,
-                runSpacing: 6,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 9,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: color.withOpacity(0.12),
-                      borderRadius: BorderRadius.circular(999),
-                    ),
-                    child: Text(
-                      estadoText,
-                      style: TextStyle(
-                        fontSize: 10.5,
-                        color: color,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                  Text(
-                    reporte['categoria'],
-                    style: const TextStyle(
-                      fontSize: 11,
-                      color: Colors.grey,
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-        isThreeLine: true,
-        trailing: const Icon(Icons.chevron_right_rounded),
+      child: InkWell(
         onTap: onTap,
-      ),
-    );
-  }
-}
-
-class _MiniStatusChip extends StatelessWidget {
-  final String label;
-  final Color color;
-
-  const _MiniStatusChip({
-    required this.label,
-    required this.color,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 9,
-        vertical: 5,
-      ),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          color: color,
-          fontSize: 11,
-          fontWeight: FontWeight.w700,
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          child: Row(children: [
+            CircleAvatar(
+              radius: 18,
+              backgroundColor: zona.colorRiesgo.withOpacity(0.12),
+              child: Icon(zona.iconoCategoria, color: zona.colorRiesgo, size: 16),
+            ),
+            const SizedBox(width: 10),
+            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(zona.zonaNombre,
+                style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+              Text('${zona.categoriaPredominante} · ${zona.reportesHistoricos} rep.',
+                style: const TextStyle(fontSize: 11, color: Colors.black54)),
+            ])),
+            Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: zona.colorRiesgo.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Text(_labelActividad(zona.nivelRiesgo),
+                  style: TextStyle(fontSize: 9.5, color: zona.colorRiesgo, fontWeight: FontWeight.w700)),
+              ),
+              const SizedBox(height: 3),
+              Text('IA: ${zona.porcentaje}',
+                style: const TextStyle(fontSize: 9.5, color: Color(0xFF1565C0), fontWeight: FontWeight.w600)),
+            ]),
+          ]),
         ),
       ),
     );
   }
-}
-
-class _MapPatternPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final linePaint = Paint()
-      ..color = Colors.white.withOpacity(0.65)
-      ..strokeWidth = 2;
-
-    for (double y = 40; y < size.height; y += 80) {
-      canvas.drawLine(
-        Offset(0, y),
-        Offset(size.width, y + 40),
-        linePaint,
-      );
-    }
-
-    for (double x = 30; x < size.width; x += 90) {
-      canvas.drawLine(
-        Offset(x, 0),
-        Offset(x + 45, size.height),
-        linePaint,
-      );
-    }
-
-    final markerPaint = Paint()
-      ..color = AppConfig.azulClaro.withOpacity(0.16);
-
-    final points = [
-      Offset(size.width * 0.25, size.height * 0.30),
-      Offset(size.width * 0.62, size.height * 0.42),
-      Offset(size.width * 0.48, size.height * 0.68),
-      Offset(size.width * 0.78, size.height * 0.26),
-    ];
-
-    for (final point in points) {
-      canvas.drawCircle(point, 16, markerPaint);
-      canvas.drawCircle(
-        point,
-        5,
-        Paint()..color = AppConfig.azulClaro,
-      );
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

@@ -47,23 +47,18 @@ class FuncionarioDrawer extends StatelessWidget {
       case 0:
         screen = const FuncionarioHomeScreen();
         break;
-
       case 1:
         screen = MisCasosScreen(userData: userData);
         break;
-
       case 2:
         screen = NuevosReportesScreen(userData: userData);
         break;
-
       case 3:
         screen = const MapaCasosScreen();
         break;
-
       case 4:
         screen = MiPerfilScreen(userData: userData);
         break;
-
       default:
         screen = const FuncionarioHomeScreen();
     }
@@ -75,9 +70,7 @@ class FuncionarioDrawer extends StatelessWidget {
   }
 
   Future<void> _logout(BuildContext context) async {
-    final authService =
-        Provider.of<AuthService>(context, listen: false);
-
+    final authService = Provider.of<AuthService>(context, listen: false);
     await authService.logout();
 
     if (context.mounted) {
@@ -93,23 +86,15 @@ class FuncionarioDrawer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final userName =
-        userData['nombre']?.toString() ?? 'Funcionario';
-
-    final userEmail =
-        userData['correo']?.toString() ?? '';
-
-    final inicial =
-        userName.isNotEmpty
-            ? userName[0].toUpperCase()
-            : 'F';
+    final userName = userData['nombre']?.toString() ?? 'Funcionario';
+    final userEmail = userData['correo']?.toString() ?? '';
+    final inicial = userName.isNotEmpty ? userName[0].toUpperCase() : 'F';
 
     return Drawer(
       child: Container(
         color: AppConfig.azulOscuro,
         child: Column(
           children: [
-            // ───────────────── HEADER ─────────────────
             Container(
               width: double.infinity,
               padding: EdgeInsets.only(
@@ -191,13 +176,9 @@ class FuncionarioDrawer extends StatelessWidget {
               color: Colors.white12,
               height: 1,
             ),
-
-            // ───────────────── MENÚ ─────────────────
             Expanded(
               child: ListView(
-                padding: const EdgeInsets.symmetric(
-                  vertical: 10,
-                ),
+                padding: const EdgeInsets.symmetric(vertical: 10),
                 children: [
                   _DrawerItem(
                     icon: Icons.dashboard_rounded,
@@ -234,9 +215,7 @@ class FuncionarioDrawer extends StatelessWidget {
                       horizontal: 16,
                       vertical: 6,
                     ),
-                    child: Divider(
-                      color: Colors.white12,
-                    ),
+                    child: Divider(color: Colors.white12),
                   ),
                   _DrawerItem(
                     icon: Icons.logout_rounded,
@@ -272,8 +251,7 @@ class _DrawerItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final itemColor =
-        color ?? (selected ? Colors.white : Colors.white70);
+    final itemColor = color ?? (selected ? Colors.white : Colors.white70);
 
     return Padding(
       padding: const EdgeInsets.symmetric(
@@ -299,8 +277,7 @@ class _DrawerItem extends StatelessWidget {
           title,
           style: TextStyle(
             color: itemColor,
-            fontWeight:
-                selected ? FontWeight.w800 : FontWeight.w600,
+            fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
             fontSize: 14,
           ),
         ),

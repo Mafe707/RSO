@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'config/app_config.dart';
 import 'core/supabase/supabase_config.dart';
@@ -8,6 +9,7 @@ import 'services/auth_service.dart';
 import 'services/admin_auth_service.dart';
 import 'services/denuncia_service.dart';
 import 'services/ciudadano_auth_service.dart';
+import 'analytics/services/prediccion_service.dart';
 
 import 'presentation/screens/rol_selection_screen.dart';
 import 'presentation/screens/funcionario/funcionario_home_screen.dart';
@@ -29,7 +31,9 @@ class RSOApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
-        ChangeNotifierProvider<AuthService>(create: (_) => AuthService()),
+        ChangeNotifierProvider<AuthService>(
+          create: (_) => AuthService(),
+        ),
         ChangeNotifierProvider<AdminAuthService>(
           create: (_) => AdminAuthService(),
         ),
@@ -38,6 +42,9 @@ class RSOApp extends StatelessWidget {
         ),
         ChangeNotifierProvider<CiudadanoAuthService>(
           create: (_) => CiudadanoAuthService(),
+        ),
+        ChangeNotifierProvider<PrediccionService>(
+          create: (_) => PrediccionService(Supabase.instance.client),
         ),
       ],
       child: MaterialApp(
