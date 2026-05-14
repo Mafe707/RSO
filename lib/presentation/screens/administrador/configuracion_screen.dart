@@ -307,8 +307,8 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
     } catch (_) {
       if (!mounted) return;
       setState(() {
-        _nombreSistema = 'No disponible';
-        _municipio = 'No disponible';
+        _nombreSistema = 'RSO - Ruta Sin Obstáculos';
+        _municipio = 'Pasto';
         _cargandoInfo = false;
       });
     }
@@ -768,7 +768,7 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
           const Divider(height: 20),
           _InfoRow(
             label: 'Plataforma',
-            value: 'Flutter Web',
+            value: 'Flutter',
             icon: Icons.web_rounded,
           ),
           const SizedBox(height: 14),

@@ -445,7 +445,7 @@ leading: isMobile
         _ActionTile(
           icon: Icons.search_rounded,
           title: 'Consultar estado',
-          subtitle: 'Usa tu código único para conocer el avance.',
+          subtitle: 'Usa tu código único para conocer el avance o si compartes tus datos puedes ver el historial de reportes.',
           color: AppConfig.azulClaro,
           onTap: () => Navigator.pushReplacement(
             context,
