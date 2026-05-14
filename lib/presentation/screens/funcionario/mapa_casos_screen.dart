@@ -12,6 +12,9 @@ import '../../../analytics/models/zona_riesgo_model.dart';
 import '../../../analytics/models/hotspot_alert_model.dart';
 import '../../../analytics/services/prediccion_service.dart';
 
+import 'package:flutter/foundation.dart';
+import 'package:flutter/gestures.dart';
+
 class MapaCasosScreen extends StatefulWidget {
   const MapaCasosScreen({super.key});
 
@@ -325,7 +328,7 @@ class _MapaCasosScreenState extends State<MapaCasosScreen>
 
   Widget _buildMapaMobile(PrediccionService svc) {
     final screenH = MediaQuery.of(context).size.height;
-    final mapHeight = screenH * 0.31;
+    final mapHeight = screenH * 0.40;
 
     return Stack(
       children: [
@@ -507,23 +510,43 @@ class _MapaCasosScreenState extends State<MapaCasosScreen>
   }
 
   Widget _buildGoogleMap(PrediccionService svc) {
-    return GoogleMap(
-      initialCameraPosition: const CameraPosition(
-        target: _pastoCentro,
-        zoom: 14.5,
+  return GoogleMap(
+    initialCameraPosition: const CameraPosition(
+      target: _pastoCentro,
+      zoom: 14.5,
+    ),
+
+    onMapCreated: (controller) {
+      if (!_mapController.isCompleted) {
+        _mapController.complete(controller);
+      }
+    },
+
+    markers: _buildMarkers(svc.zonas),
+
+    // 👇 ESTO SOLUCIONA EL ZOOM TÁCTIL
+    gestureRecognizers: <
+        Factory<OneSequenceGestureRecognizer>>{
+      Factory<OneSequenceGestureRecognizer>(
+        () => EagerGestureRecognizer(),
       ),
-      onMapCreated: (c) {
-        if (!_mapController.isCompleted) {
-          _mapController.complete(c);
-        }
-      },
-      markers: _buildMarkers(svc.zonas),
-      myLocationButtonEnabled: false,
-      zoomControlsEnabled: !_isMobile,
-      mapToolbarEnabled: false,
-      onTap: (_) => setState(() => _zonaSeleccionada = null),
-    );
-  }
+    },
+
+    zoomGesturesEnabled: true,
+    scrollGesturesEnabled: true,
+    rotateGesturesEnabled: true,
+    tiltGesturesEnabled: true,
+
+    zoomControlsEnabled: !_isMobile,
+    myLocationButtonEnabled: false,
+    mapToolbarEnabled: false,
+    compassEnabled: true,
+
+    onTap: (_) {
+      setState(() => _zonaSeleccionada = null);
+    },
+  );
+}
 
   // ─────────────────────── LEYENDAS ────────────────────────────────
 
