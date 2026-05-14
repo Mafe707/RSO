@@ -169,16 +169,28 @@ class _HeaderSection extends StatelessWidget {
           isDesktop ? CrossAxisAlignment.start : CrossAxisAlignment.center,
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Container(
-          padding: EdgeInsets.all(isDesktop ? 28 : 22),
-          decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.16),
-            borderRadius: BorderRadius.circular(isDesktop ? 32 : 28),
-            border: Border.all(color: Colors.white.withOpacity(0.22)),
+       Container(
+        padding: EdgeInsets.all(isDesktop ? 28 : 22),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.16),
+          borderRadius: BorderRadius.circular(isDesktop ? 32 : 28),
+          border: Border.all(
+            color: Colors.white.withOpacity(0.22),
           ),
-          child: Icon(Icons.route_rounded,
-              size: isDesktop ? 82 : 68, color: Colors.white),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.18),
+              blurRadius: 24,
+              offset: const Offset(0, 12),
+            ),
+          ],
         ),
+        child: Icon(
+          Icons.near_me_rounded,
+          size: isDesktop ? 82 : 68,
+          color: Colors.white,
+        ),
+      ),
         SizedBox(height: isDesktop ? 30 : 22),
         Text(
           'Ruta Sin Obstáculos',
