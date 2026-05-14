@@ -23,17 +23,52 @@ class _MapaCasosScreenState extends State<MapaCasosScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabs;
   final Completer<GoogleMapController> _mapController = Completer();
+  final DraggableScrollableController _sheetController =
+      DraggableScrollableController();
+
   ZonaRiesgo? _zonaSeleccionada;
 
   static const LatLng _pastoCentro = LatLng(1.2136, -77.2811);
 
+  static const double _mobileSheetMin = 0.25;
+  static const double _mobileSheetInitial = 0.40;
+  static const double _mobileSheetMax = 0.90;
+
   bool get _isMobile => MediaQuery.of(context).size.width < 800;
+
+  Map<String, dynamic> _buildUserData(BuildContext context) {
+    final authService = Provider.of<AuthService>(context, listen: false);
+
+    final dynamic funcionarioData =
+        authService.funcionarioData is Map<String, dynamic>
+            ? authService.funcionarioData
+            : <String, dynamic>{};
+
+    final user = authService.currentUser;
+    final meta = user?.userMetadata ?? <String, dynamic>{};
+
+    return {
+      'nombre':
+          funcionarioData['nombre'] ??
+          meta['nombre'] ??
+          meta['name'] ??
+          'Funcionario',
+      'correo':
+          funcionarioData['correo'] ??
+          meta['correo'] ??
+          user?.email ??
+          '',
+      'cargo': funcionarioData['cargo'] ?? meta['cargo'] ?? '',
+      'departamento':
+          funcionarioData['departamento'] ?? meta['departamento'] ?? '',
+      'foto_url': funcionarioData['foto_url'] ?? meta['foto_url'] ?? '',
+    };
+  }
 
   @override
   void initState() {
     super.initState();
     _tabs = TabController(length: 3, vsync: this);
-
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<PrediccionService>().inicializar();
     });
@@ -42,34 +77,38 @@ class _MapaCasosScreenState extends State<MapaCasosScreen>
   @override
   void dispose() {
     _tabs.dispose();
+    _sheetController.dispose();
     super.dispose();
-  }
-
-  Map<String, dynamic> _buildUserData(BuildContext context) {
-    final auth = Provider.of<AuthService>(context, listen: false);
-    final user = auth.currentUser;
-
-    return {
-      'nombre': user?.userMetadata?['nombre'] ?? 'Funcionario',
-      'correo': user?.email ?? '',
-      'cargo': user?.userMetadata?['cargo'] ?? '',
-      'departamento': user?.userMetadata?['departamento'] ?? '',
-      'foto_url': user?.userMetadata?['foto_url'] ?? '',
-    };
   }
 
   Future<void> _cerrarSesion() async {
     final auth = Provider.of<AuthService>(context, listen: false);
     await auth.logout();
-
     if (mounted) {
       Navigator.pushAndRemoveUntil(
         context,
-        MaterialPageRoute(
-          builder: (_) => const FuncionarioLoginScreen(),
-        ),
+        MaterialPageRoute(builder: (_) => const FuncionarioLoginScreen()),
         (route) => false,
       );
+    }
+  }
+
+  Future<void> _focusZona(ZonaRiesgo zona,
+      {bool resetMobileSheet = false}) async {
+    setState(() => _zonaSeleccionada = zona);
+
+    final ctrl = await _mapController.future;
+    await ctrl.animateCamera(
+      CameraUpdate.newCameraPosition(
+        CameraPosition(
+          target: LatLng(zona.latCentro, zona.lngCentro),
+          zoom: 16.2,
+        ),
+      ),
+    );
+
+    if (_isMobile && resetMobileSheet && _sheetController.isAttached) {
+      _sheetController.reset();
     }
   }
 
@@ -77,31 +116,22 @@ class _MapaCasosScreenState extends State<MapaCasosScreen>
     final Set<Marker> markers = {};
 
     for (final zona in zonas) {
-      double hue;
-
-      switch (zona.nivelRiesgo) {
-        case NivelRiesgo.alto:
-          hue = BitmapDescriptor.hueRed;
-          break;
-        case NivelRiesgo.medio:
-          hue = BitmapDescriptor.hueOrange;
-          break;
-        case NivelRiesgo.bajo:
-          hue = BitmapDescriptor.hueGreen;
-          break;
-      }
-
       markers.add(
         Marker(
           markerId: MarkerId(zona.gridId),
           position: LatLng(zona.latCentro, zona.lngCentro),
-          icon: BitmapDescriptor.defaultMarkerWithHue(hue),
+          icon: BitmapDescriptor.defaultMarker, // rojo siempre
           infoWindow: InfoWindow(
-            title: '${zona.zonaNombre} — ${zona.labelRiesgo}',
+            title: zona.zonaNombre,
             snippet:
-                '${zona.categoriaPredominante} · ${zona.reportesHistoricos} rep · IA: ${zona.porcentaje}',
+                '${zona.categoriaPredominante} · ${zona.reportesHistoricos} reportes · IA: ${zona.porcentaje}',
           ),
-          onTap: () => setState(() => _zonaSeleccionada = zona),
+          onTap: () async {
+            setState(() => _zonaSeleccionada = zona);
+            if (_isMobile && _sheetController.isAttached) {
+              _sheetController.reset();
+            }
+          },
         ),
       );
     }
@@ -118,14 +148,12 @@ class _MapaCasosScreenState extends State<MapaCasosScreen>
       appBar: AppBar(
         title: const Text(
           'Analítica Predictiva — IA',
-          style: TextStyle(
-            fontWeight: FontWeight.w700,
-            color: Colors.white,
-          ),
+          style: TextStyle(fontWeight: FontWeight.w700, color: Colors.white),
         ),
         backgroundColor: AppConfig.azulOscuro,
         elevation: 0,
         toolbarHeight: 64,
+        centerTitle: false,
         automaticallyImplyLeading: false,
         leading: _isMobile
             ? null
@@ -147,17 +175,7 @@ class _MapaCasosScreenState extends State<MapaCasosScreen>
             onPressed: _cerrarSesion,
           ),
         ],
-        bottom: TabBar(
-          controller: _tabs,
-          indicatorColor: Colors.white,
-          labelColor: Colors.white,
-          unselectedLabelColor: Colors.white60,
-          tabs: const [
-            Tab(icon: Icon(Icons.map_outlined), text: 'Mapa IA'),
-            Tab(icon: Icon(Icons.warning_amber_rounded), text: 'Alertas'),
-            Tab(icon: Icon(Icons.bar_chart_rounded), text: 'Resumen'),
-          ],
-        ),
+        // ── Sin TabBar aquí; las cápsulas van debajo del AppBar ──
       ),
       drawer: FuncionarioDrawer.maybe(
         context,
@@ -193,16 +211,10 @@ class _MapaCasosScreenState extends State<MapaCasosScreen>
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(
-                      Icons.error_outline,
-                      size: 48,
-                      color: Colors.red,
-                    ),
+                    const Icon(Icons.error_outline,
+                        size: 48, color: Colors.red),
                     const SizedBox(height: 12),
-                    Text(
-                      svc.error!,
-                      textAlign: TextAlign.center,
-                    ),
+                    Text(svc.error!, textAlign: TextAlign.center),
                     const SizedBox(height: 16),
                     ElevatedButton(
                       onPressed: svc.recargar,
@@ -214,12 +226,90 @@ class _MapaCasosScreenState extends State<MapaCasosScreen>
             );
           }
 
-          return TabBarView(
-            controller: _tabs,
+          return Column(
             children: [
-              _buildTabMapa(svc),
-              _buildTabAlertas(svc),
-              _buildTabResumen(svc),
+              // ── Barra de cápsulas estilo consultar_screen ──
+              Container(
+                width: double.infinity,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF24476B),
+                  border: Border(
+                    bottom: BorderSide(color: Colors.grey.shade300),
+                  ),
+                ),
+                child: TabBar(
+                  controller: _tabs,
+                  indicator: BoxDecoration(
+                    color: const Color(0xFF3B628D),
+                    borderRadius: BorderRadius.circular(22),
+                    border:
+                        Border.all(color: Colors.white.withOpacity(0.20)),
+                  ),
+                  indicatorSize: TabBarIndicatorSize.tab,
+                  dividerColor: Colors.transparent,
+                  labelColor: Colors.white,
+                  unselectedLabelColor: Colors.white70,
+                  splashBorderRadius: BorderRadius.circular(22),
+                  labelStyle: const TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 15,
+                  ),
+                  unselectedLabelStyle: const TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 15,
+                  ),
+                  padding: EdgeInsets.zero,
+                  labelPadding:
+                      const EdgeInsets.symmetric(horizontal: 6),
+                  tabs: const [
+                    Tab(
+                      height: 44,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.map_outlined, size: 18),
+                          SizedBox(width: 7),
+                          Text('Mapa IA'),
+                        ],
+                      ),
+                    ),
+                    Tab(
+                      height: 44,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.warning_amber_rounded, size: 18),
+                          SizedBox(width: 7),
+                          Text('Alertas'),
+                        ],
+                      ),
+                    ),
+                    Tab(
+                      height: 44,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.bar_chart_rounded, size: 18),
+                          SizedBox(width: 7),
+                          Text('Resumen'),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: TabBarView(
+                  controller: _tabs,
+                  children: [
+                    _buildTabMapa(svc),
+                    _buildTabAlertas(svc),
+                    _buildTabResumen(svc),
+                  ],
+                ),
+              ),
             ],
           );
         },
@@ -227,80 +317,192 @@ class _MapaCasosScreenState extends State<MapaCasosScreen>
     );
   }
 
-  // ── TAB 1: MAPA ─────────────────────────────────────────────────────────
+  // ─────────────────────────── TAB MAPA ────────────────────────────
 
   Widget _buildTabMapa(PrediccionService svc) {
-    if (_isMobile) {
-      return Column(
-        children: [
-          _buildFuenteBadge(svc),
-          Expanded(
-            child: Stack(
-              children: [
-                _buildGoogleMap(svc),
-                Positioned(
-                  top: 10,
-                  left: 10,
-                  child: _buildLeyendaTecnica(),
-                ),
-                if (_zonaSeleccionada != null)
-                  Positioned(
-                    bottom: 12,
-                    left: 12,
-                    right: 12,
-                    child: _buildZonaDetalleCard(_zonaSeleccionada!),
-                  ),
-              ],
-            ),
-          ),
-          _buildFilaEstadisticas(svc),
-          SizedBox(
-            height: 200,
-            child: _buildListaZonasFuncionario(svc),
-          ),
-        ],
-      );
-    }
+    return _isMobile ? _buildMapaMobile(svc) : _buildMapaWeb(svc);
+  }
 
-    return Row(
+  Widget _buildMapaMobile(PrediccionService svc) {
+    final screenH = MediaQuery.of(context).size.height;
+    final mapHeight = screenH * 0.31;
+
+    return Stack(
       children: [
-        Expanded(
-          flex: 6,
-          child: Column(
-            children: [
-              _buildFuenteBadge(svc),
-              Expanded(
-                child: Stack(
-                  children: [
-                    _buildGoogleMap(svc),
+        Column(
+          children: [
+            _buildIaBanner(svc),
+            _buildAlertaBanner(svc),
+            SizedBox(
+              height: mapHeight,
+              child: Stack(
+                children: [
+                  Positioned.fill(child: _buildGoogleMap(svc)),
+                  Positioned(
+                    top: 10,
+                    left: 10,
+                    child: _buildLeyendaCompacta(),
+                  ),
+                  if (_zonaSeleccionada != null)
                     Positioned(
-                      top: 10,
-                      left: 10,
-                      child: _buildLeyendaTecnica(),
+                      left: 12,
+                      right: 12,
+                      bottom: 10,
+                      child: _buildZonaCardCompacta(_zonaSeleccionada!),
                     ),
-                    if (_zonaSeleccionada != null)
-                      Positioned(
-                        bottom: 12,
-                        right: 12,
-                        width: 340,
-                        child: _buildZonaDetalleCard(_zonaSeleccionada!),
+                ],
+              ),
+            ),
+          ],
+        ),
+        DraggableScrollableSheet(
+          controller: _sheetController,
+          initialChildSize: _mobileSheetInitial,
+          minChildSize: _mobileSheetMin,
+          maxChildSize: _mobileSheetMax,
+          snap: true,
+          snapSizes: const [
+            _mobileSheetMin,
+            _mobileSheetInitial,
+            0.68,
+            _mobileSheetMax,
+          ],
+          builder: (context, scrollController) {
+            final zonasTop = svc.zonas.take(10).toList();
+
+            return Container(
+              decoration: const BoxDecoration(
+                color: Color(0xFFF5F7FB),
+                borderRadius:
+                    BorderRadius.vertical(top: Radius.circular(24)),
+                boxShadow: [
+                  BoxShadow(
+                    color: Color(0x22000000),
+                    blurRadius: 18,
+                    offset: Offset(0, -4),
+                  ),
+                ],
+              ),
+              child: Column(
+                children: [
+                  const SizedBox(height: 6),
+                  Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: Colors.black26,
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Padding(
+                    padding:
+                        const EdgeInsets.fromLTRB(12, 0, 12, 4),
+                    child: Row(
+                      children: [
+                        const Icon(
+                          Icons.list_alt_rounded,
+                          size: 17,
+                          color: Color(0xFF0B1E3D),
+                        ),
+                        const SizedBox(width: 6),
+                        const Expanded(
+                          child: Text(
+                            'Zonas detectadas por IA',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w800,
+                              fontSize: 13,
+                              color: Color(0xFF0B1E3D),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Padding(
+                    padding:
+                        const EdgeInsets.fromLTRB(12, 0, 12, 6),
+                    child: _buildResumenCardsCompact(svc),
+                  ),
+                  Expanded(
+                    child: ListView.builder(
+                      controller: scrollController,
+                      padding: const EdgeInsets.fromLTRB(12, 0, 12, 24),
+                      itemCount: zonasTop.length,
+                      itemBuilder: (ctx, i) => _ZonaFuncionarioTile(
+                        zona: zonasTop[i],
+                        onTap: () => _focusZona(
+                          zonasTop[i],
+                          resetMobileSheet: true,
+                        ),
                       ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMapaWeb(PrediccionService svc) {
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 1400),
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                flex: 7,
+                child: Column(
+                  children: [
+                    _buildIaBanner(svc),
+                    _buildAlertaBanner(svc),
+                    Expanded(
+                      child: Stack(
+                        children: [
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(20),
+                            child: _buildGoogleMap(svc),
+                          ),
+                          Positioned(
+                            top: 12,
+                            left: 12,
+                            child: _buildLeyenda(),
+                          ),
+                          if (_zonaSeleccionada != null)
+                            Positioned(
+                              bottom: 12,
+                              right: 12,
+                              width: 340,
+                              child:
+                                  _buildZonaDetalleCard(_zonaSeleccionada!),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 20),
+              SizedBox(
+                width: 360,
+                child: Column(
+                  children: [
+                    _buildResumenCards(svc),
+                    const SizedBox(height: 12),
+                    Expanded(child: _buildListaZonasFuncionario(svc)),
                   ],
                 ),
               ),
             ],
           ),
         ),
-        SizedBox(
-          width: 360,
-          child: Column(
-            children: [
-              _buildFilaEstadisticas(svc),
-              Expanded(child: _buildListaZonasFuncionario(svc)),
-            ],
-          ),
-        ),
-      ],
+      ),
     );
   }
 
@@ -323,7 +525,9 @@ class _MapaCasosScreenState extends State<MapaCasosScreen>
     );
   }
 
-  Widget _buildLeyendaTecnica() {
+  // ─────────────────────── LEYENDAS ────────────────────────────────
+
+  Widget _buildLeyenda() {
     return Container(
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
@@ -359,6 +563,40 @@ class _MapaCasosScreenState extends State<MapaCasosScreen>
     );
   }
 
+  Widget _buildLeyendaCompacta() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.94),
+        borderRadius: BorderRadius.circular(10),
+        boxShadow: [
+          BoxShadow(
+              color: Colors.black.withOpacity(0.08), blurRadius: 6),
+        ],
+      ),
+      child: const Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            'Riesgo IA',
+            style: TextStyle(
+              fontSize: 9.5,
+              fontWeight: FontWeight.w800,
+              color: Color(0xFF0B1E3D),
+            ),
+          ),
+          SizedBox(height: 4),
+          _MiniLegendDot(label: 'Alto', color: Color(0xFFD32F2F)),
+          SizedBox(height: 2),
+          _MiniLegendDot(label: 'Medio', color: Color(0xFFF57C00)),
+          SizedBox(height: 2),
+          _MiniLegendDot(label: 'Bajo', color: Color(0xFF388E3C)),
+        ],
+      ),
+    );
+  }
+
   Widget _legendRow(String label, Color color) {
     return Row(
       mainAxisSize: MainAxisSize.min,
@@ -366,22 +604,135 @@ class _MapaCasosScreenState extends State<MapaCasosScreen>
         Container(
           width: 10,
           height: 10,
-          decoration: BoxDecoration(
-            color: color,
-            shape: BoxShape.circle,
-          ),
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
         ),
         const SizedBox(width: 5),
-        Text(
-          label,
-          style: const TextStyle(
-            fontSize: 10,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
+        Text(label,
+            style: const TextStyle(
+                fontSize: 10, fontWeight: FontWeight.w600)),
       ],
     );
   }
+
+  // ─────────────────────── BANNERS ─────────────────────────────────
+
+  Widget _buildIaBanner(PrediccionService svc) {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(12, 10, 12, 4),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [
+            Color(0xFF0B1E3D),
+            Color.fromARGB(255, 26, 91, 166),
+          ],
+          begin: Alignment.centerLeft,
+          end: Alignment.centerRight,
+        ),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.psychology_rounded,
+              color: Colors.white, size: 20),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Predicción con Inteligencia Artificial',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 13,
+                  ),
+                ),
+                Text(
+                  'Random Forest · ${svc.totalReportesUsados} reportes analizados · Pasto, Nariño',
+                  style: const TextStyle(
+                      color: Colors.white70, fontSize: 11),
+                ),
+              ],
+            ),
+          ),
+          Container(
+            padding:
+                const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: Colors.white24,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text(
+              svc.fuente == 'real'
+                  ? '✓ Datos reales'
+                  : svc.fuente == 'mixto'
+                      ? '⚡ Mixto'
+                      : '🧪 Simulado',
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAlertaBanner(PrediccionService svc) {
+    if (svc.alertas.isEmpty) return const SizedBox.shrink();
+
+    final critica = svc.alertas.firstWhere(
+      (a) => a.esCritica,
+      orElse: () => svc.alertas.first,
+    );
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(12, 4, 12, 6),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: critica.esCritica
+            ? const Color(0xFFFFEBEE)
+            : const Color(0xFFFFF8E1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: critica.esCritica
+              ? const Color(0xFFD32F2F)
+              : const Color(0xFFF57C00),
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            critica.esCritica
+                ? Icons.warning_rounded
+                : Icons.info_outline_rounded,
+            color: critica.esCritica
+                ? const Color(0xFFD32F2F)
+                : const Color(0xFFF57C00),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              '${svc.alertas.length} zona${svc.alertas.length > 1 ? 's' : ''} con alta actividad. '
+              '${critica.zonaNombre} reporta mayor concentración de invasiones.',
+              style: TextStyle(
+                fontWeight: FontWeight.w600,
+                fontSize: 12.5,
+                color: critica.esCritica
+                    ? const Color(0xFFD32F2F)
+                    : const Color(0xFFF57C00),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ─────────────────────── TARJETAS ZONA ───────────────────────────
 
   Widget _buildZonaDetalleCard(ZonaRiesgo zona) {
     return Container(
@@ -391,13 +742,9 @@ class _MapaCasosScreenState extends State<MapaCasosScreen>
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.15),
-            blurRadius: 16,
-          ),
+              color: Colors.black.withOpacity(0.15), blurRadius: 16),
         ],
-        border: Border.all(
-          color: zona.colorRiesgo.withOpacity(0.5),
-        ),
+        border: Border.all(color: zona.colorRiesgo.withOpacity(0.5)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -408,27 +755,20 @@ class _MapaCasosScreenState extends State<MapaCasosScreen>
               CircleAvatar(
                 radius: 16,
                 backgroundColor: zona.colorRiesgo.withOpacity(0.12),
-                child: Icon(
-                  zona.iconoCategoria,
-                  color: zona.colorRiesgo,
-                  size: 16,
-                ),
+                child: Icon(zona.iconoCategoria,
+                    color: zona.colorRiesgo, size: 16),
               ),
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
                   zona.zonaNombre,
                   style: const TextStyle(
-                    fontWeight: FontWeight.w800,
-                    fontSize: 14,
-                  ),
+                      fontWeight: FontWeight.w800, fontSize: 14),
                 ),
               ),
               Container(
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 8,
-                  vertical: 3,
-                ),
+                    horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
                   color: zona.colorRiesgo.withOpacity(0.12),
                   borderRadius: BorderRadius.circular(999),
@@ -445,11 +785,8 @@ class _MapaCasosScreenState extends State<MapaCasosScreen>
               const SizedBox(width: 6),
               GestureDetector(
                 onTap: () => setState(() => _zonaSeleccionada = null),
-                child: const Icon(
-                  Icons.close,
-                  size: 16,
-                  color: Colors.black45,
-                ),
+                child: const Icon(Icons.close,
+                    size: 16, color: Colors.black45),
               ),
             ],
           ),
@@ -457,9 +794,8 @@ class _MapaCasosScreenState extends State<MapaCasosScreen>
           Row(
             children: [
               _MetricaChip(
-                label: 'Reportes',
-                valor: '${zona.reportesHistoricos}',
-              ),
+                  label: 'Reportes',
+                  valor: '${zona.reportesHistoricos}'),
               const SizedBox(width: 8),
               _MetricaChip(
                 label: 'Últimas 48h',
@@ -477,18 +813,13 @@ class _MapaCasosScreenState extends State<MapaCasosScreen>
           const SizedBox(height: 8),
           Row(
             children: [
-              const Icon(
-                Icons.category_outlined,
-                size: 12,
-                color: Colors.black45,
-              ),
+              const Icon(Icons.category_outlined,
+                  size: 12, color: Colors.black45),
               const SizedBox(width: 4),
               Text(
                 zona.categoriaPredominante,
                 style: const TextStyle(
-                  fontSize: 11,
-                  color: Colors.black54,
-                ),
+                    fontSize: 11, color: Colors.black54),
               ),
             ],
           ),
@@ -502,11 +833,8 @@ class _MapaCasosScreenState extends State<MapaCasosScreen>
               ),
               child: Row(
                 children: [
-                  Icon(
-                    Icons.warning_amber_rounded,
-                    color: zona.colorRiesgo,
-                    size: 13,
-                  ),
+                  Icon(Icons.warning_amber_rounded,
+                      color: zona.colorRiesgo, size: 13),
                   const SizedBox(width: 6),
                   Expanded(
                     child: Text(
@@ -527,95 +855,130 @@ class _MapaCasosScreenState extends State<MapaCasosScreen>
     );
   }
 
-  Widget _buildFuenteBadge(PrediccionService svc) {
-    final Color color;
-    final String texto;
-
-    switch (svc.fuente) {
-      case 'real':
-        color = const Color(0xFF388E3C);
-        texto = '✓ Datos reales de Supabase';
-        break;
-      case 'mixto':
-        color = const Color(0xFFF57C00);
-        texto = '⚡ Mixto (real + simulado)';
-        break;
-      default:
-        color = const Color(0xFF1565C0);
-        texto = '🧪 Datos simulados con IA';
-        break;
-    }
-
+  Widget _buildZonaCardCompacta(ZonaRiesgo zona) {
     return Container(
-      margin: const EdgeInsets.fromLTRB(12, 10, 12, 4),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.08),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: color.withOpacity(0.35)),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border:
+            Border.all(color: zona.colorRiesgo.withOpacity(0.35)),
+        boxShadow: [
+          BoxShadow(
+              color: Colors.black.withOpacity(0.10), blurRadius: 10),
+        ],
       ),
       child: Row(
         children: [
-          Icon(Icons.psychology_rounded, color: color, size: 15),
+          CircleAvatar(
+            radius: 16,
+            backgroundColor: zona.colorRiesgo.withOpacity(0.12),
+            child: Icon(zona.iconoCategoria,
+                color: zona.colorRiesgo, size: 16),
+          ),
           const SizedBox(width: 8),
-          Text(
-            '$texto · ${svc.totalReportesUsados} reportes analizados',
-            style: TextStyle(
-              color: color,
-              fontWeight: FontWeight.w700,
-              fontSize: 12,
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  zona.zonaNombre,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                      fontWeight: FontWeight.w800, fontSize: 12.5),
+                ),
+                Text(
+                  '${zona.categoriaPredominante} · IA ${zona.porcentaje}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 10.5,
+                    color: zona.colorRiesgo,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
             ),
+          ),
+          IconButton(
+            visualDensity: VisualDensity.compact,
+            onPressed: () =>
+                setState(() => _zonaSeleccionada = null),
+            icon: const Icon(Icons.close, size: 16),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildFilaEstadisticas(PrediccionService svc) {
+  // ─────────────────────── ESTADÍSTICAS ────────────────────────────
+
+  Widget _buildResumenCards(PrediccionService svc) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(12, 8, 12, 6),
       child: Row(
         children: [
           _StatCard(
-            label: 'Zonas',
+            icon: Icons.map_outlined,
+            label: 'Zonas\nanalizadas',
             valor: '${svc.totalZonasAnalizadas}',
-            icon: Icons.grid_view_rounded,
             color: AppConfig.azulOscuro,
           ),
-          const SizedBox(width: 6),
+          const SizedBox(width: 8),
           _StatCard(
-            label: 'Alto riesgo',
+            icon: Icons.warning_amber_rounded,
+            label: 'Riesgo\nalto',
             valor: '${svc.zonasAltoRiesgo}',
-            icon: Icons.trending_up_rounded,
             color: const Color(0xFFD32F2F),
           ),
-          const SizedBox(width: 6),
+          const SizedBox(width: 8),
           _StatCard(
-            label: 'Alertas',
+            icon: Icons.notifications_active_outlined,
+            label: 'Alertas\nactivas',
             valor: '${svc.alertasActivas}',
-            icon: Icons.notifications_active_rounded,
             color: const Color(0xFFF57C00),
-          ),
-          const SizedBox(width: 6),
-          _StatCard(
-            label: 'Reportes',
-            valor: '${svc.totalReportesUsados}',
-            icon: Icons.assessment_rounded,
-            color: const Color(0xFF388E3C),
           ),
         ],
       ),
     );
   }
 
+  Widget _buildResumenCardsCompact(PrediccionService svc) {
+    return Row(
+      children: [
+        _MiniResumenChip(
+          label: 'Zonas',
+          valor: '${svc.totalZonasAnalizadas}',
+          color: AppConfig.azulOscuro,
+        ),
+        const SizedBox(width: 6),
+        _MiniResumenChip(
+          label: 'Alto',
+          valor: '${svc.zonasAltoRiesgo}',
+          color: const Color(0xFFD32F2F),
+        ),
+        const SizedBox(width: 6),
+        _MiniResumenChip(
+          label: 'Alertas',
+          valor: '${svc.alertasActivas}',
+          color: const Color(0xFFF57C00),
+        ),
+      ],
+    );
+  }
+
   Widget _buildListaZonasFuncionario(PrediccionService svc) {
+    final zonasTop = svc.zonas.take(10).toList();
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Padding(
-          padding: EdgeInsets.fromLTRB(14, 6, 14, 6),
+          padding: EdgeInsets.fromLTRB(14, 4, 14, 6),
           child: Text(
-            'Detalle por zona',
+            'Zonas detectadas por IA',
             style: TextStyle(
               fontWeight: FontWeight.w800,
               fontSize: 14,
@@ -626,121 +989,18 @@ class _MapaCasosScreenState extends State<MapaCasosScreen>
         Expanded(
           child: ListView.builder(
             padding: const EdgeInsets.symmetric(horizontal: 12),
-            itemCount: svc.zonas.length,
-            itemBuilder: (ctx, i) {
-              final zona = svc.zonas[i];
-
-              return Card(
-                elevation: 0,
-                margin: const EdgeInsets.only(bottom: 8),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
-                  side: BorderSide(
-                    color: zona.colorRiesgo.withOpacity(0.3),
-                  ),
-                ),
-                child: InkWell(
-                  onTap: () async {
-                    setState(() => _zonaSeleccionada = zona);
-                    _tabs.animateTo(0);
-                    final ctrl = await _mapController.future;
-                    ctrl.animateCamera(
-                      CameraUpdate.newLatLngZoom(
-                        LatLng(zona.latCentro, zona.lngCentro),
-                        16,
-                      ),
-                    );
-                  },
-                  borderRadius: BorderRadius.circular(14),
-                  child: Padding(
-                    padding: const EdgeInsets.all(12),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            CircleAvatar(
-                              radius: 15,
-                              backgroundColor:
-                                  zona.colorRiesgo.withOpacity(0.12),
-                              child: Icon(
-                                zona.iconoCategoria,
-                                color: zona.colorRiesgo,
-                                size: 14,
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                zona.zonaNombre,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w800,
-                                  fontSize: 13,
-                                ),
-                              ),
-                            ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 3,
-                              ),
-                              decoration: BoxDecoration(
-                                color: zona.colorRiesgo.withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(999),
-                              ),
-                              child: Text(
-                                'Riesgo ${zona.labelRiesgo}',
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  color: zona.colorRiesgo,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-                        Row(
-                          children: [
-                            _MetricaChip(
-                              label: 'Total',
-                              valor: '${zona.reportesHistoricos}',
-                            ),
-                            const SizedBox(width: 6),
-                            _MetricaChip(
-                              label: '48h',
-                              valor: '${zona.reportesUltimas48h}',
-                              destacado: zona.reportesUltimas48h >= 5,
-                            ),
-                            const SizedBox(width: 6),
-                            _MetricaChip(
-                              label: 'IA',
-                              valor: zona.porcentaje,
-                              destacado: zona.probabilidadAlto >= 0.6,
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          zona.categoriaPredominante,
-                          style: const TextStyle(
-                            fontSize: 11,
-                            color: Colors.black54,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              );
-            },
+            itemCount: zonasTop.length,
+            itemBuilder: (ctx, i) => _ZonaFuncionarioTile(
+              zona: zonasTop[i],
+              onTap: () => _focusZona(zonasTop[i]),
+            ),
           ),
         ),
       ],
     );
   }
 
-  // ── TAB 2: ALERTAS ─────────────────────────────────────────────────────
+  // ─────────────────────── TAB ALERTAS ─────────────────────────────
 
   Widget _buildTabAlertas(PrediccionService svc) {
     if (svc.alertas.isEmpty) {
@@ -748,22 +1008,21 @@ class _MapaCasosScreenState extends State<MapaCasosScreen>
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              Icons.check_circle_outline,
-              size: 56,
-              color: Color(0xFF388E3C),
-            ),
+            Icon(Icons.check_circle_outline,
+                size: 52, color: Color(0xFF388E3C)),
             SizedBox(height: 12),
             Text(
               'Sin alertas activas',
               style: TextStyle(
-                fontWeight: FontWeight.w800,
-                fontSize: 18,
+                fontWeight: FontWeight.w700,
+                fontSize: 16,
+                color: Color(0xFF388E3C),
               ),
             ),
             SizedBox(height: 6),
             Text(
-              'Todas las zonas dentro de parámetros normales.',
+              'No se detectaron zonas críticas en este momento.',
+              style: TextStyle(color: Colors.black54),
               textAlign: TextAlign.center,
             ),
           ],
@@ -772,284 +1031,153 @@ class _MapaCasosScreenState extends State<MapaCasosScreen>
     }
 
     return ListView.builder(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(16),
       itemCount: svc.alertas.length,
       itemBuilder: (ctx, i) => _AlertaCard(alerta: svc.alertas[i]),
     );
   }
 
-  // ── TAB 3: RESUMEN ─────────────────────────────────────────────────────
+  // ─────────────────────── TAB RESUMEN ─────────────────────────────
 
   Widget _buildTabResumen(PrediccionService svc) {
-    final alto = svc.zonas
-        .where((z) => z.nivelRiesgo == NivelRiesgo.alto)
-        .length;
-    final medio = svc.zonas
-        .where((z) => z.nivelRiesgo == NivelRiesgo.medio)
-        .length;
-    final bajo = svc.zonas
-        .where((z) => z.nivelRiesgo == NivelRiesgo.bajo)
-        .length;
-
-    final catConteo = <String, int>{};
-    for (final z in svc.zonas) {
-      catConteo[z.categoriaPredominante] =
-          (catConteo[z.categoriaPredominante] ?? 0) + 1;
-    }
-
-    final catOrdenadas = catConteo.entries.toList()
-      ..sort((a, b) => b.value.compareTo(a.value));
-
-    final content = SingleChildScrollView(
+    return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            padding: const EdgeInsets.all(14),
-            margin: const EdgeInsets.only(bottom: 16),
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [
-                  Color(0xFF0B1E3D),
-                  Color(0xFF1565C0),
-                ],
-              ),
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Row(
-              children: [
-                const Icon(
-                  Icons.psychology_rounded,
-                  color: Colors.white,
-                  size: 28,
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Modelo Random Forest',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w800,
-                          fontSize: 15,
-                        ),
-                      ),
-                      Text(
-                        '${svc.totalReportesUsados} reportes · ${svc.totalZonasAnalizadas} zonas · Pasto, Nariño',
-                        style: const TextStyle(
-                          color: Colors.white70,
-                          fontSize: 11,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      const Text(
-                        'Actualmente: alta concentración de vendedores ambulantes en el Centro Histórico',
-                        style: TextStyle(
-                          color: Colors.white60,
-                          fontSize: 10.5,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-          _seccionTitle('Distribución por nivel de riesgo'),
-          const SizedBox(height: 10),
-          _buildBarraRiesgo(
-            'Riesgo Alto',
-            alto,
-            svc.totalZonasAnalizadas,
-            const Color(0xFFD32F2F),
-          ),
-          const SizedBox(height: 8),
-          _buildBarraRiesgo(
-            'Riesgo Medio',
-            medio,
-            svc.totalZonasAnalizadas,
-            const Color(0xFFF57C00),
-          ),
-          const SizedBox(height: 8),
-          _buildBarraRiesgo(
-            'Riesgo Bajo',
-            bajo,
-            svc.totalZonasAnalizadas,
-            const Color(0xFF388E3C),
-          ),
-          const SizedBox(height: 20),
-          _seccionTitle('Categorías más frecuentes'),
-          const SizedBox(height: 10),
-          ...catOrdenadas.take(6).map(
-                (e) => Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: _buildBarraCategoria(
-                    e.key,
-                    e.value,
-                    svc.totalZonasAnalizadas,
-                  ),
-                ),
-              ),
-          const SizedBox(height: 20),
-          _seccionTitle('Top zonas críticas'),
-          const SizedBox(height: 10),
-          ...svc.zonas
-              .where((z) => z.nivelRiesgo == NivelRiesgo.alto)
-              .take(5)
-              .map(
-                (z) => Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 5,
-                        height: 36,
-                        decoration: BoxDecoration(
-                          color: z.colorRiesgo,
-                          borderRadius: BorderRadius.circular(3),
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              z.zonaNombre,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w700,
-                                fontSize: 13,
-                              ),
-                            ),
-                            Text(
-                              z.categoriaPredominante,
-                              style: const TextStyle(
-                                fontSize: 11,
-                                color: Colors.black54,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      Text(
-                        '${z.reportesHistoricos} rep.',
-                        style: const TextStyle(
-                          fontSize: 11,
-                          color: Colors.black45,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        z.porcentaje,
-                        style: TextStyle(
-                          color: z.colorRiesgo,
-                          fontWeight: FontWeight.w800,
-                          fontSize: 13,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-          const SizedBox(height: 20),
-          _buildInfoModelo(svc),
+          _buildFilaEstadisticasResumen(svc),
+          const SizedBox(height: 16),
+          _buildDistribucionRiesgo(svc),
+          const SizedBox(height: 16),
+          _buildInfoModeloCard(svc),
         ],
       ),
     );
+  }
 
-    if (_isMobile) return content;
+  Widget _buildFilaEstadisticasResumen(PrediccionService svc) {
+  final medio = svc.zonas.where((z) => z.nivelRiesgo == NivelRiesgo.medio).length;
+  final bajo  = svc.zonas.where((z) => z.nivelRiesgo == NivelRiesgo.bajo).length;
 
-    return Center(
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 900),
-        child: content,
+  return Row(
+    children: [
+      _StatCard(
+        icon: Icons.map_outlined,
+        label: 'Zonas\nanalizadas',
+        valor: '${svc.totalZonasAnalizadas}',
+        color: AppConfig.azulOscuro,
+      ),
+      const SizedBox(width: 8),
+      _StatCard(
+        icon: Icons.warning_amber_rounded,
+        label: 'Riesgo\nalto',
+        valor: '${svc.zonasAltoRiesgo}',
+        color: const Color(0xFFD32F2F),
+      ),
+      const SizedBox(width: 8),
+      _StatCard(
+        icon: Icons.bar_chart_rounded,
+        label: 'Riesgo\nmedio',
+        valor: '$medio',
+        color: const Color(0xFFF57C00),
+      ),
+      const SizedBox(width: 8),
+      _StatCard(
+        icon: Icons.check_circle_outline,
+        label: 'Riesgo\nbajo',
+        valor: '$bajo',
+        color: const Color(0xFF388E3C),
+      ),
+    ],
+  );
+}
+  Widget _buildDistribucionRiesgo(PrediccionService svc) {
+  final total = svc.totalZonasAnalizadas;
+  if (total == 0) return const SizedBox.shrink();
+
+  final alto  = svc.zonasAltoRiesgo;
+  final medio = svc.zonas.where((z) => z.nivelRiesgo == NivelRiesgo.medio).length;
+  final bajo  = svc.zonas.where((z) => z.nivelRiesgo == NivelRiesgo.bajo).length;
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Distribución de riesgo',
+            style: TextStyle(
+              fontWeight: FontWeight.w800,
+              fontSize: 14,
+              color: Color(0xFF0B1E3D),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              _MetricaChip(
+                label: 'Alto',
+                valor:
+                    '${(alto / total * 100).toStringAsFixed(0)}%',
+                destacado: true,
+              ),
+              const SizedBox(width: 8),
+              _MetricaChip(
+                label: 'Medio',
+                valor:
+                    '${(medio / total * 100).toStringAsFixed(0)}%',
+              ),
+              const SizedBox(width: 8),
+              _MetricaChip(
+                label: 'Bajo',
+                valor:
+                    '${(bajo / total * 100).toStringAsFixed(0)}%',
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(6),
+            child: Row(
+              children: [
+                if (alto > 0)
+                  Expanded(
+                    flex: alto,
+                    child: Container(
+                      height: 10,
+                      color: const Color(0xFFD32F2F),
+                    ),
+                  ),
+                if (medio > 0)
+                  Expanded(
+                    flex: medio,
+                    child: Container(
+                      height: 10,
+                      color: const Color(0xFFF57C00),
+                    ),
+                  ),
+                if (bajo > 0)
+                  Expanded(
+                    flex: bajo,
+                    child: Container(
+                      height: 10,
+                      color: const Color(0xFF388E3C),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _seccionTitle(String t) => Text(
-        t,
-        style: const TextStyle(
-          fontWeight: FontWeight.w800,
-          fontSize: 15,
-          color: Color(0xFF0B1E3D),
-        ),
-      );
-
-  Widget _buildBarraRiesgo(
-    String label,
-    int valor,
-    int total,
-    Color color,
-  ) {
-    final pct = total > 0 ? valor / total : 0.0;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(label, style: const TextStyle(fontWeight: FontWeight.w600)),
-            Text(
-              '$valor zona${valor != 1 ? 's' : ''} (${(pct * 100).toStringAsFixed(0)}%)',
-            ),
-          ],
-        ),
-        const SizedBox(height: 4),
-        ClipRRect(
-          borderRadius: BorderRadius.circular(999),
-          child: LinearProgressIndicator(
-            value: pct,
-            backgroundColor: color.withOpacity(0.15),
-            valueColor: AlwaysStoppedAnimation(color),
-            minHeight: 10,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildBarraCategoria(String cat, int valor, int total) {
-    final pct = total > 0 ? valor / total : 0.0;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Expanded(
-              child: Text(
-                cat,
-                style: const TextStyle(fontSize: 13),
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-            Text(
-              '$valor',
-              style: const TextStyle(fontWeight: FontWeight.w700),
-            ),
-          ],
-        ),
-        const SizedBox(height: 3),
-        ClipRRect(
-          borderRadius: BorderRadius.circular(999),
-          child: LinearProgressIndicator(
-            value: pct,
-            backgroundColor: const Color(0xFF0B1E3D).withOpacity(0.08),
-            valueColor: const AlwaysStoppedAnimation(Color(0xFF1565C0)),
-            minHeight: 7,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildInfoModelo(PrediccionService svc) {
+  Widget _buildInfoModeloCard(PrediccionService svc) {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
@@ -1062,11 +1190,8 @@ class _MapaCasosScreenState extends State<MapaCasosScreen>
         children: [
           const Row(
             children: [
-              Icon(
-                Icons.info_outline,
-                size: 15,
-                color: Color(0xFF0B1E3D),
-              ),
+              Icon(Icons.info_outline_rounded,
+                  size: 15, color: Color(0xFF0B1E3D)),
               SizedBox(width: 6),
               Text(
                 'Información técnica del modelo',
@@ -1090,43 +1215,45 @@ class _MapaCasosScreenState extends State<MapaCasosScreen>
                     : 'Simulados con semilla fija',
           ),
           _infoRow('Reportes', '${svc.totalReportesUsados}'),
-          _infoRow('Zonas', '${svc.totalZonasAnalizadas} analizadas'),
+          _infoRow(
+              'Zonas', '${svc.totalZonasAnalizadas} analizadas'),
           _infoRow('Ciudad', 'Pasto, Nariño, Colombia'),
-          _infoRow('Situación', 'Alta invasión activa en Centro Histórico'),
+          _infoRow(
+              'Situación', 'Alta invasión activa en Centro Histórico'),
         ],
       ),
     );
   }
 
-  Widget _infoRow(String label, String valor) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 3),
-        child: Row(
-          children: [
-            SizedBox(
-              width: 90,
-              child: Text(
-                label,
-                style: const TextStyle(
-                  fontWeight: FontWeight.w600,
-                  fontSize: 12,
-                ),
-              ),
+  Widget _infoRow(String label, String valor) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 90,
+            child: Text(
+              label,
+              style: const TextStyle(
+                  fontWeight: FontWeight.w600, fontSize: 12),
             ),
-            Expanded(
-              child: Text(
-                valor,
-                style: const TextStyle(
-                  color: Colors.black54,
-                  fontSize: 12,
-                ),
-              ),
+          ),
+          Expanded(
+            child: Text(
+              valor,
+              style: const TextStyle(
+                  color: Colors.black54, fontSize: 12),
             ),
-          ],
-        ),
-      );
+          ),
+        ],
+      ),
+    );
+  }
 }
 
-// ── Widgets auxiliares ───────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════
+//  WIDGETS AUXILIARES
+// ═══════════════════════════════════════════════════════════════════
 
 class _StatCard extends StatelessWidget {
   final String label;
@@ -1145,15 +1272,20 @@ class _StatCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Expanded(
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 6),
+        padding:
+            const EdgeInsets.symmetric(vertical: 10, horizontal: 6),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(14),
           border: Border.all(color: color.withOpacity(0.2)),
+          boxShadow: [
+            BoxShadow(
+                color: Colors.black.withOpacity(0.04), blurRadius: 6),
+          ],
         ),
         child: Column(
           children: [
-            Icon(icon, color: color, size: 18),
+            Icon(icon, color: color, size: 20),
             const SizedBox(height: 3),
             Text(
               valor,
@@ -1167,9 +1299,50 @@ class _StatCard extends StatelessWidget {
               label,
               textAlign: TextAlign.center,
               style: const TextStyle(
-                fontSize: 9,
-                color: Colors.black54,
+                  fontSize: 9, color: Colors.black54),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _MiniResumenChip extends StatelessWidget {
+  final String label;
+  final String valor;
+  final Color color;
+
+  const _MiniResumenChip({
+    required this.label,
+    required this.valor,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: color.withOpacity(0.18)),
+        ),
+        child: Column(
+          children: [
+            Text(
+              valor,
+              style: TextStyle(
+                fontWeight: FontWeight.w900,
+                fontSize: 15,
+                color: color,
               ),
+            ),
+            Text(
+              label,
+              style: const TextStyle(
+                  fontSize: 9, color: Colors.black54),
             ),
           ],
         ),
@@ -1193,7 +1366,8 @@ class _MetricaChip extends StatelessWidget {
   Widget build(BuildContext context) {
     return Expanded(
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 5, horizontal: 6),
+        padding:
+            const EdgeInsets.symmetric(vertical: 5, horizontal: 6),
         decoration: BoxDecoration(
           color: destacado
               ? const Color(0xFFD32F2F).withOpacity(0.07)
@@ -1221,11 +1395,110 @@ class _MetricaChip extends StatelessWidget {
               label,
               textAlign: TextAlign.center,
               style: const TextStyle(
-                fontSize: 8.5,
-                color: Colors.black45,
-              ),
+                  fontSize: 8.5, color: Colors.black45),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ZonaFuncionarioTile extends StatelessWidget {
+  final ZonaRiesgo zona;
+  final VoidCallback onTap;
+
+  const _ZonaFuncionarioTile({
+    required this.zona,
+    required this.onTap,
+  });
+
+  String _labelRiesgo(NivelRiesgo n) {
+    switch (n) {
+      case NivelRiesgo.alto:
+        return 'Alto riesgo';
+      case NivelRiesgo.medio:
+        return 'Riesgo medio';
+      case NivelRiesgo.bajo:
+        return 'Bajo riesgo';
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      elevation: 0,
+      margin: const EdgeInsets.only(bottom: 8),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: zona.colorRiesgo.withOpacity(0.3)),
+      ),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+              horizontal: 12, vertical: 10),
+          child: Row(
+            children: [
+              CircleAvatar(
+                radius: 18,
+                backgroundColor:
+                    zona.colorRiesgo.withOpacity(0.12),
+                child: Icon(zona.iconoCategoria,
+                    color: zona.colorRiesgo, size: 16),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      zona.zonaNombre,
+                      style: const TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 13),
+                    ),
+                    Text(
+                      '${zona.categoriaPredominante} · ${zona.reportesHistoricos} rep.',
+                      style: const TextStyle(
+                          fontSize: 11, color: Colors.black54),
+                    ),
+                  ],
+                ),
+              ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: zona.colorRiesgo.withOpacity(0.12),
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: Text(
+                      _labelRiesgo(zona.nivelRiesgo),
+                      style: TextStyle(
+                        fontSize: 9.5,
+                        color: zona.colorRiesgo,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    'IA: ${zona.porcentaje}',
+                    style: const TextStyle(
+                      fontSize: 9.5,
+                      color: Color(0xFF1565C0),
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -1280,16 +1553,13 @@ class _AlertaCard extends StatelessWidget {
                         child: Text(
                           alerta.zonaNombre,
                           style: const TextStyle(
-                            fontWeight: FontWeight.w800,
-                            fontSize: 14,
-                          ),
+                              fontWeight: FontWeight.w800,
+                              fontSize: 14),
                         ),
                       ),
                       Container(
                         padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 3,
-                        ),
+                            horizontal: 8, vertical: 3),
                         decoration: BoxDecoration(
                           color: color.withOpacity(0.15),
                           borderRadius: BorderRadius.circular(999),
@@ -1308,19 +1578,14 @@ class _AlertaCard extends StatelessWidget {
                   const SizedBox(height: 4),
                   Text(
                     alerta.mensaje,
-                    style: TextStyle(
-                      fontSize: 12.5,
-                      color: color,
-                    ),
+                    style: TextStyle(fontSize: 12.5, color: color),
                   ),
                   const SizedBox(height: 6),
                   Text(
                     '${alerta.reportesEnVentana} reportes en ${alerta.ventanaHoras}h · '
                     '${alerta.generadaEn.day}/${alerta.generadaEn.month}/${alerta.generadaEn.year}',
                     style: const TextStyle(
-                      fontSize: 11,
-                      color: Colors.black45,
-                    ),
+                        fontSize: 11, color: Colors.black45),
                   ),
                 ],
               ),
@@ -1328,6 +1593,31 @@ class _AlertaCard extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _MiniLegendDot extends StatelessWidget {
+  final String label;
+  final Color color;
+
+  const _MiniLegendDot({required this.label, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 8,
+          height: 8,
+          decoration:
+              BoxDecoration(color: color, shape: BoxShape.circle),
+        ),
+        const SizedBox(width: 5),
+        Text(label,
+            style: const TextStyle(fontSize: 9.5)),
+      ],
     );
   }
 }

@@ -31,9 +31,12 @@ class _ValidacionReportesScreenState extends State<ValidacionReportesScreen> {
     } else {
       setState(() => _cargando = true);
     }
+
     final service = Provider.of<DenunciaService>(context, listen: false);
     final todos = await service.obtenerTodasDenuncias();
+
     if (!mounted) return;
+
     setState(() {
       _reportes = todos;
       _cargando = false;
@@ -99,7 +102,9 @@ class _ValidacionReportesScreenState extends State<ValidacionReportesScreen> {
       reporte['id'] as int,
       'resuelto_publicado',
     );
+
     if (!mounted) return;
+
     if (ok) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -131,7 +136,9 @@ class _ValidacionReportesScreenState extends State<ValidacionReportesScreen> {
         'devuelto',
         motivo,
       );
+
       if (!mounted) return;
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
@@ -143,6 +150,7 @@ class _ValidacionReportesScreenState extends State<ValidacionReportesScreen> {
       _cargarReportes(silencioso: true);
     } catch (e) {
       if (!mounted) return;
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Error al devolver: $e'),
@@ -269,6 +277,7 @@ class _ValidacionReportesScreenState extends State<ValidacionReportesScreen> {
                       LayoutBuilder(
                         builder: (context, constraints) {
                           final isNarrow = constraints.maxWidth < 430;
+
                           final aprobarBtn = ElevatedButton.icon(
                             onPressed: () {
                               Navigator.pop(ctx);
@@ -284,6 +293,7 @@ class _ValidacionReportesScreenState extends State<ValidacionReportesScreen> {
                               ),
                             ),
                           );
+
                           final devolverBtn = ElevatedButton.icon(
                             onPressed: () {
                               final motivo = motivoController.text.trim();
@@ -411,6 +421,27 @@ class _ValidacionReportesScreenState extends State<ValidacionReportesScreen> {
   Widget build(BuildContext context) {
     final isMobile = _isMobile(context);
 
+    if (isMobile) {
+      return SafeArea(
+        top: false,
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 28),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildHero(isMobile: true),
+              const SizedBox(height: 16),
+              _buildResumen(),
+              const SizedBox(height: 16),
+              _buildFiltros(true),
+              const SizedBox(height: 12),
+              _buildLista(),
+            ],
+          ),
+        ),
+      );
+    }
+
     return SafeArea(
       top: false,
       child: Center(
@@ -419,32 +450,22 @@ class _ValidacionReportesScreenState extends State<ValidacionReportesScreen> {
           child: Column(
             children: [
               Padding(
-                padding: EdgeInsets.fromLTRB(
-                  isMobile ? 16 : 28,
-                  isMobile ? 16 : 28,
-                  isMobile ? 16 : 28,
-                  0,
-                ),
+                padding: const EdgeInsets.fromLTRB(28, 28, 28, 0),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _buildHero(isMobile: isMobile),
-                    SizedBox(height: isMobile ? 16 : 20),
+                    _buildHero(isMobile: false),
+                    const SizedBox(height: 20),
                     _buildResumen(),
-                    SizedBox(height: isMobile ? 16 : 20),
-                    _buildFiltros(isMobile),
-                    SizedBox(height: isMobile ? 12 : 16),
+                    const SizedBox(height: 20),
+                    _buildFiltros(false),
+                    const SizedBox(height: 16),
                   ],
                 ),
               ),
               Expanded(
                 child: Padding(
-                  padding: EdgeInsets.fromLTRB(
-                    isMobile ? 16 : 28,
-                    0,
-                    isMobile ? 16 : 28,
-                    isMobile ? 16 : 28,
-                  ),
+                  padding: const EdgeInsets.fromLTRB(28, 0, 28, 28),
                   child: _buildLista(),
                 ),
               ),
@@ -532,31 +553,44 @@ class _ValidacionReportesScreenState extends State<ValidacionReportesScreen> {
         .length;
     final devueltos = _reportes.where((r) => r['estado'] == 'devuelto').length;
 
+    final isMobile = _isMobile(context);
+
+    final cards = [
+      _SummaryRow(
+        label: 'Pend. validación',
+        value: '$pendVal',
+        color: AppConfig.rojo,
+      ),
+      _SummaryRow(
+        label: 'Publicados',
+        value: '$aprobados',
+        color: AppConfig.verde,
+      ),
+      _SummaryRow(
+        label: 'Devueltos',
+        value: '$devueltos',
+        color: const Color(0xFF9C27B0),
+      ),
+    ];
+
+    if (isMobile) {
+      return Column(
+        children: [
+          for (int i = 0; i < cards.length; i++) ...[
+            SizedBox(width: double.infinity, child: cards[i]),
+            if (i != cards.length - 1) const SizedBox(height: 10),
+          ],
+        ],
+      );
+    }
+
     return Row(
       children: [
-        Expanded(
-          child: _SummaryRow(
-            label: 'Pend. validación',
-            value: '$pendVal',
-            color: AppConfig.rojo,
-          ),
-        ),
+        Expanded(child: cards[0]),
         const SizedBox(width: 12),
-        Expanded(
-          child: _SummaryRow(
-            label: 'Publicados',
-            value: '$aprobados',
-            color: AppConfig.verde,
-          ),
-        ),
+        Expanded(child: cards[1]),
         const SizedBox(width: 12),
-        Expanded(
-          child: _SummaryRow(
-            label: 'Devueltos',
-            value: '$devueltos',
-            color: const Color(0xFF9C27B0),
-          ),
-        ),
+        Expanded(child: cards[2]),
       ],
     );
   }
@@ -715,6 +749,11 @@ class _ValidacionReportesScreenState extends State<ValidacionReportesScreen> {
     }
 
     return ListView.builder(
+      shrinkWrap: true,
+      primary: false,
+      physics: _isMobile(context)
+          ? const NeverScrollableScrollPhysics()
+          : const AlwaysScrollableScrollPhysics(),
       itemCount: _reportesFiltrados.length,
       itemBuilder: (context, index) {
         final r = _reportesFiltrados[index];
@@ -761,26 +800,35 @@ class _ValidacionReportesScreenState extends State<ValidacionReportesScreen> {
               ),
             ),
             isThreeLine: true,
-            trailing: estado == 'resuelto_pendiente_validacion'
-                ? Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: AppConfig.rojo.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Text(
-                      'REVISAR',
-                      style: TextStyle(
-                        fontSize: 10,
-                        color: AppConfig.rojo,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
+            trailing: _isMobile(context)
+                ? Icon(
+                    estado == 'resuelto_pendiente_validacion'
+                        ? Icons.fact_check_rounded
+                        : Icons.chevron_right_rounded,
+                    color: estado == 'resuelto_pendiente_validacion'
+                        ? AppConfig.rojo
+                        : AppConfig.grisOscuro,
                   )
-                : const Icon(Icons.chevron_right_rounded),
+                : estado == 'resuelto_pendiente_validacion'
+                    ? Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppConfig.rojo.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Text(
+                          'REVISAR',
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: AppConfig.rojo,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      )
+                    : const Icon(Icons.chevron_right_rounded),
             onTap: () => _mostrarDetalle(r),
           ),
         );
@@ -792,6 +840,7 @@ class _ValidacionReportesScreenState extends State<ValidacionReportesScreen> {
 class _StatusChip extends StatelessWidget {
   final String label;
   final Color color;
+
   const _StatusChip({required this.label, required this.color});
 
   @override
@@ -818,6 +867,7 @@ class _SummaryRow extends StatelessWidget {
   final String label;
   final String value;
   final Color color;
+
   const _SummaryRow({
     required this.label,
     required this.value,
@@ -827,6 +877,7 @@ class _SummaryRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
+      width: double.infinity,
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: color.withOpacity(0.08),
@@ -859,6 +910,7 @@ class _SummaryRow extends StatelessWidget {
 
 class _SoftCard extends StatelessWidget {
   final Widget child;
+
   const _SoftCard({required this.child});
 
   @override
@@ -886,6 +938,7 @@ class _SoftCard extends StatelessWidget {
 class _HeroBadge extends StatelessWidget {
   final IconData icon;
   final String text;
+
   const _HeroBadge({required this.icon, required this.text});
 
   @override
@@ -918,6 +971,7 @@ class _HeroBadge extends StatelessWidget {
 class _HeroChip extends StatelessWidget {
   final IconData icon;
   final String text;
+
   const _HeroChip({required this.icon, required this.text});
 
   @override

@@ -1,6 +1,8 @@
 import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:image_cropper/image_cropper.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -25,7 +27,6 @@ class MiPerfilScreen extends StatefulWidget {
 class _MiPerfilScreenState extends State<MiPerfilScreen> {
   final SupabaseClient _supabase = SupabaseConfig.client;
 
-  // Edición
   final _formKey = GlobalKey<FormState>();
   final _nombreController = TextEditingController();
   final _cargoController = TextEditingController();
@@ -39,11 +40,9 @@ class _MiPerfilScreenState extends State<MiPerfilScreen> {
   bool _obscureConfirm = true;
   bool _cambiarPassword = false;
 
-  // Foto
   Uint8List? _nuevaFotoBytes;
   bool _subiendoFoto = false;
 
-  // Stats
   int _totalCasos = 0;
   int _casosRevision = 0;
   int _casosResueltos = 0;
@@ -59,12 +58,13 @@ class _MiPerfilScreenState extends State<MiPerfilScreen> {
   void _cargarDatos() {
     final authService = Provider.of<AuthService>(context, listen: false);
     final fd = authService.funcionarioData;
-    _nombreController.text = fd?['nombre']?.toString() ??
-        widget.userData['nombre']?.toString() ?? '';
-    _cargoController.text = fd?['cargo']?.toString() ??
-        widget.userData['cargo']?.toString() ?? '';
+    _nombreController.text =
+        fd?['nombre']?.toString() ?? widget.userData['nombre']?.toString() ?? '';
+    _cargoController.text =
+        fd?['cargo']?.toString() ?? widget.userData['cargo']?.toString() ?? '';
     _departamentoController.text = fd?['departamento']?.toString() ??
-        widget.userData['departamento']?.toString() ?? '';
+        widget.userData['departamento']?.toString() ??
+        '';
   }
 
   Future<void> _cargarStats() async {
@@ -109,12 +109,55 @@ class _MiPerfilScreenState extends State<MiPerfilScreen> {
       final picker = ImagePicker();
       final picked = await picker.pickImage(
         source: source,
-        maxWidth: 800,
-        maxHeight: 800,
-        imageQuality: 85,
+        maxWidth: 1400,
+        maxHeight: 1400,
+        imageQuality: 90,
       );
+
       if (picked == null) return;
-      final bytes = await picked.readAsBytes();
+
+      Uint8List bytes;
+
+      if (kIsWeb) {
+        bytes = await picked.readAsBytes();
+      } else {
+        try {
+          final cropped = await ImageCropper().cropImage(
+            sourcePath: picked.path,
+            compressFormat: ImageCompressFormat.jpg,
+            compressQuality: 88,
+            aspectRatio: const CropAspectRatio(ratioX: 1, ratioY: 1),
+            uiSettings: [
+              AndroidUiSettings(
+                toolbarTitle: 'Ajustar foto de perfil',
+                toolbarColor: AppConfig.azulOscuro,
+                toolbarWidgetColor: Colors.white,
+                backgroundColor: Colors.black,
+                activeControlsWidgetColor: AppConfig.azulClaro,
+                lockAspectRatio: true,
+                hideBottomControls: false,
+                initAspectRatio: CropAspectRatioPreset.square,
+              ),
+              IOSUiSettings(
+                title: 'Ajustar foto de perfil',
+                aspectRatioLockEnabled: true,
+                resetAspectRatioEnabled: false,
+                rotateButtonsHidden: false,
+                rotateClockwiseButtonHidden: false,
+              ),
+            ],
+          );
+
+          if (cropped != null) {
+            bytes = await cropped.readAsBytes();
+          } else {
+            bytes = await picked.readAsBytes();
+          }
+        } catch (_) {
+          bytes = await picked.readAsBytes();
+        }
+      }
+
       setState(() => _nuevaFotoBytes = bytes);
     } catch (e) {
       _showError('No se pudo seleccionar la imagen');
@@ -192,7 +235,8 @@ class _MiPerfilScreenState extends State<MiPerfilScreen> {
                     color: AppConfig.rojo.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: const Icon(Icons.delete_rounded, color: AppConfig.rojo),
+                  child:
+                      const Icon(Icons.delete_rounded, color: AppConfig.rojo),
                 ),
                 title: const Text('Eliminar foto',
                     style: TextStyle(
@@ -272,7 +316,6 @@ class _MiPerfilScreenState extends State<MiPerfilScreen> {
         );
       }
 
-      // Refrescar datos locales
       final fd = await _supabase
           .from('funcionarios')
           .select()
@@ -280,7 +323,6 @@ class _MiPerfilScreenState extends State<MiPerfilScreen> {
           .maybeSingle();
 
       if (fd != null && mounted) {
-        // Actualizar datos en el servicio
         authService.updateFuncionarioData(Map<String, dynamic>.from(fd));
       }
 
@@ -453,13 +495,17 @@ class _MiPerfilScreenState extends State<MiPerfilScreen> {
     final fd = authService.funcionarioData;
 
     final nombre = fd?['nombre']?.toString() ??
-        widget.userData['nombre']?.toString() ?? 'Funcionario';
+        widget.userData['nombre']?.toString() ??
+        'Funcionario';
     final correo = fd?['correo']?.toString() ??
-        widget.userData['correo']?.toString() ?? '';
+        widget.userData['correo']?.toString() ??
+        '';
     final cargo = fd?['cargo']?.toString() ??
-        widget.userData['cargo']?.toString() ?? 'Funcionario';
+        widget.userData['cargo']?.toString() ??
+        'Funcionario';
     final departamento = fd?['departamento']?.toString() ??
-        widget.userData['departamento']?.toString() ?? 'No especificado';
+        widget.userData['departamento']?.toString() ??
+        'No especificado';
     final fotoUrl = fd?['foto_url']?.toString();
 
     final userData = {
@@ -480,14 +526,14 @@ class _MiPerfilScreenState extends State<MiPerfilScreen> {
         backgroundColor: AppConfig.azulOscuro,
         elevation: 0,
         automaticallyImplyLeading: false,
-leading: isMobile
-    ? null
-    : Builder(
-        builder: (ctx) => IconButton(
-          icon: const Icon(Icons.menu_rounded, color: Colors.white),
-          onPressed: () => Scaffold.of(ctx).openDrawer(),
-        ),
-      ),
+        leading: isMobile
+            ? null
+            : Builder(
+                builder: (ctx) => IconButton(
+                  icon: const Icon(Icons.menu_rounded, color: Colors.white),
+                  onPressed: () => Scaffold.of(ctx).openDrawer(),
+                ),
+              ),
         actions: [
           if (!_editando)
             Padding(
@@ -499,7 +545,8 @@ leading: isMobile
                 style: FilledButton.styleFrom(
                   backgroundColor: Colors.white.withOpacity(0.18),
                   foregroundColor: Colors.white,
-                  textStyle: const TextStyle(fontWeight: FontWeight.w700),
+                  textStyle:
+                      const TextStyle(fontWeight: FontWeight.w700),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
@@ -527,7 +574,8 @@ leading: isMobile
                 style: OutlinedButton.styleFrom(
                   foregroundColor: Colors.white70,
                   side: const BorderSide(color: Colors.white30),
-                  textStyle: const TextStyle(fontWeight: FontWeight.w600),
+                  textStyle:
+                      const TextStyle(fontWeight: FontWeight.w600),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
@@ -732,8 +780,8 @@ leading: isMobile
                     decoration: BoxDecoration(
                       color: Colors.white.withOpacity(0.16),
                       borderRadius: BorderRadius.circular(999),
-                      border:
-                          Border.all(color: Colors.white.withOpacity(0.3)),
+                      border: Border.all(
+                          color: Colors.white.withOpacity(0.3)),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
@@ -898,8 +946,8 @@ leading: isMobile
                       icon: Icon(_obscureConfirm
                           ? Icons.visibility_off_rounded
                           : Icons.visibility_rounded),
-                      onPressed: () =>
-                          setState(() => _obscureConfirm = !_obscureConfirm),
+                      onPressed: () => setState(
+                          () => _obscureConfirm = !_obscureConfirm),
                     ),
                     filled: true,
                     fillColor: const Color(0xFFF8FAFC),
@@ -913,7 +961,8 @@ leading: isMobile
                 width: double.infinity,
                 height: 52,
                 child: ElevatedButton.icon(
-                  onPressed: (_guardando || _subiendoFoto) ? null : _guardar,
+                  onPressed:
+                      (_guardando || _subiendoFoto) ? null : _guardar,
                   icon: (_guardando || _subiendoFoto)
                       ? const SizedBox(
                           width: 18,
@@ -1004,7 +1053,8 @@ leading: isMobile
             decoration: BoxDecoration(
               color: AppConfig.verde.withOpacity(0.08),
               borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: AppConfig.verde.withOpacity(0.18)),
+              border:
+                  Border.all(color: AppConfig.verde.withOpacity(0.18)),
             ),
             child: Row(
               children: [
@@ -1078,7 +1128,9 @@ leading: isMobile
   }) {
     return Container(
       decoration: BoxDecoration(
-        color: enabled ? const Color(0xFFF8FAFC) : const Color(0xFFEEF2F6),
+        color: enabled
+            ? const Color(0xFFF8FAFC)
+            : const Color(0xFFEEF2F6),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppConfig.grisMedio),
       ),
@@ -1181,8 +1233,8 @@ class _CardHeading extends StatelessWidget {
                       color: AppConfig.azulOscuro)),
               const SizedBox(height: 3),
               Text(subtitle,
-                  style:
-                      TextStyle(fontSize: 12.5, color: AppConfig.grisOscuro)),
+                  style: TextStyle(
+                      fontSize: 12.5, color: AppConfig.grisOscuro)),
             ],
           ),
         ),
@@ -1275,7 +1327,8 @@ class _HeroChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
+      padding:
+          const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.14),
         borderRadius: BorderRadius.circular(999),

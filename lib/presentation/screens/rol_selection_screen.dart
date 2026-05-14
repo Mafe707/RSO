@@ -426,7 +426,7 @@ class _Footer extends StatelessWidget {
       crossAxisAlignment: alignment,
       children: [
         Text(
-          '© 2025 - Ruta Sin Obstáculos',
+          '© 2026 - Ruta Sin Obstáculos',
           textAlign: alignment == CrossAxisAlignment.center
               ? TextAlign.center
               : TextAlign.left,

@@ -12,8 +12,7 @@ class GestionFuncionariosScreen extends StatefulWidget {
       _GestionFuncionariosScreenState();
 }
 
-class _GestionFuncionariosScreenState
-    extends State<GestionFuncionariosScreen> {
+class _GestionFuncionariosScreenState extends State<GestionFuncionariosScreen> {
   final SupabaseClient _supabase = SupabaseConfig.client;
 
   String _filtroEstado = 'pendiente';
@@ -34,6 +33,7 @@ class _GestionFuncionariosScreenState
     } else {
       setState(() => _cargando = true);
     }
+
     try {
       final response = await _supabase
           .from('funcionarios')
@@ -49,10 +49,12 @@ class _GestionFuncionariosScreenState
       });
     } catch (e) {
       if (!mounted) return;
+
       setState(() {
         _cargando = false;
         _recargando = false;
       });
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Error al cargar funcionarios: $e'),
@@ -90,6 +92,7 @@ class _GestionFuncionariosScreenState
       }).eq('id', func['id']);
 
       if (!mounted) return;
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('${func['nombre']} aprobado correctamente'),
@@ -99,6 +102,7 @@ class _GestionFuncionariosScreenState
       _cargarFuncionarios(silencioso: true);
     } catch (e) {
       if (!mounted) return;
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Error al aprobar: $e'),
@@ -117,6 +121,7 @@ class _GestionFuncionariosScreenState
       }).eq('id', func['id']);
 
       if (!mounted) return;
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('${func['nombre']} rechazado'),
@@ -126,6 +131,7 @@ class _GestionFuncionariosScreenState
       _cargarFuncionarios(silencioso: true);
     } catch (e) {
       if (!mounted) return;
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Error al rechazar: $e'),
@@ -137,6 +143,7 @@ class _GestionFuncionariosScreenState
 
   Future<void> _toggleActivo(Map<String, dynamic> func) async {
     final nuevoActivo = !(func['activo'] == true);
+
     try {
       await _supabase.from('funcionarios').update({
         'activo': nuevoActivo,
@@ -144,6 +151,7 @@ class _GestionFuncionariosScreenState
       }).eq('id', func['id']);
 
       if (!mounted) return;
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
@@ -157,6 +165,7 @@ class _GestionFuncionariosScreenState
       _cargarFuncionarios(silencioso: true);
     } catch (e) {
       if (!mounted) return;
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Error: $e'),
@@ -188,16 +197,22 @@ class _GestionFuncionariosScreenState
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
       builder: (ctx) {
+        int? reportesAsignados;
+        bool cargandoConteo = true;
+
         return StatefulBuilder(
           builder: (ctx, setModalState) {
-            int? reportesAsignados;
-
-            Future.microtask(() async {
-              final count = await _contarReportesAsignados(func['id'] as int);
-              if (ctx.mounted) {
-                setModalState(() => reportesAsignados = count);
-              }
-            });
+            if (cargandoConteo) {
+              cargandoConteo = false;
+              Future.microtask(() async {
+                final count = await _contarReportesAsignados(func['id'] as int);
+                if (ctx.mounted) {
+                  setModalState(() {
+                    reportesAsignados = count;
+                  });
+                }
+              });
+            }
 
             return Padding(
               padding: EdgeInsets.only(
@@ -330,9 +345,8 @@ class _GestionFuncionariosScreenState
                                 label: const Text('Aprobar'),
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: AppConfig.verde,
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: 14,
-                                  ),
+                                  padding:
+                                      const EdgeInsets.symmetric(vertical: 14),
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(16),
                                   ),
@@ -348,9 +362,8 @@ class _GestionFuncionariosScreenState
                                 label: const Text('Rechazar'),
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: AppConfig.rojo,
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: 14,
-                                  ),
+                                  padding:
+                                      const EdgeInsets.symmetric(vertical: 14),
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(16),
                                   ),
@@ -404,9 +417,8 @@ class _GestionFuncionariosScreenState
                                 backgroundColor: activo
                                     ? AppConfig.naranja
                                     : AppConfig.verde,
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 14,
-                                ),
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 14),
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(16),
                                 ),
@@ -497,6 +509,27 @@ class _GestionFuncionariosScreenState
   Widget build(BuildContext context) {
     final isMobile = _isMobile(context);
 
+    if (isMobile) {
+      return SafeArea(
+        top: false,
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 28),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildHero(isMobile: true),
+              const SizedBox(height: 16),
+              _buildResumen(),
+              const SizedBox(height: 16),
+              _buildFiltros(true),
+              const SizedBox(height: 12),
+              _buildLista(),
+            ],
+          ),
+        ),
+      );
+    }
+
     return SafeArea(
       top: false,
       child: Center(
@@ -505,32 +538,22 @@ class _GestionFuncionariosScreenState
           child: Column(
             children: [
               Padding(
-                padding: EdgeInsets.fromLTRB(
-                  isMobile ? 16 : 28,
-                  isMobile ? 16 : 28,
-                  isMobile ? 16 : 28,
-                  0,
-                ),
+                padding: const EdgeInsets.fromLTRB(28, 28, 28, 0),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _buildHero(isMobile: isMobile),
-                    SizedBox(height: isMobile ? 16 : 20),
+                    _buildHero(isMobile: false),
+                    const SizedBox(height: 20),
                     _buildResumen(),
-                    SizedBox(height: isMobile ? 16 : 20),
-                    _buildFiltros(isMobile),
-                    SizedBox(height: isMobile ? 12 : 16),
+                    const SizedBox(height: 20),
+                    _buildFiltros(false),
+                    const SizedBox(height: 16),
                   ],
                 ),
               ),
               Expanded(
                 child: Padding(
-                  padding: EdgeInsets.fromLTRB(
-                    isMobile ? 16 : 28,
-                    0,
-                    isMobile ? 16 : 28,
-                    isMobile ? 16 : 28,
-                  ),
+                  padding: const EdgeInsets.fromLTRB(28, 0, 28, 28),
                   child: _buildLista(),
                 ),
               ),
@@ -617,31 +640,44 @@ class _GestionFuncionariosScreenState
     final rechazados =
         _funcionarios.where((f) => f['estado'] == 'rechazado').length;
 
+    final isMobile = _isMobile(context);
+
+    final cards = [
+      _SummaryRow(
+        label: 'Pendientes',
+        value: '$pendientes',
+        color: AppConfig.naranja,
+      ),
+      _SummaryRow(
+        label: 'Aprobados',
+        value: '$aprobados',
+        color: AppConfig.verde,
+      ),
+      _SummaryRow(
+        label: 'Rechazados',
+        value: '$rechazados',
+        color: AppConfig.rojo,
+      ),
+    ];
+
+    if (isMobile) {
+      return Column(
+        children: [
+          for (int i = 0; i < cards.length; i++) ...[
+            SizedBox(width: double.infinity, child: cards[i]),
+            if (i != cards.length - 1) const SizedBox(height: 10),
+          ],
+        ],
+      );
+    }
+
     return Row(
       children: [
-        Expanded(
-          child: _SummaryRow(
-            label: 'Pendientes',
-            value: '$pendientes',
-            color: AppConfig.naranja,
-          ),
-        ),
+        Expanded(child: cards[0]),
         const SizedBox(width: 12),
-        Expanded(
-          child: _SummaryRow(
-            label: 'Aprobados',
-            value: '$aprobados',
-            color: AppConfig.verde,
-          ),
-        ),
+        Expanded(child: cards[1]),
         const SizedBox(width: 12),
-        Expanded(
-          child: _SummaryRow(
-            label: 'Rechazados',
-            value: '$rechazados',
-            color: AppConfig.rojo,
-          ),
-        ),
+        Expanded(child: cards[2]),
       ],
     );
   }
@@ -800,6 +836,11 @@ class _GestionFuncionariosScreenState
     }
 
     return ListView.builder(
+      shrinkWrap: true,
+      primary: false,
+      physics: _isMobile(context)
+          ? const NeverScrollableScrollPhysics()
+          : const AlwaysScrollableScrollPhysics(),
       itemCount: _filtrados.length,
       itemBuilder: (context, index) {
         final f = _filtrados[index];
@@ -867,26 +908,35 @@ class _GestionFuncionariosScreenState
               ),
             ),
             isThreeLine: true,
-            trailing: estado == 'pendiente'
-                ? Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: AppConfig.naranja.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Text(
-                      'REVISAR',
-                      style: TextStyle(
-                        fontSize: 10,
-                        color: AppConfig.naranja,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
+            trailing: _isMobile(context)
+                ? Icon(
+                    estado == 'pendiente'
+                        ? Icons.manage_accounts_rounded
+                        : Icons.chevron_right_rounded,
+                    color: estado == 'pendiente'
+                        ? AppConfig.naranja
+                        : AppConfig.grisOscuro,
                   )
-                : const Icon(Icons.chevron_right_rounded),
+                : estado == 'pendiente'
+                    ? Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppConfig.naranja.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Text(
+                          'REVISAR',
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: AppConfig.naranja,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      )
+                    : const Icon(Icons.chevron_right_rounded),
             onTap: () => _mostrarDetalle(f),
           ),
         );
@@ -898,6 +948,7 @@ class _GestionFuncionariosScreenState
 class _StatusChip extends StatelessWidget {
   final String label;
   final Color color;
+
   const _StatusChip({required this.label, required this.color});
 
   @override
@@ -924,6 +975,7 @@ class _SummaryRow extends StatelessWidget {
   final String label;
   final String value;
   final Color color;
+
   const _SummaryRow({
     required this.label,
     required this.value,
@@ -933,6 +985,7 @@ class _SummaryRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
+      width: double.infinity,
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: color.withOpacity(0.08),
@@ -965,6 +1018,7 @@ class _SummaryRow extends StatelessWidget {
 
 class _SoftCard extends StatelessWidget {
   final Widget child;
+
   const _SoftCard({required this.child});
 
   @override
@@ -992,6 +1046,7 @@ class _SoftCard extends StatelessWidget {
 class _HeroBadge extends StatelessWidget {
   final IconData icon;
   final String text;
+
   const _HeroBadge({required this.icon, required this.text});
 
   @override
