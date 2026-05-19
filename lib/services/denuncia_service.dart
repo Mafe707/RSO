@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -6,7 +7,7 @@ import '../core/utils/codigo_generator.dart';
 
 // Modelo para grupo de denuncias con misma ubicación + categoría
 class GrupoDenuncias {
-  final String claveGrupo; // ubicacion|categoria
+  final String claveGrupo;
   final String ubicacion;
   final String categoria;
   final List<Map<String, dynamic>> denuncias;
@@ -20,12 +21,13 @@ class GrupoDenuncias {
 
   int get totalCasos => denuncias.length;
 
-  // Estado del grupo: el peor estado de todos
   String get estadoGrupo {
     final estados = denuncias.map((d) => d['estado']?.toString() ?? '').toList();
     if (estados.any((e) => e == 'devuelto')) return 'devuelto';
     if (estados.any((e) => e == 'en_revision')) return 'en_revision';
-    if (estados.any((e) => e == 'resuelto_pendiente_validacion')) return 'resuelto_pendiente_validacion';
+    if (estados.any((e) => e == 'resuelto_pendiente_validacion')) {
+      return 'resuelto_pendiente_validacion';
+    }
     if (estados.any((e) => e == 'resuelto_publicado')) return 'resuelto_publicado';
     return 'pendiente';
   }
@@ -45,34 +47,78 @@ class DenunciaService extends ChangeNotifier {
 
   static const String _bucketEvidencias = 'evidencias';
   static const int _maxSizeBytes = 5 * 1024 * 1024;
+  static const double _radioAgrupacionMetros = 50;
 
-  // Agrupa denuncias por ubicacion + categoria (misma invasión)
   static List<GrupoDenuncias> agruparDenuncias(List<Map<String, dynamic>> lista) {
-    final Map<String, List<Map<String, dynamic>>> mapa = {};
-    for (final d in lista) {
-      final ubicacion = (d['ubicacion']?.toString() ?? '').trim().toLowerCase();
-      final categoria = (d['categoria']?.toString() ?? '').trim().toLowerCase();
-      final clave = '$ubicacion|$categoria';
-      mapa.putIfAbsent(clave, () => []);
-      mapa[clave]!.add(d);
-    }
-    return mapa.entries.map((entry) {
-      final primera = entry.value.first;
-      return GrupoDenuncias(
-        claveGrupo: entry.key,
-        ubicacion: primera['ubicacion']?.toString() ?? '',
-        categoria: primera['categoria']?.toString() ?? '',
-        denuncias: entry.value,
+    final List<GrupoDenuncias> grupos = [];
+
+    for (final denuncia in lista) {
+      final categoriaNorm = _normalizarCategoria(
+        denuncia['categoria']?.toString() ?? '',
       );
-    }).toList()
-      ..sort((a, b) => b.totalCasos.compareTo(a.totalCasos));
+      final ubicacionNorm = _normalizarDireccion(
+        denuncia['ubicacion']?.toString() ?? '',
+      );
+
+      final lat = _toDouble(denuncia['latitud']);
+      final lng = _toDouble(denuncia['longitud']);
+
+      GrupoDenuncias? grupoEncontrado;
+
+      for (final grupo in grupos) {
+        final categoriaGrupoNorm = _normalizarCategoria(grupo.categoria);
+        if (categoriaGrupoNorm != categoriaNorm) continue;
+
+        final ubicacionGrupoNorm = _normalizarDireccion(grupo.ubicacion);
+
+        final coincideTexto = _direccionesParecidas(
+          ubicacionNorm,
+          ubicacionGrupoNorm,
+        );
+
+        bool coincideMapa = false;
+        if (lat != null && lng != null) {
+          for (final d in grupo.denuncias) {
+            final glat = _toDouble(d['latitud']);
+            final glng = _toDouble(d['longitud']);
+            if (glat != null && glng != null) {
+              final distancia = _distanciaMetros(lat, lng, glat, glng);
+              if (distancia <= _radioAgrupacionMetros) {
+                coincideMapa = true;
+                break;
+              }
+            }
+          }
+        }
+
+        if (coincideTexto || coincideMapa) {
+          grupoEncontrado = grupo;
+          break;
+        }
+      }
+
+      if (grupoEncontrado != null) {
+        grupoEncontrado.denuncias.add(denuncia);
+      } else {
+        grupos.add(
+          GrupoDenuncias(
+            claveGrupo: '${ubicacionNorm}|$categoriaNorm',
+            ubicacion: denuncia['ubicacion']?.toString() ?? '',
+            categoria: denuncia['categoria']?.toString() ?? '',
+            denuncias: [denuncia],
+          ),
+        );
+      }
+    }
+
+    grupos.sort((a, b) => b.totalCasos.compareTo(a.totalCasos));
+    return grupos;
   }
 
   // Cast profundo para respuestas con joins de Supabase
   static List<Map<String, dynamic>> castearLista(dynamic response) {
     return (response as List).map((item) {
       final mapa = Map<String, dynamic>.from(item as Map);
-      // Cast profundo de listas anidadas (evidencias, etc.)
       mapa.forEach((key, value) {
         if (value is List) {
           mapa[key] = value
@@ -83,6 +129,110 @@ class DenunciaService extends ChangeNotifier {
       return mapa;
     }).toList();
   }
+
+  static String _normalizarCategoria(String input) {
+    return input
+        .toLowerCase()
+        .trim()
+        .replaceAll(RegExp(r'[^a-z0-9áéíóúñ\s]'), ' ')
+        .replaceAll(RegExp(r'\s+'), ' ');
+  }
+
+  static String _normalizarDireccion(String input) {
+    var s = input.toLowerCase().trim();
+
+    s = s
+        .replaceAll('carrera', 'cra')
+        .replaceAll('cra.', 'cra')
+        .replaceAll('cr.', 'cra')
+        .replaceAll('cr ', 'cra ')
+        .replaceAll('calle', 'cl')
+        .replaceAll('cll', 'cl')
+        .replaceAll('cl.', 'cl')
+        .replaceAll('avenida', 'av')
+        .replaceAll('av.', 'av')
+        .replaceAll('diagonal', 'dg')
+        .replaceAll('diag.', 'dg')
+        .replaceAll('transversal', 'tv')
+        .replaceAll('transv.', 'tv')
+        .replaceAll('trans.', 'tv')
+        .replaceAll('#', ' ')
+        .replaceAll('-', ' ')
+        .replaceAll('.', ' ')
+        .replaceAll(',', ' ')
+        .replaceAll(';', ' ')
+        .replaceAll(':', ' ');
+
+    s = s.replaceAll(RegExp(r'[^a-z0-9áéíóúñ\s]'), ' ');
+    s = s.replaceAll(RegExp(r'\s+'), ' ').trim();
+
+    return s;
+  }
+
+  static bool _direccionesParecidas(String a, String b) {
+    if (a.isEmpty || b.isEmpty) return false;
+    if (a == b) return true;
+    if (a.contains(b) || b.contains(a)) return true;
+
+    final tokensA = a.split(' ').where((e) => e.isNotEmpty).toList();
+    final tokensB = b.split(' ').where((e) => e.isNotEmpty).toList();
+
+    final numsA = tokensA.where((t) => RegExp(r'^\d+$').hasMatch(t)).toList();
+    final numsB = tokensB.where((t) => RegExp(r'^\d+$').hasMatch(t)).toList();
+
+    final viasA = tokensA.where((t) => !RegExp(r'^\d+$').hasMatch(t)).toList();
+    final viasB = tokensB.where((t) => !RegExp(r'^\d+$').hasMatch(t)).toList();
+
+    final mismaVia = viasA.isNotEmpty && viasB.isNotEmpty && viasA.first == viasB.first;
+
+    final numerosCoinciden = numsA.isNotEmpty &&
+        numsB.isNotEmpty &&
+        _interseccion(numsA, numsB) >= math.min(numsA.length, numsB.length);
+
+    if (mismaVia && numerosCoinciden) return true;
+
+    final coincidencias = _interseccion(tokensA, tokensB);
+    final totalMin = math.min(tokensA.length, tokensB.length);
+    if (totalMin == 0) return false;
+
+    final ratio = coincidencias / totalMin;
+    return ratio >= 0.75;
+  }
+
+  static int _interseccion(List<String> a, List<String> b) {
+    final setB = b.toSet();
+    return a.where(setB.contains).length;
+  }
+
+  static double? _toDouble(dynamic value) {
+    if (value == null) return null;
+    if (value is double) return value;
+    if (value is int) return value.toDouble();
+    return double.tryParse(value.toString());
+  }
+
+  static double _distanciaMetros(
+    double lat1,
+    double lon1,
+    double lat2,
+    double lon2,
+  ) {
+    const earthRadius = 6371000.0;
+    final dLat = _degToRad(lat2 - lat1);
+    final dLon = _degToRad(lon2 - lon1);
+
+    final a =
+        math.sin(dLat / 2) * math.sin(dLat / 2) +
+        math.cos(_degToRad(lat1)) *
+            math.cos(_degToRad(lat2)) *
+            math.sin(dLon / 2) *
+            math.sin(dLon / 2);
+
+    final c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a));
+    return earthRadius * c;
+  }
+
+  static double _degToRad(double deg) => deg * (math.pi / 180.0);
 
   Future<Map<String, dynamic>?> crearDenuncia({
     required String ubicacion,
@@ -232,7 +382,6 @@ class DenunciaService extends ChangeNotifier {
     }
   }
 
-  // Actualiza estado para todos los IDs de un grupo
   Future<bool> actualizarEstadoGrupo(List<int> ids, String nuevoEstado) async {
     try {
       for (final id in ids) {
@@ -265,7 +414,6 @@ class DenunciaService extends ChangeNotifier {
     }
   }
 
-  // Agrega respuesta oficial para todos los IDs de un grupo
   Future<bool> agregarRespuestaOficialGrupo(List<int> ids, String respuesta) async {
     try {
       for (final id in ids) {
@@ -298,7 +446,6 @@ class DenunciaService extends ChangeNotifier {
     }
   }
 
-  // Asigna funcionario a todo el grupo
   Future<bool> asignarFuncionarioGrupo(List<int> ids, int funcionarioId) async {
     try {
       for (final id in ids) {
