@@ -64,13 +64,17 @@ class _NuevosReportesScreenState extends State<NuevosReportesScreen> {
 
     if (!mounted) return;
     if (ok) {
+      // Mensaje adaptado: individual no menciona "grupo"
+      final msg = grupo.esIndividual
+          ? 'Reporte asignado correctamente'
+          : 'Grupo "${grupo.ubicacion}" (${grupo.totalCasos} caso${grupo.totalCasos > 1 ? 's' : ''}) asignado correctamente';
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Grupo "${grupo.ubicacion}" (${grupo.totalCasos} caso${grupo.totalCasos > 1 ? 's' : ''}) asignado correctamente'),
+        content: Text(msg),
         backgroundColor: AppConfig.verde,
       ));
       _cargarReportes();
     } else {
-      _showError('Error al asignar el grupo');
+      _showError('Error al asignar el reporte');
     }
   }
 
@@ -163,12 +167,14 @@ class _NuevosReportesScreenState extends State<NuevosReportesScreen> {
                     Text(grupo.categoria, style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: AppConfig.azulOscuro)),
                     Text(grupo.ubicacion, style: TextStyle(color: AppConfig.grisOscuro, fontSize: 13), maxLines: 2, overflow: TextOverflow.ellipsis),
                   ])),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                    decoration: BoxDecoration(color: AppConfig.azulOscuro.withOpacity(0.1), borderRadius: BorderRadius.circular(999)),
-                    child: Text('${grupo.totalCasos} caso${grupo.totalCasos > 1 ? 's' : ''}',
-                      style: const TextStyle(fontWeight: FontWeight.w800, color: AppConfig.azulOscuro, fontSize: 12)),
-                  ),
+                  // Solo mostrar contador de casos si es grupo real (más de 1)
+                  if (!grupo.esIndividual)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                      decoration: BoxDecoration(color: AppConfig.azulOscuro.withOpacity(0.1), borderRadius: BorderRadius.circular(999)),
+                      child: Text('${grupo.totalCasos} caso${grupo.totalCasos > 1 ? 's' : ''}',
+                        style: const TextStyle(fontWeight: FontWeight.w800, color: AppConfig.azulOscuro, fontSize: 12)),
+                    ),
                 ]),
                 const SizedBox(height: 10),
                 SizedBox(
@@ -176,7 +182,12 @@ class _NuevosReportesScreenState extends State<NuevosReportesScreen> {
                   child: ElevatedButton.icon(
                     onPressed: () { Navigator.pop(ctx); _asignarGrupo(grupo); },
                     icon: const Icon(Icons.person_add_alt_1_rounded, size: 18),
-                    label: Text('Asignarme este grupo (${grupo.totalCasos} caso${grupo.totalCasos > 1 ? 's' : ''})'),
+                    // Texto adaptado según si es individual o grupo
+                    label: Text(
+                      grupo.esIndividual
+                          ? 'Asignarme este reporte'
+                          : 'Asignarme este grupo (${grupo.totalCasos} caso${grupo.totalCasos > 1 ? 's' : ''})',
+                    ),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppConfig.verde,
                       padding: const EdgeInsets.symmetric(vertical: 13),
@@ -292,7 +303,7 @@ class _NuevosReportesScreenState extends State<NuevosReportesScreen> {
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         const Text('Nuevos Reportes', style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w900)),
         const SizedBox(height: 6),
-        Text('${_grupos.length} grupo${_grupos.length != 1 ? 's' : ''} · ${_reportes.length} reporte${_reportes.length != 1 ? 's' : ''} sin asignar',
+        Text('${_grupos.length} elemento${_grupos.length != 1 ? 's' : ''} · ${_reportes.length} reporte${_reportes.length != 1 ? 's' : ''} sin asignar',
           style: const TextStyle(color: Colors.white70, fontSize: 13)),
       ]),
     );
@@ -410,15 +421,13 @@ class _VisorImagenesScreenState extends State<_VisorImagenesScreen> {
   }
 }
 
-// ── Widgets ──────────────────────────────────────────────────
-
 class _DenunciaDetalleCard extends StatefulWidget {
   final Map<String, dynamic> denuncia;
   final List<String> imagenes;
   final int index;
   final int total;
   final String Function(dynamic) formatFecha;
-  final void Function(int indice) onVerImagen;
+  final void Function(int) onVerImagen;
 
   const _DenunciaDetalleCard({
     required this.denuncia,
@@ -435,7 +444,13 @@ class _DenunciaDetalleCard extends StatefulWidget {
 
 class _DenunciaDetalleCardState extends State<_DenunciaDetalleCard> {
   int _imgIndex = 0;
-  final PageController _pageController = PageController();
+  late PageController _pageController;
+
+  @override
+  void initState() {
+    super.initState();
+    _pageController = PageController();
+  }
 
   @override
   void dispose() {
@@ -450,84 +465,46 @@ class _DenunciaDetalleCardState extends State<_DenunciaDetalleCard> {
 
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFFF5F7FB),
+        color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppConfig.grisMedio),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8, offset: const Offset(0, 4))],
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        // Cabecera
         Padding(
-          padding: const EdgeInsets.fromLTRB(14, 14, 14, 10),
+          padding: const EdgeInsets.fromLTRB(14, 14, 14, 0),
           child: Row(children: [
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(color: AppConfig.azulOscuro.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
-              child: Text('Reporte ${widget.index}/${widget.total}',
-                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: AppConfig.azulOscuro)),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(color: AppConfig.azulOscuro.withOpacity(0.08), borderRadius: BorderRadius.circular(999)),
+              child: Text('Caso ${widget.index} de ${widget.total}',
+                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppConfig.azulOscuro)),
             ),
-            const SizedBox(width: 8),
-            Expanded(child: Text(d['codigo_unico'] ?? '—',
-              style: const TextStyle(fontWeight: FontWeight.w800, color: AppConfig.azulOscuro, fontSize: 13))),
-            Text(widget.formatFecha(d['creado_en']), style: TextStyle(fontSize: 11, color: AppConfig.grisOscuro)),
+            const Spacer(),
+            Text(d['codigo_unico']?.toString() ?? '', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: AppConfig.azulOscuro)),
           ]),
         ),
-        // Descripción
         Padding(
-          padding: const EdgeInsets.fromLTRB(14, 0, 14, 10),
+          padding: const EdgeInsets.fromLTRB(14, 10, 14, 0),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            const Text('Descripción', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppConfig.grisOscuro)),
-            const SizedBox(height: 4),
-            Text(d['descripcion'] ?? '—', style: const TextStyle(fontSize: 13)),
+            if ((d['descripcion'] ?? '').toString().isNotEmpty)
+              Text(d['descripcion'].toString(), style: const TextStyle(fontSize: 13), maxLines: 3, overflow: TextOverflow.ellipsis),
             const SizedBox(height: 8),
-            // Denunciante
-            if (d['es_anonima'] == true)
-              Row(children: [
-                Icon(Icons.visibility_off_rounded, size: 13, color: AppConfig.grisMedio),
-                const SizedBox(width: 5),
-                Text('Reporte anónimo', style: TextStyle(fontSize: 12, color: AppConfig.grisMedio, fontStyle: FontStyle.italic)),
-              ])
-            else ...[
-              const Text('Denunciante', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppConfig.grisOscuro)),
-              const SizedBox(height: 4),
-              Row(children: [
-                const Icon(Icons.person_rounded, size: 13, color: AppConfig.azulOscuro),
-                const SizedBox(width: 5),
-                Expanded(child: Text(
-                  '${d['ciudadano_nombre'] ?? ''} ${d['ciudadano_apellido'] ?? ''}'.trim().isEmpty
-                    ? 'Sin nombre registrado'
-                    : '${d['ciudadano_nombre'] ?? ''} ${d['ciudadano_apellido'] ?? ''}'.trim(),
-                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-                )),
-              ]),
-              if ((d['ciudadano_correo']?.toString() ?? '').isNotEmpty) ...[
-                const SizedBox(height: 3),
-                Row(children: [
-                  const Icon(Icons.email_rounded, size: 13, color: AppConfig.azulOscuro),
-                  const SizedBox(width: 5),
-                  Expanded(child: Text(d['ciudadano_correo'].toString(),
-                    style: TextStyle(fontSize: 12, color: AppConfig.grisOscuro))),
-                ]),
-              ],
-              if ((d['ciudadano_telefono']?.toString() ?? '').isNotEmpty) ...[
-                const SizedBox(height: 3),
-                Row(children: [
-                  const Icon(Icons.phone_rounded, size: 13, color: AppConfig.azulOscuro),
-                  const SizedBox(width: 5),
-                  Text(d['ciudadano_telefono'].toString(),
-                    style: TextStyle(fontSize: 12, color: AppConfig.grisOscuro)),
-                ]),
-              ],
-            ],
+            Row(children: [
+              Icon(Icons.calendar_today_rounded, size: 12, color: AppConfig.grisOscuro),
+              const SizedBox(width: 4),
+              Text(widget.formatFecha(d['creado_en']), style: TextStyle(fontSize: 11.5, color: AppConfig.grisOscuro)),
+            ]),
           ]),
         ),
-        // Fotos
+        const SizedBox(height: 10),
         if (imagenes.isNotEmpty) ...[
           Padding(
             padding: const EdgeInsets.fromLTRB(14, 0, 14, 6),
             child: Row(children: [
-              const Icon(Icons.photo_library_rounded, size: 13, color: AppConfig.azulOscuro),
+              Icon(Icons.photo_library_rounded, size: 13, color: AppConfig.azulOscuro),
               const SizedBox(width: 5),
-              Text('${imagenes.length} foto${imagenes.length > 1 ? 's' : ''}',
+              Text('${imagenes.length} imagen${imagenes.length > 1 ? 'es' : ''}',
                 style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppConfig.azulOscuro)),
               const Spacer(),
               GestureDetector(
@@ -563,7 +540,6 @@ class _DenunciaDetalleCardState extends State<_DenunciaDetalleCard> {
                 ),
               ),
             ),
-            // Overlay toque para ver completa
             Positioned.fill(
               child: GestureDetector(
                 onTap: () => widget.onVerImagen(_imgIndex),
@@ -596,7 +572,6 @@ class _DenunciaDetalleCardState extends State<_DenunciaDetalleCard> {
                 ),
               ),
             ],
-            // Ícono de expandir
             Positioned(
               bottom: 10, right: 12,
               child: Container(
@@ -688,7 +663,8 @@ class _GrupoCard extends StatelessWidget {
               const SizedBox(height: 3),
               Text(grupo.ubicacion, maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 12.5, color: AppConfig.grisOscuro)),
             ])),
-            if (esMultiple)
+            // Badge de múltiples reportes solo si no es individual
+            if (esMultiple && !grupo.esIndividual)
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                 decoration: BoxDecoration(color: AppConfig.naranja.withOpacity(0.12), borderRadius: BorderRadius.circular(999)),
@@ -712,7 +688,8 @@ class _GrupoCard extends StatelessWidget {
             Expanded(child: ElevatedButton.icon(
               onPressed: onAssign,
               icon: const Icon(Icons.person_add_alt_1_rounded, size: 16),
-              label: Text(esMultiple ? 'Asignar grupo' : 'Asignar a mí'),
+              // "Asignar grupo" solo si hay múltiples y no es individual
+              label: Text(esMultiple && !grupo.esIndividual ? 'Asignar grupo' : 'Asignarme'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppConfig.verde,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),

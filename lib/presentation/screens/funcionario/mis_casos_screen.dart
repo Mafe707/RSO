@@ -68,13 +68,15 @@ class _MisCasosScreenState extends State<MisCasosScreen> {
     if (!mounted) return;
     if (ok) {
       await _cargarCasos();
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Grupo enviado a validación del administrador'),
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(grupo.esIndividual
+            ? 'Reporte enviado a validación del administrador'
+            : 'Grupo enviado a validación del administrador'),
         backgroundColor: AppConfig.verde,
       ));
     } else {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('No se pudo enviar el grupo a validación'),
+        content: Text('No se pudo enviar a validación'),
         backgroundColor: AppConfig.rojo,
       ));
     }
@@ -213,21 +215,28 @@ class _MisCasosScreenState extends State<MisCasosScreen> {
                       _StatusChip(label: _getEstadoText(estado), color: estadoColor),
                     ]),
                     const SizedBox(height: 6),
-                    Row(children: [
-                      Icon(Icons.group_rounded, size: 13, color: estadoColor),
-                      const SizedBox(width: 6),
-                      Text('${grupo.totalCasos} denuncia${grupo.totalCasos > 1 ? 's' : ''} · misma ubicación y tipo',
-                        style: TextStyle(fontSize: 11.5, color: estadoColor, fontWeight: FontWeight.w600)),
-                    ]),
+                    // Solo mostrar info de agrupación si no es individual
+                    if (!grupo.esIndividual)
+                      Row(children: [
+                        Icon(Icons.group_rounded, size: 13, color: estadoColor),
+                        const SizedBox(width: 6),
+                        Text('${grupo.totalCasos} denuncia${grupo.totalCasos > 1 ? 's' : ''} · misma ubicación y tipo',
+                          style: TextStyle(fontSize: 11.5, color: estadoColor, fontWeight: FontWeight.w600)),
+                      ]),
                     if (puedeResponder) ...[
                       const SizedBox(height: 12),
                       const Divider(),
                       const SizedBox(height: 8),
-                      const Text('Respuesta oficial para todo el grupo',
-                        style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13, color: AppConfig.azulOscuro)),
+                      // Título adaptado
+                      Text(
+                        grupo.esIndividual ? 'Respuesta oficial' : 'Respuesta oficial para todo el grupo',
+                        style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13, color: AppConfig.azulOscuro),
+                      ),
                       const SizedBox(height: 4),
-                      Text('Se aplicará a las ${grupo.totalCasos} denuncia${grupo.totalCasos > 1 ? 's' : ''} del grupo.',
-                        style: TextStyle(fontSize: 11, color: AppConfig.grisOscuro)),
+                      // Subtítulo adaptado
+                      if (!grupo.esIndividual)
+                        Text('Se aplicará a las ${grupo.totalCasos} denuncia${grupo.totalCasos > 1 ? 's' : ''} del grupo.',
+                          style: TextStyle(fontSize: 11, color: AppConfig.grisOscuro)),
                       const SizedBox(height: 8),
                       TextField(
                         controller: respuestaController,
@@ -260,7 +269,12 @@ class _MisCasosScreenState extends State<MisCasosScreen> {
                             await _enviarGrupoAValidacion(grupo, respuesta);
                           },
                           icon: const Icon(Icons.send_rounded, size: 16),
-                          label: Text('Enviar a validación (${grupo.totalCasos} caso${grupo.totalCasos > 1 ? 's' : ''})'),
+                          // Etiqueta del botón adaptada
+                          label: Text(
+                            grupo.esIndividual
+                                ? 'Enviar a validación'
+                                : 'Enviar a validación (${grupo.totalCasos} caso${grupo.totalCasos > 1 ? 's' : ''})',
+                          ),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: AppConfig.azulOscuro,
                             padding: const EdgeInsets.symmetric(vertical: 12),
@@ -277,8 +291,12 @@ class _MisCasosScreenState extends State<MisCasosScreen> {
                         child: Row(children: [
                           Icon(Icons.hourglass_top_rounded, color: AppConfig.rojo, size: 16),
                           const SizedBox(width: 8),
-                          const Expanded(child: Text('En espera de validación por el administrador.',
-                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600))),
+                          Expanded(child: Text(
+                            grupo.esIndividual
+                                ? 'En espera de validación por el administrador.'
+                                : 'Grupo en espera de validación por el administrador.',
+                            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                          )),
                         ]),
                       ),
                     ],
@@ -290,8 +308,12 @@ class _MisCasosScreenState extends State<MisCasosScreen> {
                         child: Row(children: [
                           Icon(Icons.check_circle_rounded, color: AppConfig.verde, size: 16),
                           const SizedBox(width: 8),
-                          const Expanded(child: Text('Grupo resuelto y publicado correctamente.',
-                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600))),
+                          Expanded(child: Text(
+                            grupo.esIndividual
+                                ? 'Reporte resuelto y publicado correctamente.'
+                                : 'Grupo resuelto y publicado correctamente.',
+                            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                          )),
                         ]),
                       ),
                     ],
@@ -408,7 +430,7 @@ class _MisCasosScreenState extends State<MisCasosScreen> {
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         const Text('Mis Casos', style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w900)),
         const SizedBox(height: 6),
-        Text('${_gruposFiltrados.length} grupo${_gruposFiltrados.length != 1 ? 's' : ''} · ${_casos.length} caso${_casos.length != 1 ? 's' : ''} asignados',
+        Text('${_gruposFiltrados.length} elemento${_gruposFiltrados.length != 1 ? 's' : ''} · ${_casos.length} caso${_casos.length != 1 ? 's' : ''} asignados',
           style: const TextStyle(color: Colors.white70, fontSize: 13)),
       ]),
     );
@@ -425,42 +447,54 @@ class _MisCasosScreenState extends State<MisCasosScreen> {
       const SizedBox(height: 8),
       _SummaryRow(label: 'Pend. validación', value: '$pendValidacion', color: AppConfig.rojo),
       const SizedBox(height: 8),
-      _SummaryRow(label: 'Resueltos', value: '$resueltos', color: AppConfig.verde),
+      _SummaryRow(label: 'Publicados', value: '$resueltos', color: AppConfig.verde),
     ]));
   }
 
   Widget _buildFiltros() {
-    return Row(children: [
-      Expanded(child: TextField(
-        decoration: InputDecoration(
-          hintText: 'Buscar por ubicación, código...',
-          prefixIcon: const Icon(Icons.search_rounded),
-          filled: true, fillColor: Colors.white,
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide(color: AppConfig.grisMedio)),
-          contentPadding: const EdgeInsets.symmetric(vertical: 12),
+    final filtros = [
+      {'label': 'Todos', 'value': ''},
+      {'label': 'En revisión', 'value': 'en_revision'},
+      {'label': 'Pend. val.', 'value': 'resuelto_pendiente_validacion'},
+      {'label': 'Devueltos', 'value': 'devuelto'},
+      {'label': 'Publicados', 'value': 'resuelto_publicado'},
+    ];
+
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      SizedBox(
+        height: 44,
+        child: TextField(
+          onChanged: (v) => setState(() => _buscarTexto = v),
+          decoration: InputDecoration(
+            hintText: 'Buscar por código, ubicación...',
+            prefixIcon: const Icon(Icons.search_rounded, size: 20),
+            filled: true, fillColor: Colors.white,
+            contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 12),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: AppConfig.grisMedio)),
+            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: AppConfig.grisMedio)),
+            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppConfig.azulClaro)),
+            isDense: true,
+          ),
         ),
-        onChanged: (v) => setState(() => _buscarTexto = v),
-      )),
-      const SizedBox(width: 10),
-      Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: AppConfig.grisMedio),
-        ),
-        child: DropdownButtonHideUnderline(child: DropdownButton<String>(
-          value: _filtroEstado.isEmpty ? null : _filtroEstado,
-          hint: const Text('Estado'),
-          items: const [
-            DropdownMenuItem(value: '', child: Text('Todos')),
-            DropdownMenuItem(value: 'en_revision', child: Text('En revisión')),
-            DropdownMenuItem(value: 'resuelto_pendiente_validacion', child: Text('Pend. validación')),
-            DropdownMenuItem(value: 'devuelto', child: Text('Devuelto')),
-            DropdownMenuItem(value: 'resuelto_publicado', child: Text('Resuelto')),
-          ],
-          onChanged: (v) => setState(() => _filtroEstado = v ?? ''),
-        )),
+      ),
+      const SizedBox(height: 10),
+      Wrap(
+        spacing: 6, runSpacing: 8,
+        children: filtros.map((f) {
+          final selected = _filtroEstado == f['value'];
+          return FilterChip(
+            label: Text(f['label']!, style: const TextStyle(fontSize: 12)),
+            selected: selected,
+            onSelected: (_) => setState(() => _filtroEstado = f['value']!),
+            selectedColor: AppConfig.azulOscuro.withOpacity(0.12),
+            checkmarkColor: AppConfig.azulOscuro,
+            visualDensity: VisualDensity.compact,
+            labelStyle: TextStyle(
+              color: selected ? AppConfig.azulOscuro : AppConfig.grisOscuro,
+              fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
+            ),
+          );
+        }).toList(),
       ),
     ]);
   }
@@ -468,7 +502,13 @@ class _MisCasosScreenState extends State<MisCasosScreen> {
   Widget _buildBody() {
     if (_loading) return const Center(child: Padding(padding: EdgeInsets.only(top: 60), child: CircularProgressIndicator()));
     if (_errorMsg != null) return _EmptyState(icon: Icons.error_outline_rounded, title: 'Error', text: _errorMsg!);
-    if (_gruposFiltrados.isEmpty) return const _EmptyState(icon: Icons.assignment_turned_in_rounded, title: 'Sin casos', text: 'No tienes casos asignados con este filtro.');
+    if (_gruposFiltrados.isEmpty) {
+      return _EmptyState(
+        icon: Icons.assignment_outlined,
+        title: _filtroEstado.isEmpty ? 'Sin casos asignados' : 'Sin resultados',
+        text: _filtroEstado.isEmpty ? 'No tienes casos asignados aún.' : 'No hay casos con ese filtro.',
+      );
+    }
     return ListView.builder(
       shrinkWrap: true,
       primary: false,
@@ -482,25 +522,30 @@ class _MisCasosScreenState extends State<MisCasosScreen> {
           margin: const EdgeInsets.only(bottom: 12),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(20),
-            side: BorderSide(color: grupo.totalCasos > 1 ? color.withOpacity(0.4) : AppConfig.grisMedio),
+            side: BorderSide(color: grupo.totalCasos > 1 ? AppConfig.naranja.withOpacity(0.4) : AppConfig.grisMedio),
           ),
           child: ListTile(
             contentPadding: const EdgeInsets.all(14),
             leading: CircleAvatar(
               backgroundColor: color.withOpacity(0.12),
-              child: Text(_getCategoriaIcon(grupo.categoria), style: const TextStyle(fontSize: 18)),
+              child: Text(_getCategoriaIcon(grupo.categoria), style: const TextStyle(fontSize: 16)),
             ),
-            title: Text(grupo.categoria, style: const TextStyle(fontWeight: FontWeight.w900, color: AppConfig.azulOscuro)),
+            title: Text(
+              grupo.categoria.isNotEmpty ? grupo.categoria : 'Sin categoría',
+              style: const TextStyle(fontWeight: FontWeight.w900, color: AppConfig.azulOscuro),
+            ),
             subtitle: Padding(
               padding: const EdgeInsets.only(top: 6),
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(grupo.ubicacion, maxLines: 2, overflow: TextOverflow.ellipsis),
-                const SizedBox(height: 6),
-                Wrap(spacing: 6, runSpacing: 4, children: [
-                  _StatusChip(label: _getEstadoText(estado), color: color),
-                  if (grupo.totalCasos > 1)
-                    _StatusChip(label: '${grupo.totalCasos} denuncias', color: AppConfig.naranja),
-                ]),
+                if (grupo.ubicacion.isNotEmpty)
+                  Text(grupo.ubicacion, style: TextStyle(fontSize: 12, color: AppConfig.grisOscuro), maxLines: 1, overflow: TextOverflow.ellipsis),
+                const SizedBox(height: 4),
+                // Solo mostrar "X casos agrupados" si no es individual
+                if (!grupo.esIndividual)
+                  Text('${grupo.totalCasos} caso${grupo.totalCasos > 1 ? 's' : ''} agrupado${grupo.totalCasos > 1 ? 's' : ''}',
+                    style: TextStyle(fontSize: 11.5, color: AppConfig.grisOscuro)),
+                const SizedBox(height: 5),
+                _StatusChip(label: _getEstadoText(estado), color: color),
               ]),
             ),
             isThreeLine: true,
@@ -594,8 +639,6 @@ class _VisorImagenesScreenState extends State<_VisorImagenesScreen> {
   }
 }
 
-// ── Widgets ──────────────────────────────────────────────────
-
 class _DenunciaDetalleCard extends StatefulWidget {
   final Map<String, dynamic> denuncia;
   final List<String> imagenes;
@@ -604,7 +647,7 @@ class _DenunciaDetalleCard extends StatefulWidget {
   final String Function(dynamic) formatFecha;
   final String Function(String) getEstadoText;
   final Color Function(String) getEstadoColor;
-  final void Function(int indice) onVerImagen;
+  final void Function(int) onVerImagen;
 
   const _DenunciaDetalleCard({
     required this.denuncia,
@@ -623,7 +666,13 @@ class _DenunciaDetalleCard extends StatefulWidget {
 
 class _DenunciaDetalleCardState extends State<_DenunciaDetalleCard> {
   int _imgIndex = 0;
-  final PageController _pageController = PageController();
+  late PageController _pageController;
+
+  @override
+  void initState() {
+    super.initState();
+    _pageController = PageController();
+  }
 
   @override
   void dispose() {
@@ -635,80 +684,60 @@ class _DenunciaDetalleCardState extends State<_DenunciaDetalleCard> {
   Widget build(BuildContext context) {
     final d = widget.denuncia;
     final imagenes = widget.imagenes;
-    final estadoColor = widget.getEstadoColor(d['estado']?.toString() ?? '');
+    final estado = d['estado']?.toString() ?? '';
 
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFFF5F7FB),
+        color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppConfig.grisMedio),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8, offset: const Offset(0, 4))],
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        // Cabecera
         Padding(
-          padding: const EdgeInsets.fromLTRB(14, 14, 14, 10),
+          padding: const EdgeInsets.fromLTRB(14, 14, 14, 0),
           child: Row(children: [
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(color: AppConfig.azulOscuro.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
-              child: Text('Reporte ${widget.index}/${widget.total}',
-                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: AppConfig.azulOscuro)),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(color: AppConfig.azulOscuro.withOpacity(0.08), borderRadius: BorderRadius.circular(999)),
+              child: Text('Caso ${widget.index} de ${widget.total}',
+                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppConfig.azulOscuro)),
             ),
-            const SizedBox(width: 8),
-            Expanded(child: Text(d['codigo_unico'] ?? '—',
-              style: const TextStyle(fontWeight: FontWeight.w800, color: AppConfig.azulOscuro, fontSize: 13))),
-            _StatusChip(label: widget.getEstadoText(d['estado']?.toString() ?? ''), color: estadoColor),
+            const Spacer(),
+            Text(d['codigo_unico']?.toString() ?? '', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: AppConfig.azulOscuro)),
           ]),
         ),
-        // Descripción + fecha + denunciante
         Padding(
-          padding: const EdgeInsets.fromLTRB(14, 0, 14, 10),
+          padding: const EdgeInsets.fromLTRB(14, 10, 14, 0),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            const Text('Descripción', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppConfig.grisOscuro)),
-            const SizedBox(height: 4),
-            Text(d['descripcion'] ?? '—', style: const TextStyle(fontSize: 13)),
+            if ((d['descripcion'] ?? '').toString().isNotEmpty)
+              Text(d['descripcion'].toString(), style: const TextStyle(fontSize: 13), maxLines: 3, overflow: TextOverflow.ellipsis),
             const SizedBox(height: 6),
-            Text(widget.formatFecha(d['creado_en']), style: TextStyle(fontSize: 11, color: AppConfig.grisOscuro)),
-            const SizedBox(height: 8),
-            if (d['es_anonima'] == true)
-              Row(children: [
-                Icon(Icons.visibility_off_rounded, size: 13, color: AppConfig.grisMedio),
-                const SizedBox(width: 5),
-                Text('Reporte anónimo', style: TextStyle(fontSize: 12, color: AppConfig.grisMedio, fontStyle: FontStyle.italic)),
-              ])
-            else ...[
-              const Text('Denunciante', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppConfig.grisOscuro)),
-              const SizedBox(height: 4),
-              Row(children: [
-                const Icon(Icons.person_rounded, size: 13, color: AppConfig.azulOscuro),
-                const SizedBox(width: 5),
-                Expanded(child: Text(
-                  '${d['ciudadano_nombre'] ?? ''} ${d['ciudadano_apellido'] ?? ''}'.trim().isEmpty
-                    ? 'Sin nombre registrado'
-                    : '${d['ciudadano_nombre'] ?? ''} ${d['ciudadano_apellido'] ?? ''}'.trim(),
-                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-                )),
-              ]),
-              if ((d['ciudadano_correo']?.toString() ?? '').isNotEmpty) ...[
-                const SizedBox(height: 3),
-                Row(children: [
-                  const Icon(Icons.email_rounded, size: 13, color: AppConfig.azulOscuro),
-                  const SizedBox(width: 5),
-                  Expanded(child: Text(d['ciudadano_correo'].toString(),
-                    style: TextStyle(fontSize: 12, color: AppConfig.grisOscuro))),
-                ]),
-              ],
-            ],
+            Row(children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                decoration: BoxDecoration(
+                  color: widget.getEstadoColor(estado).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Text(widget.getEstadoText(estado),
+                  style: TextStyle(fontSize: 10.5, color: widget.getEstadoColor(estado), fontWeight: FontWeight.w800)),
+              ),
+              const SizedBox(width: 8),
+              Icon(Icons.calendar_today_rounded, size: 12, color: AppConfig.grisOscuro),
+              const SizedBox(width: 4),
+              Text(widget.formatFecha(d['creado_en']), style: TextStyle(fontSize: 11.5, color: AppConfig.grisOscuro)),
+            ]),
           ]),
         ),
-        // Fotos
+        const SizedBox(height: 10),
         if (imagenes.isNotEmpty) ...[
           Padding(
             padding: const EdgeInsets.fromLTRB(14, 0, 14, 6),
             child: Row(children: [
-              const Icon(Icons.photo_library_rounded, size: 13, color: AppConfig.azulOscuro),
+              Icon(Icons.photo_library_rounded, size: 13, color: AppConfig.azulOscuro),
               const SizedBox(width: 5),
-              Text('${imagenes.length} foto${imagenes.length > 1 ? 's' : ''}',
+              Text('${imagenes.length} imagen${imagenes.length > 1 ? 'es' : ''}',
                 style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppConfig.azulOscuro)),
               const Spacer(),
               GestureDetector(

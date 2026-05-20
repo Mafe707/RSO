@@ -21,6 +21,11 @@ class GrupoDenuncias {
 
   int get totalCasos => denuncias.length;
 
+  /// True si es un caso solo (sin agrupación real):
+  /// - Siempre que tenga 1 sola denuncia (independientemente de si tiene dirección/categoría)
+  /// - O si fue marcado explícitamente como individual por no tener dirección ni categoría
+  bool get esIndividual => totalCasos == 1 || claveGrupo.startsWith('individual|');
+
   String get estadoGrupo {
     final estados = denuncias.map((d) => d['estado']?.toString() ?? '').toList();
     if (estados.any((e) => e == 'devuelto')) return 'devuelto';
@@ -60,12 +65,30 @@ class DenunciaService extends ChangeNotifier {
         denuncia['ubicacion']?.toString() ?? '',
       );
 
+      // Si no tiene dirección NI categoría, va siempre sola (grupo individual)
+      final esIndividual = ubicacionNorm.isEmpty && categoriaNorm.isEmpty;
+
+      if (esIndividual) {
+        grupos.add(
+          GrupoDenuncias(
+            claveGrupo: 'individual|${denuncia['id']}',
+            ubicacion: denuncia['ubicacion']?.toString() ?? '',
+            categoria: denuncia['categoria']?.toString() ?? '',
+            denuncias: [denuncia],
+          ),
+        );
+        continue;
+      }
+
       final lat = _toDouble(denuncia['latitud']);
       final lng = _toDouble(denuncia['longitud']);
 
       GrupoDenuncias? grupoEncontrado;
 
       for (final grupo in grupos) {
+        // No agrupar con grupos individuales
+        if (grupo.claveGrupo.startsWith('individual|')) continue;
+
         final categoriaGrupoNorm = _normalizarCategoria(grupo.categoria);
         if (categoriaGrupoNorm != categoriaNorm) continue;
 
@@ -220,28 +243,25 @@ class DenunciaService extends ChangeNotifier {
     const earthRadius = 6371000.0;
     final dLat = _degToRad(lat2 - lat1);
     final dLon = _degToRad(lon2 - lon1);
-
-    final a =
-        math.sin(dLat / 2) * math.sin(dLat / 2) +
+    final a = math.sin(dLat / 2) * math.sin(dLat / 2) +
         math.cos(_degToRad(lat1)) *
             math.cos(_degToRad(lat2)) *
             math.sin(dLon / 2) *
             math.sin(dLon / 2);
-
     final c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a));
     return earthRadius * c;
   }
 
-  static double _degToRad(double deg) => deg * (math.pi / 180.0);
+  static double _degToRad(double deg) => deg * (math.pi / 180);
 
   Future<Map<String, dynamic>?> crearDenuncia({
     required String ubicacion,
-    required double? latitud,
-    required double? longitud,
+    double? latitud,
+    double? longitud,
     required String categoria,
     required String descripcion,
     List<Uint8List>? imagenesBytes,
-    bool esAnonima = true,
+    required bool esAnonima,
     int? ciudadanoId,
     String? ciudadanoNombre,
     String? ciudadanoApellido,

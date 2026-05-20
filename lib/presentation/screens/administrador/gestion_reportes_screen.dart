@@ -98,13 +98,15 @@ class _ValidacionReportesScreenState extends State<ValidacionReportesScreen> {
     if (!mounted) return;
     if (ok) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Grupo "${grupo.ubicacion}" (${grupo.totalCasos} caso${grupo.totalCasos > 1 ? 's' : ''}) publicado correctamente'),
+        content: Text(grupo.totalCasos > 1
+            ? 'Grupo "${grupo.ubicacion}" (${grupo.totalCasos} casos) publicado correctamente'
+            : 'Denuncia "${grupo.ubicacion}" publicada correctamente'),
         backgroundColor: AppConfig.verde,
       ));
       _cargarReportes(silencioso: true);
     } else {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Error al publicar el grupo'), backgroundColor: AppConfig.rojo));
+        content: Text('Error al publicar'), backgroundColor: AppConfig.rojo));
     }
   }
 
@@ -116,7 +118,9 @@ class _ValidacionReportesScreenState extends State<ValidacionReportesScreen> {
       }
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Grupo devuelto al funcionario (${grupo.totalCasos} caso${grupo.totalCasos > 1 ? 's' : ''})'),
+        content: Text(grupo.totalCasos > 1
+            ? 'Grupo devuelto al funcionario (${grupo.totalCasos} casos)'
+            : 'Denuncia devuelta al funcionario'),
         backgroundColor: const Color(0xFF9C27B0),
       ));
       _cargarReportes(silencioso: true);
@@ -205,11 +209,20 @@ class _ValidacionReportesScreenState extends State<ValidacionReportesScreen> {
                       _StatusChip(label: _getEstadoText(estado), color: estadoColor),
                     ]),
                     const SizedBox(height: 6),
+                    // ── CORRECCIÓN: solo mostrar "agrupadas" si hay más de 1 denuncia ──
                     Row(children: [
-                      Icon(Icons.group_rounded, size: 13, color: estadoColor),
+                      Icon(
+                        grupo.totalCasos > 1 ? Icons.group_rounded : Icons.person_rounded,
+                        size: 13,
+                        color: estadoColor,
+                      ),
                       const SizedBox(width: 6),
-                      Text('${grupo.totalCasos} denuncia${grupo.totalCasos > 1 ? 's' : ''} agrupada${grupo.totalCasos > 1 ? 's' : ''} · misma ubicación y tipo',
-                        style: TextStyle(fontSize: 11.5, color: estadoColor, fontWeight: FontWeight.w600)),
+                      Text(
+                        grupo.totalCasos > 1
+                            ? '${grupo.totalCasos} denuncias agrupadas · misma ubicación y tipo'
+                            : '1 denuncia',
+                        style: TextStyle(fontSize: 11.5, color: estadoColor, fontWeight: FontWeight.w600),
+                      ),
                     ]),
                     const SizedBox(height: 12),
                     // Respuesta del funcionario
@@ -284,7 +297,7 @@ class _ValidacionReportesScreenState extends State<ValidacionReportesScreen> {
                             _aprobarGrupo(grupo);
                           },
                           icon: const Icon(Icons.check_circle_rounded, size: 15),
-                          label: Text('Publicar (${grupo.totalCasos})'),
+                          label: Text(grupo.totalCasos > 1 ? 'Publicar (${grupo.totalCasos})' : 'Publicar'),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: AppConfig.verde,
                             padding: const EdgeInsets.symmetric(vertical: 11),
@@ -590,7 +603,12 @@ class _ValidacionReportesScreenState extends State<ValidacionReportesScreen> {
             subtitle: Padding(
               padding: const EdgeInsets.only(top: 6),
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text('${grupo.totalCasos} caso${grupo.totalCasos > 1 ? 's' : ''} agrupado${grupo.totalCasos > 1 ? 's' : ''}'),
+                // ── CORRECCIÓN: texto diferente según si es 1 o varios ──
+                Text(
+                  grupo.totalCasos > 1
+                      ? '${grupo.totalCasos} casos agrupados'
+                      : '1 caso',
+                ),
                 const SizedBox(height: 4),
                 Text(grupo.categoria, style: TextStyle(fontSize: 12, color: AppConfig.grisOscuro)),
                 const SizedBox(height: 7),
@@ -749,171 +767,110 @@ class _DenunciaDetalleCardState extends State<_DenunciaDetalleCard> {
         border: Border.all(color: AppConfig.grisMedio),
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        // Cabecera
+        // Encabezado de la tarjeta individual
         Padding(
-          padding: const EdgeInsets.fromLTRB(14, 14, 14, 10),
+          padding: const EdgeInsets.fromLTRB(14, 14, 14, 0),
           child: Row(children: [
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(color: AppConfig.azulOscuro.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
-              child: Text('Reporte ${widget.index}/${widget.total}',
-                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: AppConfig.azulOscuro)),
-            ),
-            const SizedBox(width: 8),
-            Expanded(child: Text(d['codigo_unico'] ?? '—',
-              style: const TextStyle(fontWeight: FontWeight.w800, color: AppConfig.azulOscuro, fontSize: 13))),
-            Text(widget.formatFecha(d['creado_en']), style: TextStyle(fontSize: 11, color: AppConfig.grisOscuro)),
-          ]),
-        ),
-        // Descripción + denunciante
-        Padding(
-          padding: const EdgeInsets.fromLTRB(14, 0, 14, 10),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            const Text('Descripción', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppConfig.grisOscuro)),
-            const SizedBox(height: 4),
-            Text(d['descripcion'] ?? '—', style: const TextStyle(fontSize: 13)),
-            const SizedBox(height: 10),
-            // Sección denunciante
-            if (d['es_anonima'] == true)
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-                decoration: BoxDecoration(
-                  color: AppConfig.grisMedio.withOpacity(0.18),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Row(children: [
-                  Icon(Icons.visibility_off_rounded, size: 14, color: AppConfig.grisOscuro),
-                  const SizedBox(width: 6),
-                  Text('Reporte anónimo', style: TextStyle(fontSize: 12, color: AppConfig.grisOscuro, fontStyle: FontStyle.italic)),
-                ]),
-              )
-            else
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: AppConfig.azulOscuro.withOpacity(0.05),
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: AppConfig.azulOscuro.withOpacity(0.12)),
-                ),
-                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Row(children: [
-                    Icon(Icons.person_rounded, size: 13, color: AppConfig.azulOscuro),
-                    const SizedBox(width: 5),
-                    const Text('Denunciante', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: AppConfig.azulOscuro)),
-                  ]),
-                  const SizedBox(height: 6),
-                  Text(
-                    '${d['ciudadano_nombre'] ?? ''} ${d['ciudadano_apellido'] ?? ''}'.trim().isEmpty
-                      ? 'Sin nombre registrado'
-                      : '${d['ciudadano_nombre'] ?? ''} ${d['ciudadano_apellido'] ?? ''}'.trim(),
-                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-                  ),
-                  if ((d['ciudadano_correo']?.toString() ?? '').isNotEmpty) ...[
-                    const SizedBox(height: 4),
-                    Row(children: [
-                      Icon(Icons.email_rounded, size: 12, color: AppConfig.grisOscuro),
-                      const SizedBox(width: 5),
-                      Expanded(child: Text(d['ciudadano_correo'].toString(),
-                        style: TextStyle(fontSize: 12, color: AppConfig.grisOscuro))),
-                    ]),
-                  ],
-                  if ((d['ciudadano_telefono']?.toString() ?? '').isNotEmpty) ...[
-                    const SizedBox(height: 4),
-                    Row(children: [
-                      Icon(Icons.phone_rounded, size: 12, color: AppConfig.grisOscuro),
-                      const SizedBox(width: 5),
-                      Text(d['ciudadano_telefono'].toString(),
-                        style: TextStyle(fontSize: 12, color: AppConfig.grisOscuro)),
-                    ]),
-                  ],
-                ]),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                color: AppConfig.azulOscuro.withOpacity(0.08),
+                borderRadius: BorderRadius.circular(8),
               ),
+              child: Text(
+                widget.total > 1 ? 'Denuncia ${widget.index} de ${widget.total}' : 'Denuncia',
+                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: AppConfig.azulOscuro),
+              ),
+            ),
+            const Spacer(),
+            _StatusChip(
+              label: widget.getEstadoText(d['estado']?.toString() ?? ''),
+              color: estadoColor,
+            ),
           ]),
         ),
-        // Fotos
+        Padding(
+          padding: const EdgeInsets.fromLTRB(14, 10, 14, 14),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            if ((d['codigo_unico'] ?? '').toString().isNotEmpty)
+              _InfoRow(label: 'Código', value: d['codigo_unico'].toString()),
+            if ((d['categoria'] ?? '').toString().isNotEmpty)
+              _InfoRow(label: 'Categoría', value: d['categoria'].toString()),
+            if ((d['ubicacion'] ?? '').toString().isNotEmpty)
+              _InfoRow(label: 'Ubicación', value: d['ubicacion'].toString()),
+            if ((d['descripcion'] ?? '').toString().isNotEmpty)
+              _InfoRow(label: 'Descripción', value: d['descripcion'].toString()),
+            if ((d['creado_en'] ?? '') != '')
+              _InfoRow(label: 'Fecha', value: widget.formatFecha(d['creado_en'])),
+            if ((d['respuesta_oficial'] ?? '').toString().isNotEmpty)
+              _InfoRow(label: 'Respuesta', value: d['respuesta_oficial'].toString()),
+          ]),
+        ),
+        // Imágenes
         if (imagenes.isNotEmpty) ...[
-          Padding(
-            padding: const EdgeInsets.fromLTRB(14, 0, 14, 6),
-            child: Row(children: [
-              const Icon(Icons.photo_library_rounded, size: 13, color: AppConfig.azulOscuro),
-              const SizedBox(width: 5),
-              Text('${imagenes.length} foto${imagenes.length > 1 ? 's' : ''}',
-                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppConfig.azulOscuro)),
-              const Spacer(),
-              GestureDetector(
-                onTap: () => widget.onVerImagen(_imgIndex),
-                child: Text('Ver completa', style: TextStyle(fontSize: 11, color: AppConfig.azulClaro, fontWeight: FontWeight.w700)),
+          ClipRRect(
+            borderRadius: const BorderRadius.vertical(bottom: Radius.circular(16)),
+            child: Stack(children: [
+              AspectRatio(
+                aspectRatio: 16 / 9,
+                child: PageView.builder(
+                  controller: _pageController,
+                  itemCount: imagenes.length,
+                  onPageChanged: (i) => setState(() => _imgIndex = i),
+                  itemBuilder: (_, idx) => Image.network(
+                    imagenes[idx],
+                    width: double.infinity,
+                    fit: BoxFit.cover,
+                    loadingBuilder: (_, child, progress) => progress == null
+                      ? child
+                      : const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                    errorBuilder: (_, __, ___) => const Center(
+                      child: Icon(Icons.broken_image_rounded, color: AppConfig.grisMedio, size: 40)),
+                  ),
+                ),
+              ),
+              Positioned.fill(
+                child: GestureDetector(
+                  onTap: () => widget.onVerImagen(_imgIndex),
+                  child: Container(color: Colors.transparent),
+                ),
+              ),
+              if (imagenes.length > 1) ...[
+                Positioned(
+                  bottom: 10, left: 0, right: 0,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: List.generate(imagenes.length, (idx) => Container(
+                      width: _imgIndex == idx ? 18 : 7,
+                      height: 7,
+                      margin: const EdgeInsets.symmetric(horizontal: 3),
+                      decoration: BoxDecoration(
+                        color: _imgIndex == idx ? Colors.white : Colors.white54,
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                    )),
+                  ),
+                ),
+                Positioned(
+                  top: 10, right: 12,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                    decoration: BoxDecoration(color: Colors.black54, borderRadius: BorderRadius.circular(999)),
+                    child: Text('${_imgIndex + 1}/${imagenes.length}',
+                      style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w800)),
+                  ),
+                ),
+              ],
+              Positioned(
+                bottom: 10, right: 12,
+                child: Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(color: Colors.black54, borderRadius: BorderRadius.circular(8)),
+                  child: const Icon(Icons.fullscreen_rounded, color: Colors.white, size: 18),
+                ),
               ),
             ]),
           ),
-          Stack(children: [
-            GestureDetector(
-              onTap: () => widget.onVerImagen(_imgIndex),
-              child: ClipRRect(
-                borderRadius: imagenes.length == 1
-                  ? const BorderRadius.vertical(bottom: Radius.circular(16))
-                  : BorderRadius.zero,
-                child: SizedBox(
-                  height: 220,
-                  child: PageView.builder(
-                    controller: _pageController,
-                    itemCount: imagenes.length,
-                    onPageChanged: (i) => setState(() => _imgIndex = i),
-                    itemBuilder: (_, idx) => Image.network(
-                      imagenes[idx],
-                      width: double.infinity,
-                      fit: BoxFit.cover,
-                      loadingBuilder: (_, child, progress) => progress == null
-                        ? child
-                        : const Center(child: CircularProgressIndicator(strokeWidth: 2)),
-                      errorBuilder: (_, __, ___) => const Center(
-                        child: Icon(Icons.broken_image_rounded, color: AppConfig.grisMedio, size: 40)),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-            Positioned.fill(
-              child: GestureDetector(
-                onTap: () => widget.onVerImagen(_imgIndex),
-                child: Container(color: Colors.transparent),
-              ),
-            ),
-            if (imagenes.length > 1) ...[
-              Positioned(
-                bottom: 10, left: 0, right: 0,
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: List.generate(imagenes.length, (idx) => Container(
-                    width: _imgIndex == idx ? 18 : 7,
-                    height: 7,
-                    margin: const EdgeInsets.symmetric(horizontal: 3),
-                    decoration: BoxDecoration(
-                      color: _imgIndex == idx ? Colors.white : Colors.white54,
-                      borderRadius: BorderRadius.circular(999),
-                    ),
-                  )),
-                ),
-              ),
-              Positioned(
-                top: 10, right: 12,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-                  decoration: BoxDecoration(color: Colors.black54, borderRadius: BorderRadius.circular(999)),
-                  child: Text('${_imgIndex + 1}/${imagenes.length}',
-                    style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w800)),
-                ),
-              ),
-            ],
-            Positioned(
-              bottom: 10, right: 12,
-              child: Container(
-                padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(color: Colors.black54, borderRadius: BorderRadius.circular(8)),
-                child: const Icon(Icons.fullscreen_rounded, color: Colors.white, size: 18),
-              ),
-            ),
-          ]),
           if (imagenes.length > 1)
             ClipRRect(
               borderRadius: const BorderRadius.vertical(bottom: Radius.circular(16)),
@@ -959,6 +916,27 @@ class _DenunciaDetalleCardState extends State<_DenunciaDetalleCard> {
               Text('Sin evidencia fotográfica', style: TextStyle(fontSize: 12, color: AppConfig.grisMedio)),
             ]),
           ),
+      ]),
+    );
+  }
+}
+
+// Widget helper interno para filas de info en la tarjeta de detalle
+class _InfoRow extends StatelessWidget {
+  final String label;
+  final String value;
+  const _InfoRow({required this.label, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        SizedBox(
+          width: 90,
+          child: Text(label, style: TextStyle(fontSize: 12, color: AppConfig.grisOscuro, fontWeight: FontWeight.w700)),
+        ),
+        Expanded(child: Text(value, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600))),
       ]),
     );
   }
